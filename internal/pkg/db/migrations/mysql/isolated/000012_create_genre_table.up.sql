@@ -1,0 +1,5 @@
+CREATE TABLE genres (
+    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+    name VARCHAR(50) UNIQUE NOT NULL,
+    description TEXT
+) ENGINE=InnoDB;
