@@ -1,5 +1,7 @@
 module github.com/JoeJohnRio/youtube-music
 
+replace github.com/JoeJohnRio/youtube-music => ../youtube-music
+
 go 1.23.2
 
 require (
