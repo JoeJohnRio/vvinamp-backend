@@ -61,14 +61,14 @@ input Login {
 
 type Query {
   # Artist queries
-  artists: [Artist!]!
-  artist(id: ID!): Artist
+#  artists: [Artist!]!
+#  artist(id: ID!): Artist
   
   # Existing queries
-  genres: [Genre!]!
-  genre(id: ID!): Genre
-  albums: [Album!]!
-  album(id: ID!): Album
+#  genres: [Genre!]!
+#  genre(id: ID!): Genre
+#  albums: [Album!]!
+#  album(id: ID!): Album
   
   getAlbum(id: ID!): Album
 }
@@ -77,9 +77,5 @@ type Query {
 # MUTATION SECTION ------------------------------------------------------------------------------
 
 type Mutation {
-  createLink(input: NewLink!): Link!
-  createUser(input: NewUser!): String!
-  login(input: Login!): String!
-  # we'll talk about this in authentication section
   refreshToken(input: RefreshTokenInput!): String!
 }

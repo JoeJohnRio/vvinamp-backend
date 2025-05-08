@@ -7,63 +7,10 @@ package graph
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/JoeJohnRio/youtube-music/graph/model"
-	"github.com/JoeJohnRio/youtube-music/internal/auth"
-	"github.com/JoeJohnRio/youtube-music/internal/links"
-	"github.com/JoeJohnRio/youtube-music/internal/users"
 	"github.com/JoeJohnRio/youtube-music/pkg/jwt"
 )
-
-// CreateLink is the resolver for the createLink field.
-func (r *mutationResolver) CreateLink(ctx context.Context, input model.NewLink) (*model.Link, error) {
-	// 1
-	user := auth.ForContext(ctx)
-	if user == nil {
-		return &model.Link{}, fmt.Errorf("access denied")
-	}
-
-	// 2
-	var link links.Link
-	link.User = user
-	linkID := link.Save()
-	graphqlUser := &model.User{
-		ID:   user.ID,
-		Name: user.Username,
-	}
-	return &model.Link{ID: strconv.FormatInt(linkID, 10), Title: link.Title, Address: link.Address, User: graphqlUser}, nil
-}
-
-// CreateUser is the resolver for the createUser field.
-func (r *mutationResolver) CreateUser(ctx context.Context, input model.NewUser) (string, error) {
-	var user users.User
-	user.Username = input.Username
-	user.Password = input.Password
-	user.Create()
-	token, err := jwt.GenerateToken(user.Username)
-	if err != nil {
-		return "", err
-	}
-	return token, nil
-}
-
-// Login is the resolver for the login field.
-func (r *mutationResolver) Login(ctx context.Context, input model.Login) (string, error) {
-	var user users.User
-	user.Username = input.Username
-	user.Password = input.Password
-	correct := user.Authenticate()
-	if !correct {
-		// 1
-		return "", &users.WrongUsernameOrPasswordError{}
-	}
-	token, err := jwt.GenerateToken(user.Username)
-	if err != nil {
-		return "", err
-	}
-	return token, nil
-}
 
 // RefreshToken is the resolver for the refreshToken field.
 func (r *mutationResolver) RefreshToken(ctx context.Context, input model.RefreshTokenInput) (string, error) {
@@ -76,46 +23,6 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, input model.Refresh
 		return "", err
 	}
 	return token, nil
-}
-
-// Artists is the resolver for the artists field.
-func (r *queryResolver) Artists(ctx context.Context) ([]*model.Artist, error) {
-	panic(fmt.Errorf("not implemented: Artists - artists"))
-}
-
-// Artist is the resolver for the artist field.
-func (r *queryResolver) Artist(ctx context.Context, id string) (*model.Artist, error) {
-	panic(fmt.Errorf("not implemented: Artist - artist"))
-}
-
-// Genres is the resolver for the genres field.
-func (r *queryResolver) Genres(ctx context.Context) ([]*model.Genre, error) {
-	panic(fmt.Errorf("not implemented: Genres - genres"))
-}
-
-// Genre is the resolver for the genre field.
-func (r *queryResolver) Genre(ctx context.Context, id string) (*model.Genre, error) {
-	panic(fmt.Errorf("not implemented: Genre - genre"))
-}
-
-// Albums is the resolver for the albums field.
-func (r *queryResolver) Albums(ctx context.Context) ([]*model.Album, error) {
-	panic(fmt.Errorf("not implemented: Albums - albums"))
-}
-
-// Album is the resolver for the album field.
-func (r *queryResolver) Album(ctx context.Context, id string) (*model.Album, error) {
-	// Using repository directly
-	dbAlbum, err := r.AlbumRepo.GetByID(ctx, id)
-
-	// OR using service layer
-	// dbAlbum, err := r.AlbumService.GetAlbumWithValidation(ctx, id)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return convertAlbum(dbAlbum), nil
 }
 
 // GetAlbum is the resolver for the getAlbum field.
