@@ -7,14 +7,13 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/99designs/gqlgen/codegen/testserver/compliant-int/generated-default"
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/playground"
-	"github.com/JoeJohnRio/youtube-music/graph"
-	"github.com/JoeJohnRio/youtube-music/internal/auth"
-	database "github.com/JoeJohnRio/youtube-music/internal/pkg/db/migrations/mysql"
+	"github.com/JoeJohnRio/youtube-music/graphql"
+	"github.com/JoeJohnRio/youtube-music/graphql/resolvers"
 	"github.com/JoeJohnRio/youtube-music/internal/pkg/db/seeds"
 	"github.com/JoeJohnRio/youtube-music/internal/repository"
+	"github.com/JoeJohnRio/youtube-music/internal/repository/album"
 	"github.com/go-chi/chi/v5"
 
 	"flag"
@@ -26,36 +25,51 @@ const defaultPort = "8080"
 
 func main() {
 
+	// Set up the port
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
 	}
 
+	// Create router
 	router := chi.NewRouter()
 
-	router.Use(auth.Middleware())
+	// Uncomment this if you are using auth middleware
+	// router.Use(auth.Middleware())
 
-	database.InitDB()
-	database.Migrate()
-
-	albumRepo := repository.NewAlbumRepository(database.Db)
-
-	resolver := &graph.Resolver{
-		AlbumRepo: albumRepo,
+	// Initialize DB connection
+	db, err := sql.Open("mysql", "root:password@tcp(localhost)/youtube_music_clone")
+	if err != nil {
+		log.Fatalf("Failed to connect to the database: %v", err)
 	}
 
-	// Create server config WITH the resolver
-	server := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
-		Resolvers: resolver, // This is where the resolver is actually used
+	// Initialize repositories
+	albumRepo := album.NewAlbumRepository(db)
+
+	// Set up the root repository with injected dependencies
+	repo := &repository.Repository{
+		Album: albumRepo,
+	}
+
+	// Create resolver with repositories
+	resolver := &resolvers.Resolver{
+		Repo: repo,
+	}
+
+	// Create GraphQL server
+	server := handler.NewDefaultServer(graphql.NewExecutableSchema(graphql.Config{
+		Resolvers: resolver,
 	}))
 
-	// server := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}}))
-	router.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	router.Handle("/query", server)
+	// Set up the routes
+	router.Handle("/", playground.Handler("GraphQL playground", "/graphql"))
+	router.Handle("/graphql", server)
 
-	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
+	// Log server start
+	log.Printf("Starting server on http://localhost:%s", port)
+
+	// Start the server
 	log.Fatal(http.ListenAndServe(":"+port, router))
-
 	// godotenv.Load()
 	// handleArgs()
 }
