@@ -4,8 +4,6 @@ import (
 	"database/sql"
 	"log"
 
-	"github.com/JoeJohnRio/youtube-music/graph"
-	"github.com/JoeJohnRio/youtube-music/internal/repository"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/golang-migrate/migrate"
 	"github.com/golang-migrate/migrate/database/mysql"
@@ -25,12 +23,6 @@ func InitDB() {
 		log.Panic(err)
 	}
 	Db = db
-
-	albumRepo := repository.NewAlbumRepository(db)
-
-	resolver := &graph.Resolver{
-		AlbumRepo: albumRepo,
-	}
 }
 
 func CloseDB() error {

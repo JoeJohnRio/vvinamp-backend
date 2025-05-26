@@ -1,8 +1,13 @@
+
 type Link {
   id: ID!
   title: String!
   address: String!
   user: User!
+}
+
+type SomethingNotMapped {
+  field: String!
 }
 
 type User {
@@ -17,23 +22,23 @@ type Artist {
   profileImage: String
   verified: Boolean!
   monthlyListeners: Int!
-  albums: [Album!]! 
+  albums: [Album!]!
 }
 
 type Genre {
   id: ID!
   name: String!
   description: String
-  albums: [Album!]! 
+  albums: [Album!]!
 }
 
 type Album {
   id: ID!
   title: String!
-  artist: Artist!  
+  artist: Artist!
   releaseDate: String!
   coverArt: String
-  genre: Genre     
+  genre: Genre
 }
 
 #INPUT SECTION --------------------------------------------------------------------------------------
@@ -60,19 +65,8 @@ input Login {
 # QUERY SECTION ------------------------------------------------------------------------------
 
 type Query {
-  # Artist queries
-#  artists: [Artist!]!
-#  artist(id: ID!): Artist
-  
-  # Existing queries
-#  genres: [Genre!]!
-#  genre(id: ID!): Genre
-#  albums: [Album!]!
-#  album(id: ID!): Album
-  
   getAlbum(id: ID!): Album
 }
-
 
 # MUTATION SECTION ------------------------------------------------------------------------------
 
