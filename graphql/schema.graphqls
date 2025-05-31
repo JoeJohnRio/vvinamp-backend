@@ -1,20 +1,4 @@
 
-type Link {
-  id: ID!
-  title: String!
-  address: String!
-  user: User!
-}
-
-type SomethingNotMapped {
-  field: String!
-}
-
-type User {
-  id: ID!
-  name: String!
-}
-
 type Artist {
   id: ID!
   name: String!
@@ -23,6 +7,7 @@ type Artist {
   verified: Boolean!
   monthlyListeners: Int!
   albums: [Album!]!
+  tracks: [Track!]!
 }
 
 type Genre {
@@ -39,6 +24,77 @@ type Album {
   releaseDate: String!
   coverArt: String
   genre: Genre
+  tracks: [Track!]!
+}
+
+type User {
+  id: ID!
+  username: String!
+  email: String!
+  passwordHash: String!
+  profilePicture: String
+  joinDate: String!
+  subscriptionType: String
+  lastLogin: String
+  playlists: [Playlist!]!
+  listeningHistory: [ListeningHistory!]!
+  likedTracks: [UserLike!]!
+  followedArtists: [UserFollow!]!
+}
+
+type Track {
+  id: ID!
+  title: String!
+  duration: Int!
+  audioFileUrl: String!
+  streamCount: Int!
+  album: Album!
+  explicit: Boolean!
+  lyrics: String
+  releaseDate: String!
+  artists: [TrackArtist!]!
+}
+
+type TrackArtist {
+  track: Track!
+  artist: Artist!
+  role: String
+}
+
+type Playlist {
+  id: ID!
+  title: String!
+  creator: User!
+  createdAt: String!
+  updatedAt: String
+  isPublic: Boolean!
+  coverImage: String
+  tracks: [PlaylistTrack!]!
+}
+
+type PlaylistTrack {
+  playlist: Playlist!
+  track: Track!
+  position: Int!
+  addedAt: String!
+}
+
+type ListeningHistory {
+  user: User!
+  track: Track!
+  playedAt: String!
+  progress: Int!
+}
+
+type UserLike {
+  user: User!
+  track: Track!
+  likedAt: String!
+}
+
+type UserFollow {
+  user: User!
+  artist: Artist!
 }
 
 #INPUT SECTION --------------------------------------------------------------------------------------
@@ -66,6 +122,7 @@ input Login {
 
 type Query {
   getAlbum(id: ID!): Album
+  getAllGenres: [Genre!]!
 }
 
 # MUTATION SECTION ------------------------------------------------------------------------------
