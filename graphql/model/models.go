@@ -2,11 +2,11 @@
 
 package model
 
-type Link struct {
-	ID      string `json:"id"`
-	Title   string `json:"title"`
-	Address string `json:"address"`
-	User    *User  `json:"user"`
+type ListeningHistory struct {
+	User     *User  `json:"user"`
+	Track    *Track `json:"track"`
+	PlayedAt string `json:"playedAt"`
+	Progress int    `json:"progress"`
 }
 
 type Login struct {
@@ -27,6 +27,24 @@ type NewUser struct {
 	Password string `json:"password"`
 }
 
+type Playlist struct {
+	ID         string           `json:"id"`
+	Title      string           `json:"title"`
+	Creator    *User            `json:"creator"`
+	CreatedAt  string           `json:"createdAt"`
+	UpdatedAt  *string          `json:"updatedAt,omitempty"`
+	IsPublic   bool             `json:"isPublic"`
+	CoverImage *string          `json:"coverImage,omitempty"`
+	Tracks     []*PlaylistTrack `json:"tracks"`
+}
+
+type PlaylistTrack struct {
+	Playlist *Playlist `json:"playlist"`
+	Track    *Track    `json:"track"`
+	Position int       `json:"position"`
+	AddedAt  string    `json:"addedAt"`
+}
+
 type Query struct {
 }
 
@@ -34,11 +52,47 @@ type RefreshTokenInput struct {
 	Token string `json:"token"`
 }
 
-type SomethingNotMapped struct {
-	Field string `json:"field"`
+type Track struct {
+	ID           string         `json:"id"`
+	Title        string         `json:"title"`
+	Duration     int            `json:"duration"`
+	AudioFileURL string         `json:"audioFileUrl"`
+	StreamCount  int            `json:"streamCount"`
+	Album        *Album         `json:"album"`
+	Explicit     bool           `json:"explicit"`
+	Lyrics       *string        `json:"lyrics,omitempty"`
+	ReleaseDate  string         `json:"releaseDate"`
+	Artists      []*TrackArtist `json:"artists"`
+}
+
+type TrackArtist struct {
+	Track  *Track  `json:"track"`
+	Artist *Artist `json:"artist"`
+	Role   *string `json:"role,omitempty"`
 }
 
 type User struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID               string              `json:"id"`
+	Username         string              `json:"username"`
+	Email            string              `json:"email"`
+	PasswordHash     string              `json:"passwordHash"`
+	ProfilePicture   *string             `json:"profilePicture,omitempty"`
+	JoinDate         string              `json:"joinDate"`
+	SubscriptionType *string             `json:"subscriptionType,omitempty"`
+	LastLogin        *string             `json:"lastLogin,omitempty"`
+	Playlists        []*Playlist         `json:"playlists"`
+	ListeningHistory []*ListeningHistory `json:"listeningHistory"`
+	LikedTracks      []*UserLike         `json:"likedTracks"`
+	FollowedArtists  []*UserFollow       `json:"followedArtists"`
+}
+
+type UserFollow struct {
+	User   *User   `json:"user"`
+	Artist *Artist `json:"artist"`
+}
+
+type UserLike struct {
+	User    *User  `json:"user"`
+	Track   *Track `json:"track"`
+	LikedAt string `json:"likedAt"`
 }

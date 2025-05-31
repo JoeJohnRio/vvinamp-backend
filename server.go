@@ -14,6 +14,7 @@ import (
 	"github.com/JoeJohnRio/youtube-music/internal/pkg/db/seeds"
 	"github.com/JoeJohnRio/youtube-music/internal/repository"
 	"github.com/JoeJohnRio/youtube-music/internal/repository/album"
+	"github.com/JoeJohnRio/youtube-music/internal/repository/genre"
 	"github.com/go-chi/chi/v5"
 
 	"flag"
@@ -45,10 +46,12 @@ func main() {
 
 	// Initialize repositories
 	albumRepo := album.NewAlbumRepository(db)
+	genreRepo := genre.NewGenreRepository(db)
 
 	// Set up the root repository with injected dependencies
 	repo := &repository.Repository{
 		Album: albumRepo,
+		Genre: genreRepo,
 	}
 
 	// Create resolver with repositories
