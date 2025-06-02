@@ -97,6 +97,14 @@ type UserFollow {
   artist: Artist!
 }
 
+type QuickPick {
+  trackId: ID!
+  title: String!
+  artistName: String!
+  playCount: Int!
+  coverArt: String
+}
+
 #INPUT SECTION --------------------------------------------------------------------------------------
 
 input NewLink {
@@ -123,10 +131,12 @@ input Login {
 type Query {
   getAlbum(id: ID!): Album
   getAllGenres: [Genre!]!
+  getQuickPicks(userId: ID!): [QuickPick!]!
 }
 
 # MUTATION SECTION ------------------------------------------------------------------------------
 
 type Mutation {
+  createUser(input: NewUser!)
   refreshToken(input: RefreshTokenInput!): String!
 }

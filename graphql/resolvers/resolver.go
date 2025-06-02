@@ -6,18 +6,20 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/JoeJohnRio/youtube-music/graphql"
-	"github.com/JoeJohnRio/youtube-music/graphql/model"
-	"github.com/JoeJohnRio/youtube-music/graphql/resolvers/album"
-	"github.com/JoeJohnRio/youtube-music/graphql/resolvers/genre"
-	"github.com/JoeJohnRio/youtube-music/internal/repository"
-	"github.com/JoeJohnRio/youtube-music/pkg/jwt"
+	"spotify-clone/graphql"
+	"spotify-clone/graphql/model"
+	"spotify-clone/graphql/resolvers/album"
+	"spotify-clone/graphql/resolvers/genre"
+	"spotify-clone/graphql/resolvers/user"
+	"spotify-clone/internal/repository"
+	"spotify-clone/pkg/jwt"
 )
 
 type Resolver struct {
 	Repo *repository.Repository
 }
 
+// Tracks is the resolver for the tracks field.
 func (r *albumResolver) Tracks(ctx context.Context, obj *model.Album) ([]*model.Track, error) {
 	panic("not implemented")
 }
@@ -59,6 +61,15 @@ func (r *queryResolver) GetAllGenres(ctx context.Context) ([]*model.Genre, error
 	}
 	// 2. Convert to GraphQL model
 	return genre.ToGraphQL(dbGenre), nil
+}
+
+// GetQuickPicks is the resolver for the getQuickPicks field.
+func (r *queryResolver) GetQuickPicks(ctx context.Context, userID string) ([]*model.QuickPick, error) {
+	picks, err := r.Repo.User.GetUserQuickPicks(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return user.ToGraphQLQuickPicks(picks), nil
 }
 
 // Album returns graphql1.AlbumResolver implementation.

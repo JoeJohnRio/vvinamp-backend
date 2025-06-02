@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/JoeJohnRio/youtube-music/internal/users"
-	"github.com/JoeJohnRio/youtube-music/pkg/jwt"
+	"spotify-clone/internal/pkg/jwt"
+	userRepository "spotify-clone/internal/repository/user"
 )
 
 var userCtxKey = &contextKey{"user"}
@@ -36,8 +36,8 @@ func Middleware() func(http.Handler) http.Handler {
 			}
 
 			// create user and check if user exists in db
-			user := users.User{Username: username}
-			id, err := users.GetUserIdByUsername(username)
+			user := userRepository.User{Username: username}
+			id, err := userRepository.GetUserIdByUsername(username)
 			if err != nil {
 				next.ServeHTTP(w, r)
 				return
@@ -54,8 +54,8 @@ func Middleware() func(http.Handler) http.Handler {
 }
 
 // ForContext finds the user from the context. REQUIRES Middleware to have run.
-func ForContext(ctx context.Context) *users.User {
+func ForContext(ctx context.Context) *userRepository.User {
 	log.Println("joel123", userCtxKey)
-	raw, _ := ctx.Value(userCtxKey).(*users.User)
+	raw, _ := ctx.Value(userCtxKey).(*userRepository.User)
 	return raw
 }

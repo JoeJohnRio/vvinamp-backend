@@ -1,6 +1,6 @@
-module github.com/JoeJohnRio/youtube-music
+module spotify-clone
 
-replace github.com/JoeJohnRio/youtube-music => ../youtube-music
+// replace github.com/JoeJohnRio/youtube-music => ../youtube-music
 
 go 1.23.2
 

@@ -7,14 +7,16 @@ import (
 	"net/http"
 	"os"
 
+	"spotify-clone/graphql"
+	"spotify-clone/graphql/resolvers"
+	"spotify-clone/internal/auth"
+	"spotify-clone/internal/pkg/db/seeds"
+	"spotify-clone/internal/repository"
+	"spotify-clone/internal/repository/album"
+	"spotify-clone/internal/repository/genre"
+	"spotify-clone/internal/repository/user"
+
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
-	"github.com/JoeJohnRio/youtube-music/graphql"
-	"github.com/JoeJohnRio/youtube-music/graphql/resolvers"
-	"github.com/JoeJohnRio/youtube-music/internal/pkg/db/seeds"
-	"github.com/JoeJohnRio/youtube-music/internal/repository"
-	"github.com/JoeJohnRio/youtube-music/internal/repository/album"
-	"github.com/JoeJohnRio/youtube-music/internal/repository/genre"
 	"github.com/go-chi/chi/v5"
 
 	"flag"
@@ -36,7 +38,7 @@ func main() {
 	router := chi.NewRouter()
 
 	// Uncomment this if you are using auth middleware
-	// router.Use(auth.Middleware())
+	router.Use(auth.Middleware())
 
 	// Initialize DB connection
 	db, err := sql.Open("mysql", "root:password@tcp(localhost)/youtube_music_clone")
@@ -47,11 +49,13 @@ func main() {
 	// Initialize repositories
 	albumRepo := album.NewAlbumRepository(db)
 	genreRepo := genre.NewGenreRepository(db)
+	userRepo := user.NewUserRepository(db)
 
 	// Set up the root repository with injected dependencies
 	repo := &repository.Repository{
 		Album: albumRepo,
 		Genre: genreRepo,
+		User:  userRepo,
 	}
 
 	// Create resolver with repositories
@@ -65,7 +69,6 @@ func main() {
 	}))
 
 	// Set up the routes
-	router.Handle("/", playground.Handler("GraphQL playground", "/graphql"))
 	router.Handle("/graphql", server)
 
 	// Log server start

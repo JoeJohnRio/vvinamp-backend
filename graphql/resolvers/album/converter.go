@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/JoeJohnRio/youtube-music/graphql/model"
-	"github.com/JoeJohnRio/youtube-music/internal/repository/album"
+	"spotify-clone/graphql/model"
+	"spotify-clone/internal/repository/album"
 )
 
 func ToGraphQL(dbAlbum *album.Album) *model.Album {

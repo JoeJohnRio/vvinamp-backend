@@ -48,6 +48,14 @@ type PlaylistTrack struct {
 type Query struct {
 }
 
+type QuickPick struct {
+	TrackID    string  `json:"trackId"`
+	Title      string  `json:"title"`
+	ArtistName string  `json:"artistName"`
+	PlayCount  int     `json:"playCount"`
+	CoverArt   *string `json:"coverArt,omitempty"`
+}
+
 type RefreshTokenInput struct {
 	Token string `json:"token"`
 }
