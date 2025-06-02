@@ -1,9 +1,9 @@
 package genre
 
 import (
-	"github.com/JoeJohnRio/youtube-music/graphql/model"
-	"github.com/JoeJohnRio/youtube-music/internal/repository/genre"
-	"github.com/JoeJohnRio/youtube-music/internal/utils"
+	"spotify-clone/graphql/model"
+	"spotify-clone/internal/repository/genre"
+	"spotify-clone/internal/utils"
 )
 
 func ToGraphQL(dbGenres []genre.Genre) []*model.Genre {

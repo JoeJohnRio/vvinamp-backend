@@ -3,8 +3,8 @@ package links
 import (
 	"log"
 
-	database "github.com/JoeJohnRio/youtube-music/internal/pkg/db/migrations/mysql"
-	"github.com/JoeJohnRio/youtube-music/internal/users"
+	database "spotify-clone/internal/pkg/db/migrations/mysql"
+	"spotify-clone/internal/users"
 )
 
 // #1
