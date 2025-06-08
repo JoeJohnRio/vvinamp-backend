@@ -97,25 +97,34 @@ type UserFollow {
   artist: Artist!
 }
 
-#INPUT SECTION --------------------------------------------------------------------------------------
-
-input NewLink {
+type QuickPick {
+  trackId: ID!
   title: String!
-  address: String!
+  artistName: String!
+  playCount: Int!
+  coverArt: String
 }
 
-input RefreshTokenInput{
-  token: String!
-}
-
-input NewUser {
-  username: String!
-  password: String!
-}
+#INPUT SECTION --------------------------------------------------------------------------------------
 
 input Login {
   username: String!
   password: String!
+}
+type RegisterPayload {
+  user: User!
+}
+type LoginPayload {
+  viewer: User!
+}
+input RegisterInput {
+  username: String!
+  profilePicture: String!
+  email: String!
+  password: String!
+  name: String!
+  avatar: String
+  roles: [String!]!
 }
 
 # QUERY SECTION ------------------------------------------------------------------------------
@@ -123,10 +132,12 @@ input Login {
 type Query {
   getAlbum(id: ID!): Album
   getAllGenres: [Genre!]!
+  getQuickPicks(userId: ID!): [QuickPick!]!
 }
 
 # MUTATION SECTION ------------------------------------------------------------------------------
 
 type Mutation {
-  refreshToken(input: RefreshTokenInput!): String!
+  login(email: String!, password: String!): LoginPayload
+  register(input: RegisterInput!): RegisterPayload
 }
