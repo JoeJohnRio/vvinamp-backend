@@ -1,11 +1,13 @@
 package repository
 
-import (
-	"github.com/JoeJohnRio/youtube-music/internal/repository/album"
-	"github.com/JoeJohnRio/youtube-music/internal/repository/genre"
-)
+// import (
+// 	"vvinamp/internal/repository/album"
+// 	"vvinamp/internal/repository/genre"
+// 	"vvinamp/internal/repository/user"
+// )
 
-type Repository struct {
-	Album album.AlbumRepository
-	Genre genre.GenreRepository
-}
+// type Repository struct {
+// 	Album album.AlbumRepository
+// 	Genre genre.GenreRepository
+// 	User  user.UserRepository
+// }

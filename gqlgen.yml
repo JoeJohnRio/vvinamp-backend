@@ -13,8 +13,10 @@ resolver:
 
 models:  # 👈 Custom model mappings go under here
   Album:
-    model: github.com/JoeJohnRio/youtube-music/graphql/model.Album
+    model: vvinamp/graphql/model.Album
   Artist:
-    model: github.com/JoeJohnRio/youtube-music/graphql/model.Artist
+    model: vvinamp/graphql/model.Artist
   Genre:
-    model: github.com/JoeJohnRio/youtube-music/graphql/model.Genre
+    model: vvinamp/graphql/model.Genre
+  User:
+    model: vvinamp/graphql/model.User
