@@ -13,8 +13,10 @@ resolver:
 
 models:  # 👈 Custom model mappings go under here
   Album:
-    model: spotify-clone/graphql/model.Album
+    model: vvinamp/graphql/model.Album
   Artist:
-    model: spotify-clone/graphql/model.Artist
+    model: vvinamp/graphql/model.Artist
   Genre:
-    model: spotify-clone/graphql/model.Genre
+    model: vvinamp/graphql/model.Genre
+  User:
+    model: vvinamp/graphql/model.User

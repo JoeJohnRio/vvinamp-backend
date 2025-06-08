@@ -1,34 +1,34 @@
 package genre
 
-import (
-	"spotify-clone/graphql/model"
-	"spotify-clone/internal/repository/genre"
-	"spotify-clone/internal/utils"
-)
+// import (
+// 	"vvinamp/graphql/model"
+// 	"vvinamp/internal/repository/genre"
+// 	"vvinamp/internal/utils"
+// )
 
-func ToGraphQL(dbGenres []genre.Genre) []*model.Genre {
-	if dbGenres == nil {
-		return nil
-	}
+// func ToGraphQL(dbGenres []genre.Genre) []*model.Genre {
+// 	if dbGenres == nil {
+// 		return nil
+// 	}
 
-	var gqlGenres []*model.Genre
-	for i := range dbGenres {
-		// take pointer of each value
-		dbGenre := &dbGenres[i]
-		gqlGenres = append(gqlGenres, ToGraphQLGenre(dbGenre))
-	}
+// 	var gqlGenres []*model.Genre
+// 	for i := range dbGenres {
+// 		// take pointer of each value
+// 		dbGenre := &dbGenres[i]
+// 		gqlGenres = append(gqlGenres, ToGraphQLGenre(dbGenre))
+// 	}
 
-	return gqlGenres
-}
+// 	return gqlGenres
+// }
 
-func ToGraphQLGenre(dbGenre *genre.Genre) *model.Genre {
-	if dbGenre == nil {
-		return nil
-	}
+// func ToGraphQLGenre(dbGenre *genre.Genre) *model.Genre {
+// 	if dbGenre == nil {
+// 		return nil
+// 	}
 
-	return &model.Genre{
-		ID:          dbGenre.ID,
-		Name:        dbGenre.Name,
-		Description: utils.ToStringPtr(dbGenre.Description),
-	}
-}
+// 	return &model.Genre{
+// 		ID:          dbGenre.ID,
+// 		Name:        dbGenre.Name,
+// 		Description: utils.ToStringPtr(dbGenre.Description),
+// 	}
+// }

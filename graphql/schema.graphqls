@@ -107,23 +107,24 @@ type QuickPick {
 
 #INPUT SECTION --------------------------------------------------------------------------------------
 
-input NewLink {
-  title: String!
-  address: String!
-}
-
-input RefreshTokenInput{
-  token: String!
-}
-
-input NewUser {
-  username: String!
-  password: String!
-}
-
 input Login {
   username: String!
   password: String!
+}
+type RegisterPayload {
+  user: User!
+}
+type LoginPayload {
+  viewer: User!
+}
+input RegisterInput {
+  username: String!
+  profilePicture: String!
+  email: String!
+  password: String!
+  name: String!
+  avatar: String
+  roles: [String!]!
 }
 
 # QUERY SECTION ------------------------------------------------------------------------------
@@ -137,6 +138,6 @@ type Query {
 # MUTATION SECTION ------------------------------------------------------------------------------
 
 type Mutation {
-  createUser(input: NewUser!)
-  refreshToken(input: RefreshTokenInput!): String!
+  login(email: String!, password: String!): LoginPayload
+  register(input: RegisterInput!): RegisterPayload
 }

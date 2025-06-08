@@ -14,17 +14,11 @@ type Login struct {
 	Password string `json:"password"`
 }
 
+type LoginPayload struct {
+	Viewer *User `json:"viewer"`
+}
+
 type Mutation struct {
-}
-
-type NewLink struct {
-	Title   string `json:"title"`
-	Address string `json:"address"`
-}
-
-type NewUser struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
 }
 
 type Playlist struct {
@@ -56,8 +50,18 @@ type QuickPick struct {
 	CoverArt   *string `json:"coverArt,omitempty"`
 }
 
-type RefreshTokenInput struct {
-	Token string `json:"token"`
+type RegisterInput struct {
+	Username       string   `json:"username"`
+	ProfilePicture string   `json:"profilePicture"`
+	Email          string   `json:"email"`
+	Password       string   `json:"password"`
+	Name           string   `json:"name"`
+	Avatar         *string  `json:"avatar,omitempty"`
+	Roles          []string `json:"roles"`
+}
+
+type RegisterPayload struct {
+	User *User `json:"user"`
 }
 
 type Track struct {
@@ -77,21 +81,6 @@ type TrackArtist struct {
 	Track  *Track  `json:"track"`
 	Artist *Artist `json:"artist"`
 	Role   *string `json:"role,omitempty"`
-}
-
-type User struct {
-	ID               string              `json:"id"`
-	Username         string              `json:"username"`
-	Email            string              `json:"email"`
-	PasswordHash     string              `json:"passwordHash"`
-	ProfilePicture   *string             `json:"profilePicture,omitempty"`
-	JoinDate         string              `json:"joinDate"`
-	SubscriptionType *string             `json:"subscriptionType,omitempty"`
-	LastLogin        *string             `json:"lastLogin,omitempty"`
-	Playlists        []*Playlist         `json:"playlists"`
-	ListeningHistory []*ListeningHistory `json:"listeningHistory"`
-	LikedTracks      []*UserLike         `json:"likedTracks"`
-	FollowedArtists  []*UserFollow       `json:"followedArtists"`
 }
 
 type UserFollow struct {
