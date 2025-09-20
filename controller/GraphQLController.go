@@ -3,7 +3,7 @@ package controller
 import (
 	context "context"
 
-	"vvinamp/database/mysql"
+	"vvinamp/database/postgre"
 	"vvinamp/graphql"
 	"vvinamp/graphql/resolvers"
 	"vvinamp/package/user"
@@ -18,7 +18,7 @@ import (
 type GraphQLController struct {
 	graphiQLEnable bool
 	auth           *Auth
-	mysql          *mysql.Connection
+	postgre        *postgre.Connection
 	user           user.Service
 	logger         *zap.Logger
 }
@@ -28,7 +28,7 @@ type GraphQLControllerTarget struct {
 	fx.In
 	GraphiQLEnable bool `name:"graphiql_enable"`
 	Auth           *Auth
-	Postgresql     *mysql.Connection
+	Postgresql     *postgre.Connection
 	User           user.Service
 	Logger         *zap.Logger
 }
@@ -39,7 +39,7 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 		Controller: &GraphQLController{
 			graphiQLEnable: target.GraphiQLEnable,
 			auth:           target.Auth,
-			mysql:          target.Postgresql,
+			postgre:        target.Postgresql,
 			user:           target.User,
 			logger:         target.Logger,
 		},
@@ -66,7 +66,7 @@ func (m *GraphQLController) GraphiQL() gin.HandlerFunc {
 
 // Register is function to register all controller's endpoint handler
 func (m *GraphQLController) Register(r *gin.Engine) {
-	r.Use(m.mysql.Middleware()).
+	r.Use(m.postgre.Middleware()).
 		Use(m.Middleware()).
 		Use(m.auth.Middleware()).
 		POST("/v1/graphql", m.GraphQL())

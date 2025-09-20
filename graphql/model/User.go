@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 type SubscriptionType string
 
 const (
@@ -8,27 +10,16 @@ const (
 )
 
 type User struct {
-	ID               string  `gorm:"primaryKey" json:"id"`
-	Username         string  `gorm:"type:varchar(255);unique" json:"username"`
-	Email            string  `gorm:"type:varchar(255);unique" json:"email"`
-	PasswordHash     string  `gorm:"not null" json:"passwordHash"`
-	ProfilePicture   *string `json:"profilePicture,omitempty"`
-	JoinDate         string  `gorm:"not null" json:"joinDate"`
-	SubscriptionType *string `json:"subscriptionType,omitempty"`
-	LastLogin        *string `json:"lastLogin,omitempty"`
+	ID               string     `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	Username         string     `gorm:"size:50;uniqueIndex;not null" json:"username"`
+	Email            string     `gorm:"size:100;uniqueIndex;not null" json:"email"`
+	PasswordHash     string     `gorm:"size:255;not null" json:"passwordHash"`
+	ProfilePicture   *string    `json:"profilePicture,omitempty"`
+	JoinDate         time.Time  `gorm:"not null;autoCreateTime" json:"joinDate"` // maps to TIMESTAMPTZ DEFAULT now()
+	SubscriptionType string     `gorm:"type:varchar(20);default:Free" json:"subscriptionType"`
+	LastLogin        *time.Time `gorm:"" json:"lastLogin,omitempty"`
 	// Playlists        []*Playlist         `json:"playlists"`
 	// ListeningHistory []*ListeningHistory `json:"listeningHistory"`
 	// LikedTracks      []*UserLike         `json:"likedTracks"`
 	// FollowedArtists  []*UserFollow       `json:"followedArtists"`
 }
-
-// type User struct {
-// 	ID               string  `gorm:"primaryKey" json:"id"`
-// 	Username         string  `gorm:"type:varchar(255);unique" json:"username"`
-// 	Email            string  `gorm:"type:varchar(255);unique" json:"email"`
-// 	PasswordHash     string  `gorm:"not null" json:"passwordHash"`
-// 	ProfilePicture   *string `json:"profilePicture,omitempty"`
-// 	JoinDate         string  `gorm:"not null" json:"joinDate"`
-// 	SubscriptionType *string `json:"subscriptionType,omitempty"`
-// 	LastLogin        *string `json:"lastLogin,omitempty"`
-// }

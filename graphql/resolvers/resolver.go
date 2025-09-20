@@ -34,7 +34,7 @@ func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInp
 	a, err := user.ForContext(ctx).Create(ctx, &model.User{
 		Email:        input.Email,
 		PasswordHash: input.Password,
-		Username:     input.Name,
+		Username:     input.Username,
 	})
 	if err != nil {
 		return nil, err

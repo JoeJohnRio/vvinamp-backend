@@ -32,7 +32,7 @@ type Result struct {
 	// Secret
 	TokenPassword string `name:"token_password"`
 	// MongoDB
-	MySQLUrl string `name:"mysql_url"`
+	PostgreUrl string `name:"postgre_url"`
 }
 
 // New return all constants using in Project such as Dialogflow's ProjectID, Line's ChannelID
@@ -50,7 +50,7 @@ func New() (Result, error) {
 		Language:       os.Getenv("LANGUAGE"),
 		LogPath:        os.Getenv("LOG_PATH"),
 		TokenPassword:  os.Getenv("TOKEN_PASSWORD"),
-		MySQLUrl:       os.Getenv("MYSQL_URL"),
+		PostgreUrl:     os.Getenv("POSTGRE_URL"),
 	}, nil
 }
 

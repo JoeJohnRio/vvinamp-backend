@@ -1,16 +1,24 @@
 package repository
 
 import (
+	"errors"
+	"strings"
 	"time"
 
-	"vvinamp/database/mysql"
+	"vvinamp/database/postgre"
 	"vvinamp/graphql/model"
 	"vvinamp/package/user"
 
+	"github.com/jackc/pgconn"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"gorm.io/gorm"
+)
+
+var (
+	ErrUsernameExists = errors.New("username already exists")
+	ErrEmailExists    = errors.New("email already exists")
 )
 
 // sqlRepository contains all the interactions
@@ -22,24 +30,29 @@ type sqlRepository struct {
 // SQLRepositoryTarget is `fx.In` struct for `fx` to get all dependency to create `UserSQLRepository`
 type SQLRepositoryTarget struct {
 	fx.In
-	Connection *mysql.Connection
+	Connection *postgre.Connection
 	Logger     *zap.Logger
 }
 
 // NewSQLRepository is UserRepository's constructor
 func NewSQLRepository(target SQLRepositoryTarget) (user.Repository, error) {
-	err := target.Connection.Client().Debug().AutoMigrate(&model.User{})
+	db, err := target.Connection.Client() // <-- capture both values
 	if err != nil {
 		return nil, err
 	}
+
+	if err := db.Debug().AutoMigrate(&model.User{}); err != nil {
+		return nil, err
+	}
+
 	return &sqlRepository{
 		logger: target.Logger,
-	}, err
+	}, nil
 }
 
 // DB method extract database client from context
 func (m *sqlRepository) DB(ctx context.Context) *gorm.DB {
-	return mysql.ForContext(ctx)
+	return postgre.ForContext(ctx)
 }
 
 // GetAll returns all the Users stored in the database.
@@ -70,15 +83,34 @@ func (m *sqlRepository) GetByEmail(ctx context.Context, email string) (*model.Us
 // Create will insert new user into database
 func (m *sqlRepository) Create(ctx context.Context, user *model.User) (*model.User, error) {
 	hashedPassword, err := hashPassword(user.PasswordHash)
-	free := string(model.SubscriptionFree)
 	if err != nil {
 		return nil, err
 	}
+
 	user.PasswordHash = hashedPassword
-	user.SubscriptionType = &free
-	user.JoinDate = time.Now().String()
+
+	// Let DB default handle subscription unless you want to force it:
+	user.SubscriptionType = string(model.SubscriptionFree)
+
+	// Use proper time type
+	user.JoinDate = time.Now().UTC()
+
 	err = m.DB(ctx).Debug().Create(user).Error
-	return user, err
+
+	if err != nil {
+		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
+			if strings.Contains(pgErr.Message, "username") {
+				return nil, ErrUsernameExists
+			}
+			if strings.Contains(pgErr.Message, "email") {
+				return nil, ErrEmailExists
+			}
+			return nil, errors.New("duplicate entry")
+		}
+		return nil, err
+	}
+
+	return user, nil
 }
 
 // Update will update user by id
@@ -90,7 +122,7 @@ func (m *sqlRepository) UpdateSubscription(ctx context.Context, id string, updat
 	}
 
 	// Only update subscription type if it's provided
-	if update.SubscriptionType != nil {
+	if update.SubscriptionType != "" {
 		user.SubscriptionType = update.SubscriptionType
 	}
 

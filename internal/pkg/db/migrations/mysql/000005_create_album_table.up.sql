@@ -1,16 +1,16 @@
-CREATE TABLE genres (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+CREATE TABLE IF NOT EXISTS genres (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(50) UNIQUE NOT NULL,
     description TEXT
-) ENGINE=InnoDB;
+);
 
-CREATE TABLE albums (
-    id CHAR(36) PRIMARY KEY DEFAULT (UUID()),
+CREATE TABLE IF NOT EXISTS albums (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(100),
-    artist_id CHAR(36),
+    artist_id UUID,
     release_date DATE,
     cover_art TEXT,
-    genre_id CHAR(36),
+    genre_id UUID,
     FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,
     FOREIGN KEY (genre_id) REFERENCES genres(id)
 );

@@ -33,9 +33,9 @@ type User {
   email: String!
   passwordHash: String!
   profilePicture: String
-  joinDate: String!
-  subscriptionType: String
-  lastLogin: String
+  joinDate: Time!
+  subscriptionType: String!
+  lastLogin: Time
   playlists: [Playlist!]!
   listeningHistory: [ListeningHistory!]!
   likedTracks: [UserLike!]!
