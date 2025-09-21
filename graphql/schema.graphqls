@@ -1,3 +1,4 @@
+scalar DateTimeISO
 
 type Artist {
   id: ID!
@@ -33,9 +34,9 @@ type User {
   email: String!
   passwordHash: String!
   profilePicture: String
-  joinDate: Time!
+  joinDate: DateTimeISO!
   subscriptionType: String!
-  lastLogin: Time
+  lastLogin: DateTimeISO
   playlists: [Playlist!]!
   listeningHistory: [ListeningHistory!]!
   likedTracks: [UserLike!]!

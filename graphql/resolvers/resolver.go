@@ -4,11 +4,13 @@ package resolvers
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"vvinamp/constant"
 	graphql1 "vvinamp/graphql"
 	"vvinamp/graphql/model"
 	"vvinamp/package/user"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Resolver struct{}
@@ -25,12 +27,27 @@ func (r *artistResolver) Tracks(ctx context.Context, obj *model.Artist) ([]*mode
 
 // Login is the resolver for the login field.
 func (r *mutationResolver) Login(ctx context.Context, email string, password string) (*model.LoginPayload, error) {
-	panic("not implemented")
+	// 1. Look up user by email
+	var u model.User
+	if err := r.DB.Where("email = ?", email).First(&u).Error; err != nil {
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	// 2. Compare password with stored hash
+	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
+		return nil, fmt.Errorf("invalid email or password")
+	}
+
+	// 3. Store user ID in the session (same as Register)
+	session := ctx.Value(constant.Session).(*string)
+	*session = u.ID // already a string (UUID)
+
+	// 4. Return a LoginPayload
+	return &model.LoginPayload{User: &u}, nil
 }
 
 // Register is the resolver for the register field.
 func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInput) (*model.RegisterPayload, error) {
-	log.Println("Joel123 Register Context", user.ForContext(ctx))
 	a, err := user.ForContext(ctx).Create(ctx, &model.User{
 		Email:        input.Email,
 		PasswordHash: input.Password,

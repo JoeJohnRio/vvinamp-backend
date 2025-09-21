@@ -20,3 +20,5 @@ models:  # 👈 Custom model mappings go under here
     model: vvinamp/graphql/model.Genre
   User:
     model: vvinamp/graphql/model.User
+  DateTimeISO:
+    model: "github.com/99designs/gqlgen/graphql.Time"
