@@ -80,6 +80,12 @@ func (m *GraphQLController) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 		ctx = context.WithValue(ctx, user.Key, m.user)
+
+		// Pass the response writer for session management
+		if arw, ok := c.Writer.(*authResponseWriter); ok {
+			ctx = context.WithValue(ctx, "authResponseWriter", arw)
+		}
+
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}

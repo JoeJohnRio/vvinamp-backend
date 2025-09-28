@@ -9,4 +9,5 @@ import (
 // Repository is interface for UserRepository
 type Repository interface {
 	Create(ctx context.Context, user *model.User) (*model.User, error)
+	GetByEmail(ctx context.Context, email string) (*model.User, error)
 }

@@ -14,8 +14,14 @@ type Login struct {
 	Password string `json:"password"`
 }
 
+type AuthSession struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken,omitempty"`
+	IsLoggedIn   bool   `json:"isLoggedIn"`
+}
+
 type LoginPayload struct {
-	Viewer *User `json:"viewer"`
+	Session *AuthSession `json:"session"`
 }
 
 type Mutation struct {

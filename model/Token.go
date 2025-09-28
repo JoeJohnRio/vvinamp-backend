@@ -6,6 +6,7 @@ import (
 
 // Token model
 type Token struct {
-	UserID string
+	UserID string `json:"userId"`
+	Type   string `json:"type"` // "access" or "refresh"
 	jwt.StandardClaims
 }

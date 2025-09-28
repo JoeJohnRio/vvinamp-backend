@@ -4,13 +4,14 @@ package resolvers
 
 import (
 	"context"
-	"fmt"
+	"errors"
+	"time"
 	"vvinamp/constant"
 	graphql1 "vvinamp/graphql"
 	"vvinamp/graphql/model"
 	"vvinamp/package/user"
 
-	"golang.org/x/crypto/bcrypt"
+	"github.com/dgrijalva/jwt-go"
 )
 
 type Resolver struct{}
@@ -27,28 +28,70 @@ func (r *artistResolver) Tracks(ctx context.Context, obj *model.Artist) ([]*mode
 
 // Login is the resolver for the login field.
 func (r *mutationResolver) Login(ctx context.Context, email string, password string) (*model.LoginPayload, error) {
-	// 1. Look up user by email
-	var u model.User
-	if err := r.DB.Where("email = ?", email).First(&u).Error; err != nil {
-		return nil, fmt.Errorf("invalid email or password")
+	userSvc := user.ForContext(ctx)
+
+	u, err := userSvc.Login(ctx, email, password)
+	if err != nil {
+		return nil, err
 	}
 
-	// 2. Compare password with stored hash
-	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
-		return nil, fmt.Errorf("invalid email or password")
+	// Set session in context to trigger token generation
+	if arw, ok := ctx.Value("authResponseWriter").(*controller.authResponseWriter); ok {
+		arw.sessionToResolver = u.ID
 	}
 
-	// 3. Store user ID in the session (same as Register)
-	session := ctx.Value(constant.Session).(*string)
-	*session = u.ID // already a string (UUID)
+	// Generate tokens directly for the response
+	auth := &Auth{tokenPassword: "your-token-password"} // Get from dependency injection
+	accessToken, refreshToken, err := auth.GenerateTokens(u.ID)
+	if err != nil {
+		return nil, err
+	}
 
-	// 4. Return a LoginPayload
-	return &model.LoginPayload{User: &u}, nil
+	return &model.LoginPayload{
+		Session: &model.AuthSession{
+			AccessToken:  accessToken,
+			RefreshToken: refreshToken,
+			IsLoggedIn:   true,
+		},
+	}, nil
+}
+
+func (r *mutationResolver) RefreshToken(ctx context.Context, refreshToken string) (*model.LoginPayload, error) {
+	auth := &Auth{tokenPassword: "your-token-password"} // Get from dependency injection
+
+	// Validate refresh token
+	tk := &model.Token{}
+	token, err := jwt.ParseWithClaims(refreshToken, tk, func(token *jwt.Token) (interface{}, error) {
+		return []byte(auth.tokenPassword), nil
+	})
+
+	if err != nil || !token.Valid || tk.Type != "refresh" {
+		return nil, errors.New("invalid refresh token")
+	}
+
+	// Check if token is expired
+	if time.Unix(tk.ExpiresAt, 0).Before(time.Now()) {
+		return nil, errors.New("refresh token expired")
+	}
+
+	// Generate new tokens
+	accessToken, newRefreshToken, err := auth.GenerateTokens(tk.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &model.LoginPayload{
+		Session: &model.AuthSession{
+			AccessToken:  accessToken,
+			RefreshToken: newRefreshToken,
+			IsLoggedIn:   true,
+		},
+	}, nil
 }
 
 // Register is the resolver for the register field.
 func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInput) (*model.RegisterPayload, error) {
-	a, err := user.ForContext(ctx).Create(ctx, &model.User{
+	a, err := user.ForContext(ctx).Register(ctx, &model.User{
 		Email:        input.Email,
 		PasswordHash: input.Password,
 		Username:     input.Username,

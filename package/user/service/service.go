@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"vvinamp/graphql/model"
 	"vvinamp/package/user"
@@ -10,6 +11,8 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 )
+
+var ErrInvalidCredentials = errors.New("invalid email or password")
 
 type userService struct {
 	user.Repository
@@ -32,6 +35,22 @@ func NewService(target Target) user.Service {
 // Register new user and stored it to database with hashed password
 func (m *userService) Register(ctx context.Context, user *model.User) (*model.User, error) {
 	return m.Repository.Create(ctx, user)
+}
+
+func (m *userService) Login(ctx context.Context, email, password string) (*model.User, error) {
+	user, err := m.Repository.GetByEmail(ctx, email)
+	if err != nil {
+		return nil, ErrInvalidCredentials // avoid leaking DB errors
+	}
+
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)) != nil {
+		return nil, ErrInvalidCredentials
+	}
+
+	// at this point credentials are valid
+	m.logger.Info("User logged in", zap.String("email", email))
+
+	return user, nil
 }
 
 // ComparePassword to compare cryped password
