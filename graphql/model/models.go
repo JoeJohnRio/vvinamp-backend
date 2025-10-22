@@ -2,22 +2,15 @@
 
 package model
 
-type ListeningHistory struct {
-	User     *User  `json:"user"`
-	Track    *Track `json:"track"`
-	PlayedAt string `json:"playedAt"`
-	Progress int    `json:"progress"`
+type AuthSession struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+	IsLoggedIn   bool   `json:"isLoggedIn"`
 }
 
 type Login struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
-}
-
-type AuthSession struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken,omitempty"`
-	IsLoggedIn   bool   `json:"isLoggedIn"`
 }
 
 type LoginPayload struct {
@@ -54,6 +47,10 @@ type QuickPick struct {
 	ArtistName string  `json:"artistName"`
 	PlayCount  int     `json:"playCount"`
 	CoverArt   *string `json:"coverArt,omitempty"`
+}
+
+type RefreshTokenInput struct {
+	RefreshToken string `json:"refreshToken"`
 }
 
 type RegisterInput struct {

@@ -81,10 +81,13 @@ type PlaylistTrack {
 }
 
 type ListeningHistory {
-  user: User!
-  track: Track!
-  playedAt: String!
+  id: ID!
+  userID: ID!
+  contentID: ID!
+  contentType: String!
+  playedAt: DateTimeISO!
   progress: Int!
+  user: User
 }
 
 type UserLike {
@@ -115,9 +118,7 @@ input Login {
 type RegisterPayload {
   user: User!
 }
-type LoginPayload {
-  viewer: User!
-}
+
 input RegisterInput {
   username: String!
   profilePicture: String!
@@ -130,7 +131,7 @@ input RegisterInput {
 
 type AuthSession {
     accessToken: String!
-    refreshToken: String
+    refreshToken: String!
     isLoggedIn: Boolean!
 }
 
@@ -138,18 +139,21 @@ type LoginPayload {
     session: AuthSession!
 }
 
+input RefreshTokenInput {
+    refreshToken: String!
+}
+
 # QUERY SECTION ------------------------------------------------------------------------------
 
 type Query {
-  getAlbum(id: ID!): Album
-  getAllGenres: [Genre!]!
-  getQuickPicks(userId: ID!): [QuickPick!]!
+  login(email: String!, password: String!): LoginPayload!
+  listRecentHistory(limit: Int!): [ListeningHistory]!
+  logout: Boolean!
 }
 
 # MUTATION SECTION ------------------------------------------------------------------------------
 
 type Mutation {
-  login(email: String!, password: String!): LoginPayload!
   refreshToken(refreshToken: String!): LoginPayload!
   register(input: RegisterInput!): RegisterPayload
 }

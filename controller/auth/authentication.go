@@ -1,7 +1,8 @@
-package controller
+package auth
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 	"vvinamp/constant"
@@ -15,16 +16,59 @@ import (
 
 type key string
 
-type authResponseWriter struct {
+const UserIDKey key = "userID"
+
+type AuthResponseWriter struct {
 	gin.ResponseWriter
 	tokenPassword     string
 	sessionToResolver string
 	sessionFromCookie string
 	auth              *Auth
 }
+type Auth struct {
+	tokenPassword string
+	logger        *zap.Logger
+}
 
-func (arw *authResponseWriter) Write(data []byte) (n int, err error) {
+// SetSessionToResolver implements the AuthResponseWriter interface
+func (arw *AuthResponseWriter) SetSessionToResolver(userID string) {
+	log.Println("joel123 SetSessionToResolver")
+	arw.sessionToResolver = userID
+}
+
+func (arw *AuthResponseWriter) GetAuth() *Auth {
+	log.Println("joel123 GetAuth")
+	return arw.auth
+}
+
+func (arw *AuthResponseWriter) Write(data []byte) (n int, err error) {
 	// Generate tokens when session is established during login
+	log.Println("joel123 Write")
+	log.Println("joel123 Write sessionToResolver", arw.sessionToResolver)
+	log.Println("joel123 Write sessionFromCookie", arw.sessionFromCookie)
+	if arw.sessionToResolver == "" && arw.sessionFromCookie != "" {
+		// User is logging out—clear cookies by setting them to expired
+		http.SetCookie(arw, &http.Cookie{
+			Name:     "access_token",
+			Value:    "",
+			HttpOnly: true,
+			Secure:   true, // Use false for localhost testing
+			SameSite: http.SameSiteStrictMode,
+			MaxAge:   -1, // Expire immediately
+			Path:     "/",
+		})
+
+		http.SetCookie(arw, &http.Cookie{
+			Name:     "refresh_token",
+			Value:    "",
+			HttpOnly: true,
+			Secure:   true,
+			SameSite: http.SameSiteStrictMode,
+			MaxAge:   -1, // Expire immediately
+			Path:     "/",
+		})
+	}
+
 	if arw.sessionToResolver != "" && arw.sessionToResolver != arw.sessionFromCookie {
 		accessToken, refreshToken, err := arw.auth.GenerateTokens(arw.sessionToResolver)
 		if err != nil {
@@ -55,14 +99,11 @@ func (arw *authResponseWriter) Write(data []byte) (n int, err error) {
 		})
 	}
 
+	log.Println("joel123 Write 3")
 	return arw.ResponseWriter.Write(data)
 }
 
 // Auth is class provided middleware for read/write token in to request/response cache
-type Auth struct {
-	tokenPassword string
-	logger        *zap.Logger
-}
 
 // AuthTarget is parameter object for getting all Auth's dependency
 type AuthTarget struct {
@@ -113,6 +154,7 @@ func (a *Auth) GenerateTokens(userID string) (accessToken, refreshToken string, 
 		return "", "", err
 	}
 
+	log.Println("joel123 access token", accessToken)
 	return accessToken, refreshToken, nil
 }
 
@@ -120,7 +162,7 @@ func (a *Auth) GenerateTokens(userID string) (accessToken, refreshToken string, 
 // session from ctx set in request.Cache
 func (a *Auth) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		arw := &authResponseWriter{
+		arw := &AuthResponseWriter{
 			ResponseWriter:    c.Writer,
 			tokenPassword:     a.tokenPassword,
 			sessionToResolver: "",
@@ -128,6 +170,7 @@ func (a *Auth) Middleware() gin.HandlerFunc {
 			auth:              a,
 		}
 
+		log.Println("joel123 Middleware authentication.go")
 		// Try to get access token first
 		tokenPart, _ := c.Cookie("access_token")
 		if tokenPart == "" {
@@ -162,9 +205,9 @@ func (a *Auth) Middleware() gin.HandlerFunc {
 }
 
 // SetSession allows resolvers to set a new session
-func SetSession(ctx context.Context, userID string) context.Context {
-	if arw, ok := ctx.Value("authResponseWriter").(*authResponseWriter); ok {
-		arw.sessionToResolver = userID
-	}
-	return context.WithValue(ctx, constant.Session, userID)
-}
+// func SetSession(ctx context.Context, userID string) context.Context {
+// 	if arw, ok := ctx.Value("authResponseWriter").(*authResponseWriter); ok {
+// 		arw.sessionToResolver = userID
+// 	}
+// 	return context.WithValue(ctx, constant.Session, userID)
+// }

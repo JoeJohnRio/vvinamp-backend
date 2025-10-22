@@ -1,8 +1,10 @@
 schema:
   - graphql/schema.graphqls
+
 exec:
   package: graphql
   filename: graphql/generated.go
+
 model:
   filename: graphql/model/models.go
   package: model
@@ -11,14 +13,63 @@ resolver:
   filename: graphql/resolvers/resolver.go
   type: Resolver
 
-models:  # 👈 Custom model mappings go under here
+# Configure which fields need resolvers
+models:
   Album:
     model: vvinamp/graphql/model.Album
+    fields:
+      artist:
+        resolver: true
+      tracks:
+        resolver: true
+      
   Artist:
     model: vvinamp/graphql/model.Artist
+    fields:
+      albums:
+        resolver: true
+      tracks:
+        resolver: true
+
+  ListeningHistory:
+    model: vvinamp/graphql/model.ListeningHistory
+    fields:
+      albums:
+        resolver: true
+      tracks:
+        resolver: true
+        
   Genre:
     model: vvinamp/graphql/model.Genre
+    fields:
+      albums:
+        resolver: true
+        
   User:
     model: vvinamp/graphql/model.User
+    fields:
+      playlists:
+        resolver: true
+      listeningHistory:
+        resolver: true
+      likedTracks:
+        resolver: true
+      followedArtists:
+        resolver: true
+        
+  Track:
+    fields:
+      album:
+        resolver: true
+      artists:
+        resolver: true
+        
+  Playlist:
+    fields:
+      creator:
+        resolver: true
+      tracks:
+        resolver: true
+
   DateTimeISO:
     model: "github.com/99designs/gqlgen/graphql.Time"

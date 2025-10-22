@@ -8,6 +8,7 @@ import (
 	"vvinamp/database/postgre"
 	"vvinamp/graphql/model"
 	"vvinamp/package/user"
+	"vvinamp/package/utils/security"
 
 	"github.com/jackc/pgconn"
 	"go.uber.org/fx"
@@ -82,7 +83,7 @@ func (m *sqlRepository) GetByEmail(ctx context.Context, email string) (*model.Us
 
 // Create will insert new user into database
 func (m *sqlRepository) Create(ctx context.Context, user *model.User) (*model.User, error) {
-	hashedPassword, err := hashPassword(user.PasswordHash)
+	hashedPassword, err := security.HashPassword(user.PasswordHash)
 	if err != nil {
 		return nil, err
 	}
