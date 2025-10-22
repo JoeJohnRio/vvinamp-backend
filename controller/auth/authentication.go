@@ -3,7 +3,7 @@ package auth
 import (
 	"context"
 	"log"
-	"net/http"
+	"strings"
 	"time"
 	"vvinamp/constant"
 	"vvinamp/model"
@@ -39,68 +39,6 @@ func (arw *AuthResponseWriter) SetSessionToResolver(userID string) {
 func (arw *AuthResponseWriter) GetAuth() *Auth {
 	log.Println("joel123 GetAuth")
 	return arw.auth
-}
-
-func (arw *AuthResponseWriter) Write(data []byte) (n int, err error) {
-	// Generate tokens when session is established during login
-	log.Println("joel123 Write")
-	log.Println("joel123 Write sessionToResolver", arw.sessionToResolver)
-	log.Println("joel123 Write sessionFromCookie", arw.sessionFromCookie)
-	if arw.sessionToResolver == "" && arw.sessionFromCookie != "" {
-		// User is logging out—clear cookies by setting them to expired
-		http.SetCookie(arw, &http.Cookie{
-			Name:     "access_token",
-			Value:    "",
-			HttpOnly: true,
-			Secure:   true, // Use false for localhost testing
-			SameSite: http.SameSiteStrictMode,
-			MaxAge:   -1, // Expire immediately
-			Path:     "/",
-		})
-
-		http.SetCookie(arw, &http.Cookie{
-			Name:     "refresh_token",
-			Value:    "",
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			MaxAge:   -1, // Expire immediately
-			Path:     "/",
-		})
-	}
-
-	if arw.sessionToResolver != "" && arw.sessionToResolver != arw.sessionFromCookie {
-		accessToken, refreshToken, err := arw.auth.GenerateTokens(arw.sessionToResolver)
-		if err != nil {
-			arw.auth.logger.Error("Failed to generate tokens", zap.Error(err))
-			return arw.ResponseWriter.Write(data)
-		}
-
-		// Set access token cookie (short-lived)
-		http.SetCookie(arw, &http.Cookie{
-			Name:     "access_token",
-			Value:    accessToken,
-			HttpOnly: true,
-			Secure:   true, // Use HTTPS in production
-			SameSite: http.SameSiteStrictMode,
-			MaxAge:   15 * 60, // 15 minutes
-			Path:     "/",
-		})
-
-		// Set refresh token cookie (long-lived)
-		http.SetCookie(arw, &http.Cookie{
-			Name:     "refresh_token",
-			Value:    refreshToken,
-			HttpOnly: true,
-			Secure:   true,
-			SameSite: http.SameSiteStrictMode,
-			MaxAge:   7 * 24 * 60 * 60, // 7 days
-			Path:     "/",
-		})
-	}
-
-	log.Println("joel123 Write 3")
-	return arw.ResponseWriter.Write(data)
 }
 
 // Auth is class provided middleware for read/write token in to request/response cache
@@ -162,20 +100,11 @@ func (a *Auth) GenerateTokens(userID string) (accessToken, refreshToken string, 
 // session from ctx set in request.Cache
 func (a *Auth) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		arw := &AuthResponseWriter{
-			ResponseWriter:    c.Writer,
-			tokenPassword:     a.tokenPassword,
-			sessionToResolver: "",
-			sessionFromCookie: "",
-			auth:              a,
-		}
-
-		log.Println("joel123 Middleware authentication.go")
-		// Try to get access token first
-		tokenPart, _ := c.Cookie("access_token")
-		if tokenPart == "" {
-			// Fallback to old token cookie for backwards compatibility
-			tokenPart, _ = c.Cookie("token")
+		// Get JWT from Authorization: Bearer <token>
+		authHeader := c.GetHeader("Authorization")
+		tokenPart := ""
+		if strings.HasPrefix(authHeader, "Bearer ") {
+			tokenPart = strings.TrimPrefix(authHeader, "Bearer ")
 		}
 
 		if tokenPart != "" {
@@ -183,23 +112,13 @@ func (a *Auth) Middleware() gin.HandlerFunc {
 			token, err := jwt.ParseWithClaims(tokenPart, tk, func(token *jwt.Token) (interface{}, error) {
 				return []byte(a.tokenPassword), nil
 			})
-
-			// Malformed token
-			if err != nil {
-				a.logger.Error("malformed token", zap.Error(err))
-			} else {
-				// Token is valid
-				if token.Valid && !time.Unix(tk.ExpiresAt, 0).Before(time.Now()) {
-					arw.sessionFromCookie = tk.UserID
-					arw.sessionToResolver = tk.UserID
-				}
+			if err == nil && token.Valid && !time.Unix(tk.ExpiresAt, 0).Before(time.Now()) {
+				// Session logic: Write the user ID from token into the request context
+				ctx := context.WithValue(c.Request.Context(), constant.Session, tk.UserID)
+				c.Request = c.Request.WithContext(ctx)
 			}
 		}
-
-		// Pass session to context - fixed the reference issue
-		ctx := context.WithValue(c.Request.Context(), constant.Session, arw.sessionToResolver)
-		c.Request = c.Request.WithContext(ctx)
-		c.Writer = arw
+		// Continue to next Handler
 		c.Next()
 	}
 }
