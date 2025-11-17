@@ -1,0 +1,10 @@
+type Artist {
+  id: ID!
+  name: String!
+  bio: String
+  profileImage: String
+  verified: Boolean!
+  monthlyListeners: Int!
+  albums: [Album!]!
+  tracks: [Track!]!
+}

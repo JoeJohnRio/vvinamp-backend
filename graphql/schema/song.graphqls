@@ -1,0 +1,54 @@
+
+type Track {
+  id: ID!
+  title: String!
+  duration: Int!
+  audioFileUrl: String!
+  streamCount: Int!
+  album: Album!
+  explicit: Boolean!
+  lyrics: String
+  releaseDate: String!
+  artists: [TrackArtist!]!
+}
+
+type TrackArtist {
+  track: Track!
+  artist: Artist!
+  role: String
+}
+
+type Playlist {
+  id: ID!
+  title: String!
+  creator: User!
+  createdAt: String!
+  updatedAt: String
+  isPublic: Boolean!
+  coverImage: String
+  tracks: [PlaylistTrack!]!
+}
+
+type PlaylistTrack {
+  playlist: Playlist!
+  track: Track!
+  position: Int!
+  addedAt: String!
+}
+
+type Album {
+  id: ID!
+  title: String!
+  artist: Artist!
+  releaseDate: String!
+  coverArt: String
+  genre: Genre
+  tracks: [Track!]!
+}
+
+type Genre {
+  id: ID!
+  name: String!
+  description: String
+  albums: [Album!]!
+}

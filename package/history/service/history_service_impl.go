@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"vvinamp/graphql/model"
+	dbModel "vvinamp/model"
 	"vvinamp/package/history"
 
 	"go.uber.org/fx"
@@ -19,8 +19,24 @@ type historyService struct {
 }
 
 // ListRecentHistory implements history.Service.
-func (h *historyService) ListRecentHistory(ctx context.Context, limit int) ([]*model.ListeningHistory, error) {
+func (h *historyService) ListRecentHistory(ctx context.Context, limit int) ([]*dbModel.ListeningHistory, error) {
+	// history, err := h.Repository.GetRecentHistoryByUser(ctx, limit)
+	// if err != nil {
+	// 	return nil, err
+	// }
+
+	// for _, item := range history {
+	// 	// Fetch user (optional if you want it populated here)
+	// 	// user, _ := h.userService.GetByID(ctx, item.UserID)
+	// 	// item.User = user
+
+	// 	// Note: You may or may not populate content here.
+	// 	// If your GraphQL schema has field resolvers, you can defer this.
+	// 	log.Println(item)
+	// }
 	return h.Repository.GetRecentHistoryByUser(ctx, limit)
+
+	// panic("ListRecentHistory History service impl")
 }
 
 type Target struct {

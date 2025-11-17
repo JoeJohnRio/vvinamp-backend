@@ -3,7 +3,7 @@ package history
 import (
 	"context"
 
-	"vvinamp/graphql/model"
+	dbModel "vvinamp/model"
 )
 
 type key string
@@ -15,7 +15,7 @@ const (
 // Service is interface for UserService
 type Service interface {
 	Repository
-	ListRecentHistory(ctx context.Context, limit int) ([]*model.ListeningHistory, error)
+	ListRecentHistory(ctx context.Context, limit int) ([]*dbModel.ListeningHistory, error)
 }
 
 // ForContext is method to get user service from context

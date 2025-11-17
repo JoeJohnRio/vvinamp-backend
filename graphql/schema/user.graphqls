@@ -1,0 +1,25 @@
+type User {
+  id: ID!
+  username: String!
+  email: String!
+  passwordHash: String!
+  profilePicture: String
+  joinDate: DateTimeISO!
+  subscriptionType: String!
+  lastLogin: DateTimeISO
+  playlists: [Playlist!]!
+  listeningHistory: [ListeningHistory!]!
+  likedTracks: [UserLike!]!
+  followedArtists: [UserFollow!]!
+}
+
+type UserLike {
+  user: User!
+  track: Track!
+  likedAt: String!
+}
+
+type UserFollow {
+  user: User!
+  artist: Artist!
+}

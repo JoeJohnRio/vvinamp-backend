@@ -6,7 +6,7 @@ import (
 	"log"
 	"vvinamp/constant"
 	"vvinamp/database/postgre"
-	"vvinamp/graphql/model"
+	"vvinamp/model"
 	"vvinamp/package/history"
 
 	"go.uber.org/fx"
@@ -21,14 +21,14 @@ type sqlRepository struct {
 // GetRecentHistoryByUser implements history.Repository.
 func (s *sqlRepository) GetRecentHistoryByUser(ctx context.Context, limit int) ([]*model.ListeningHistory, error) {
 	var history []*model.ListeningHistory
+	log.Println("joel123 getRecentHistoryByUser 1")
 	userID, ok := ctx.Value(constant.Session).(string)
 	if !ok || userID == "" {
 		return nil, errors.New("unauthorized: no valid session")
 	}
-	log.Println("joel 123 userId", userID)
-	log.Printf("joel 123 history records: %d, %+v", len(history), history)
 	err := s.DB(ctx).Where("user_id = ?", userID).Limit(limit).Order("played_at DESC").Find(&history).Error
 
+	log.Println("joel123 getRecentHistoryByUser 2")
 	return history, err
 }
 

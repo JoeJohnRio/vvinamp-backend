@@ -2,11 +2,11 @@ package history
 
 import (
 	"context"
-	"vvinamp/graphql/model"
+	dbModel "vvinamp/model"
 )
 
 type Repository interface {
-	GetRecentHistoryByUser(ctx context.Context, limit int) ([]*model.ListeningHistory, error)
+	GetRecentHistoryByUser(ctx context.Context, limit int) ([]*dbModel.ListeningHistory, error)
 
 	// ... other methods as needed
 }

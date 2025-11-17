@@ -6,9 +6,10 @@ import (
 
 	"vvinamp/controller/auth"
 	"vvinamp/database/postgre"
-	"vvinamp/graphql"
+	"vvinamp/graphql/generated"
 	"vvinamp/graphql/resolvers"
 	"vvinamp/package/history"
+	"vvinamp/package/song"
 	"vvinamp/package/user"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -26,6 +27,7 @@ type GraphQLController struct {
 	postgre        *postgre.Connection
 	user           user.Service
 	history        history.Service
+	song           song.Service
 	logger         *zap.Logger
 }
 
@@ -37,6 +39,7 @@ type GraphQLControllerTarget struct {
 	Postgresql     *postgre.Connection
 	History        history.Service
 	User           user.Service
+	Song           song.Service
 	Logger         *zap.Logger
 }
 
@@ -49,6 +52,7 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 			postgre:        target.Postgresql,
 			user:           target.User,
 			history:        target.History,
+			song:           target.Song,
 			logger:         target.Logger,
 		},
 	}
@@ -58,7 +62,7 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 // GrqphQL is defining as the GraphQL handler
 func (m *GraphQLController) GraphQL() gin.HandlerFunc {
 	// 1. Create a new Server instance using handler.New()
-	srv := handler.New(graphql.NewExecutableSchema(graphql.Config{Resolvers: &resolvers.Resolver{}}))
+	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: &resolvers.Resolver{}}))
 
 	// 2. Explicitly add the necessary transports for your application.
 	// This makes the handler modular and production-ready.
@@ -103,6 +107,7 @@ func (m *GraphQLController) Middleware() gin.HandlerFunc {
 		log.Println("joel123 Middleware graphqlcontroller.go")
 		ctx = context.WithValue(ctx, user.Key, m.user)
 		ctx = context.WithValue(ctx, history.Key, m.history)
+		ctx = context.WithValue(ctx, song.Key, m.song)
 
 		// Pass the response writer for session management
 		if arw, ok := c.Writer.(*auth.AuthResponseWriter); ok {

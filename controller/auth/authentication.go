@@ -22,7 +22,6 @@ type AuthResponseWriter struct {
 	gin.ResponseWriter
 	tokenPassword     string
 	sessionToResolver string
-	sessionFromCookie string
 	auth              *Auth
 }
 type Auth struct {
@@ -60,12 +59,13 @@ func NewAuth(target AuthTarget) *Auth {
 
 // GenerateTokens creates both access and refresh tokens
 func (a *Auth) GenerateTokens(userID string) (accessToken, refreshToken string, err error) {
+	log.Println("joel123", userID)
 	// Generate access token (short-lived)
 	accessClaims := &model.Token{
 		UserID: userID,
 		Type:   "access",
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(15 * time.Minute).Unix(),
+			ExpiresAt: time.Now().Add(15000 * time.Minute).Unix(),
 			IssuedAt:  time.Now().Unix(),
 		},
 	}
@@ -101,11 +101,15 @@ func (a *Auth) GenerateTokens(userID string) (accessToken, refreshToken string, 
 func (a *Auth) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get JWT from Authorization: Bearer <token>
+		log.Println("joel123 Middleware Authentication")
 		authHeader := c.GetHeader("Authorization")
 		tokenPart := ""
 		if strings.HasPrefix(authHeader, "Bearer ") {
+
 			tokenPart = strings.TrimPrefix(authHeader, "Bearer ")
 		}
+
+		log.Println("joel123 Bearer Authentication", tokenPart)
 
 		if tokenPart != "" {
 			tk := &model.Token{}
@@ -118,6 +122,14 @@ func (a *Auth) Middleware() gin.HandlerFunc {
 				c.Request = c.Request.WithContext(ctx)
 			}
 		}
+
+		arw := &AuthResponseWriter{
+			ResponseWriter:    c.Writer,
+			tokenPassword:     a.tokenPassword, // pass secrets/configs from your Auth struct
+			sessionToResolver: "",
+			auth:              a,
+		}
+		c.Writer = arw // <-- This is the critical line!
 		// Continue to next Handler
 		c.Next()
 	}
