@@ -1,0 +1,82 @@
+INSERT INTO genres (name, description) VALUES
+('Pop', 'Popular music characterized by catchy melodies, simple chord progressions, and widespread appeal. Originated in the 1950s and remains one of the most commercially successful genres.'),
+('Rock', 'A genre characterized by electric guitars, strong rhythms, and often rebellious themes. Emerged in the 1950s from rock and roll and has evolved into numerous subgenres.'),
+('Hip Hop', 'Urban music genre featuring rhythmic vocal delivery (rapping), DJing, and sampling. Originated in the Bronx, New York in the 1970s.'),
+('Jazz', 'A genre rooted in improvisation, swing rhythms, and complex harmonies. Originated in African American communities in New Orleans in the early 20th century.'),
+('Classical', 'Western art music tradition spanning from medieval times to the present, characterized by formal composition, orchestral arrangements, and sophisticated musical structures.'),
+('Electronic', 'Music primarily created using electronic instruments and digital production techniques, including synthesizers, drum machines, and computers.'),
+('R&B', 'Rhythm and Blues - A genre combining elements of jazz, gospel, and blues, characterized by soulful vocals and groove-oriented rhythms.'),
+('Country', 'American roots music featuring guitars, fiddles, and storytelling lyrics about everyday life, love, and rural themes.'),
+('Metal', 'Heavy, aggressive music characterized by distorted guitars, powerful vocals, and intense drumming. Evolved from hard rock in the late 1960s and early 1970s.'),
+('Reggae', 'Jamaican music genre characterized by offbeat rhythms, bass-heavy sound, and often socially conscious lyrics. Popularized internationally by Bob Marley.'),
+('Blues', 'African American music genre featuring expressive vocals, guitar-based melodies, and themes of hardship and emotion. Foundation for many modern genres.'),
+('Folk', 'Traditional acoustic music passed down through generations, often featuring storytelling and cultural heritage themes.'),
+('Funk', 'Groove-based genre emphasizing syncopated bass lines, rhythmic guitar, and horn sections. Created by African American musicians in the mid-1960s.'),
+('Soul', 'Emotionally expressive genre combining elements of gospel, R&B, and blues, characterized by powerful vocals and heartfelt delivery.'),
+('Indie', 'Independent music produced outside major commercial record labels, often featuring experimental sounds and DIY ethos.'),
+('Alternative', 'Non-mainstream rock music that emerged in the 1980s, characterized by diverse sounds and rejection of commercial pop conventions.'),
+('EDM', 'Electronic Dance Music - High-energy electronic music designed for nightclubs, festivals, and dance floors, featuring prominent beats and drops.'),
+('Latin', 'Music originating from Latin America and Spain, including salsa, bachata, reggaeton, and other regional styles.'),
+('K-Pop', 'Korean popular music characterized by catchy melodies, synchronized choreography, and high production values. Global phenomenon since the 2010s.'),
+('Punk', 'Fast, aggressive rock music with simple structures and anti-establishment themes. Emerged in the mid-1970s as a reaction to mainstream rock.');
+
+
+INSERT INTO artists (name, bio, profile_image, verified, monthly_listeners) VALUES
+('NIKI', 'Nicole Zefanya, known as NIKI, is an Indonesian R&B and soul singer-songwriter who rose to international fame. She was the first Indonesian artist to perform at Coachella and is known for hits like "Lowkey" and "Every Summertime". Part of the 88rising collective.', 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT63SBFJMkL4qnNS4ikPlPvjWPjKk3bqZ-eVA&s', TRUE, 17000000),
+('Pamungkas', 'Pamungkas is an Indonesian singer-songwriter and music producer known for his indie pop and alternative music. His introspective lyrics and melodic compositions have earned him a massive following across Southeast Asia.', 'https://example.com/pamungkas.jpg', TRUE, 16500000),
+('Hindia', 'Baskara Putra, known professionally as Hindia, is an Indonesian singer-songwriter and former bassist of .Feast. Known for his poetic lyrics and indie pop sound, he has become one of the most influential artists in the Indonesian indie scene.', 'https://example.com/hindia.jpg', TRUE, 13600000),
+('Raim Laode', 'Raim Laode is an Indonesian singer-songwriter who gained popularity through his emotional ballads and soulful voice. His music often explores themes of love, heartbreak, and personal growth.', 'https://example.com/raim.jpg', TRUE, 12600000),
+('Tulus', 'Muhammad Tulus is an Indonesian pop singer-songwriter known for his warm vocals and romantic ballads. He has won numerous awards including multiple AMI Awards and is recognized as one of Indonesia''s top contemporary artists.', 'https://example.com/tulus.jpg', TRUE, 8500000),
+('Mahalini', 'Ni Luh Putu Mahalini Ayu Raharja, known as Mahalini, is an Indonesian pop singer who rose to fame through Indonesian Idol. Her powerful vocals and emotional performances have made her one of the most popular young artists in Indonesia.', 'https://example.com/mahalini.jpg', TRUE, 9200000),
+('Juicy Luicy', 'Juicy Luicy is an Indonesian pop-rock band formed in 2013. Known for their catchy melodies and relatable lyrics about love and relationships, they won Top Local Artist at the Official Indonesia Chart Awards 2024.', 'https://example.com/juicyluicy.jpg', TRUE, 7800000),
+('Bernadya', 'Bernadya Ribka Ayu is an Indonesian singer-songwriter known for her indie pop and bedroom pop style. Her authentic and honest songwriting has resonated with young Indonesian audiences.', 'https://example.com/bernadya.jpg', TRUE, 6900000),
+('Tiara Andini', 'Tiara Anugrah Eka Setyo Andini is an Indonesian singer and actress who gained fame as runner-up in Indonesian Idol 2020. She has since become one of the most successful young pop artists in Indonesia.', 'https://example.com/tiaraandini.jpg', TRUE, 6500000),
+('Fourtwnty', 'Fourtwnty is an Indonesian indie rock band from Bandung formed in 2010. Known for their philosophical lyrics and alternative rock sound, their song "Mangu" topped charts in 2025.', 'https://example.com/fourtwnty.jpg', TRUE, 5800000),
+('Dewa 19', 'Dewa 19 is a legendary Indonesian rock band formed in 1986. One of the most successful bands in Indonesian music history, they are known for iconic albums like "Bintang Lima" and countless hits that defined Indonesian rock music.', 'https://upload.wikimedia.org/wikipedia/id/e/e6/Cover_Dewa_19_Album.jpg', TRUE, 4200000),
+('Rizky Febian', 'Rizky Febian is an Indonesian singer-songwriter and actor, son of comedian Sule. Known for his R&B and pop ballads, he has established himself as a major solo artist with numerous hit singles.', 'https://example.com/rizkyfebian.jpg', TRUE, 5300000),
+('Aziz Hedra', 'Aziz Hedra is an Indonesian R&B singer-songwriter who went viral with his cover of "Somebody''s Pleasure". His smooth vocals and modern R&B style have earned him international recognition.', 'https://example.com/azizhedra.jpg', TRUE, 4700000),
+('Lyodra', 'Lyodra Margareta Ginting is an Indonesian singer who won Indonesian Idol 2020 at age 16. Known for her powerful vocals and emotional delivery, she has become one of Indonesia''s most celebrated young talents.', 'https://example.com/lyodra.jpg', TRUE, 5100000),
+('Weird Genius', 'Weird Genius is an Indonesian electronic music trio consisting of Reza Arap, Eka Gustiwana, and Gerald Liu. They gained international fame with their viral hit "Lathi" and are known for blending EDM with Indonesian cultural elements.', 'https://example.com/weirdgenius.jpg', TRUE, 6200000),
+('Afgan', 'Afgansyah Reza, known as Afgan, is an Indonesian pop and R&B singer-songwriter. One of the most respected voices in Indonesian music, he is known for his vocal range and romantic ballads.', 'https://example.com/afgan.jpg', TRUE, 4500000),
+('.Feast', '.Feast is an Indonesian indie rock band from Jakarta formed in 2014. Known for their energetic performances and indie rock sound, they have been influential in shaping the Indonesian indie music scene.', 'https://example.com/feast.jpg', TRUE, 3800000),
+('Silet Open Up', 'Silet Open Up is an Indonesian musician and producer known for blending traditional Indonesian music elements with modern production. Part of the collaborative hit "Tabola Bale" which went viral in 2025.', 'https://example.com/siletopenup.jpg', TRUE, 3200000),
+('Vidi Aldiano', 'Vidi Aldiano is an Indonesian pop singer-songwriter of Javanese and Minangkabau descent. Known for his smooth vocals and romantic pop songs, he has been a prominent figure in Indonesian music since the 2010s.', 'https://example.com/vidialdiano.jpg', TRUE, 3500000),
+('Once Mekel', 'Elfonda Mekel, known as Once, is an Indonesian rock singer best known as the former vocalist of Dewa 19. His powerful voice helped create some of the most iconic Indonesian rock albums including "Bintang Lima".', 'https://example.com/oncemekel.jpg', TRUE, 2900000);
+
+INSERT INTO albums (title, artist_id, release_date, cover_art, genre_id) VALUES
+('Bintang Lima', 
+ '192d1f67-b4b2-4efe-ba8f-61779ff0d0f4', 
+ '2000-05-15', 
+ 'https://example.com/albums/bintang-lima.jpg',
+ '68a016c3-7307-4efd-b922-674482f5d2db');
+
+ INSERT INTO tracks (title, duration, audio_file_url, album_id, release_date) VALUES
+('Roman Picisan', 257, 'https://example.com/dewa19/roman-picisan.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15'),
+('Dua Sejoli', 230, 'https://example.com/dewa19/dua-sejoli.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15'),
+('Risalah Hati', 262, 'https://example.com/dewa19/risalah-hati.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15'),
+('Cemburu', 264, 'https://example.com/dewa19/cemburu.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15'),
+('Separuh Nafas', 211, 'https://example.com/dewa19/separuh-nafas.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15'),
+('Lagu Cinta', 228, 'https://example.com/dewa19/lagu-cinta.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15'),
+('Penguasa', 224, 'https://example.com/dewa19/penguasa.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15'),
+('Kasidah Cinta', 284, 'https://example.com/dewa19/kasidah-cinta.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15'),
+('Cinta Adalah Misteri', 228, 'https://example.com/dewa19/cinta-adalah-misteri.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15'),
+('Sayap-Sayap Patah', 218, 'https://example.com/dewa19/sayap-sayap-patah.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15'),
+('Pupus', 293, 'https://example.com/dewa19/pupus.mp3', 'c4a292f6-c9c9-490b-8eb1-41285ce8d6a7', '2000-05-15');
+
+
+
+INSERT INTO listening_history (user_id, content_id, content_type, played_at, progress) VALUES
+-- 1. Track fully played: Roman Picisan (Completed listening)
+('5d7f9219-26cc-4e77-8e1a-fcc38fbea99a', '2753a302-73f9-4c6a-a59f-a3628585b137', 'TRACK', '2025-10-31 10:00:00+07', 257),
+
+-- 2. Track fully played: Risalah Hati (Recently played)
+('5d7f9219-26cc-4e77-8e1a-fcc38fbea99a', 'e62e01b8-c220-4552-992b-15c804f3dfbf', 'TRACK', '2025-10-31 12:15:30+07', 262),
+
+-- 3. Track partially played: Pupus (User stopped halfway)
+('5d7f9219-26cc-4e77-8e1a-fcc38fbea99a', '1127c48a-b701-42c2-89ca-ce40f46b3746', 'TRACK', '2025-10-31 14:45:00+07', 150),
+
+-- 4. Track fully played: Separuh Nafas (Played yesterday)
+('5d7f9219-26cc-4e77-8e1a-fcc38fbea99a', 'b1b85b6f-455a-45ee-b4cf-dcf1d09ea060', 'TRACK', '2025-10-30 20:30:00+07', 211),
+
+-- 5. Track partially played: Roman Picisan (Another partial listen, older)
+('5d7f9219-26cc-4e77-8e1a-fcc38fbea99a', '2753a302-73f9-4c6a-a59f-a3628585b137', 'TRACK', '2025-10-29 08:00:00+07', 50);

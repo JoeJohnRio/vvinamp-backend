@@ -1,0 +1,22 @@
+type PodcastSeries {
+  id: ID!
+  title: String!
+  description: String
+  coverArt: String
+  publisher: String
+  genre: Genre
+  episodes: [PodcastEpisode!]!
+}
+
+type PodcastEpisode {
+  id: ID!
+  series: PodcastSeries!
+  title: String!
+  episodeNumber: Int
+  seasonNumber: Int
+  description: String
+  releaseDate: Date
+  duration: Int!
+  audioFileUrl: String!
+  coverArt: String
+}

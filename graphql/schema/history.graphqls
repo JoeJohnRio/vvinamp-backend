@@ -1,0 +1,23 @@
+type ListeningHistory {
+  id: ID!
+  contentId: ID!
+  user: User!
+  playedAt: DateTime!
+  progress: Int
+  contentType: ContentType!
+  contentName: String!
+  contentImage: String
+}
+
+extend type Query {
+  listRecentHistory(limit: Int!): [ListeningHistory]!
+}
+
+enum ContentType {
+  TRACK
+  PODCAST_EPISODE
+  PLAYLIST
+  PODCAST_SERIES
+  ALBUM
+  ARTIST
+}

@@ -1,0 +1,15 @@
+scalar DateTimeISO
+scalar DateTime
+scalar Date
+
+# QUERY SECTION ------------------------------------------------------------------------------
+
+type Query {
+    test: Boolean
+}
+
+# MUTATION SECTION ------------------------------------------------------------------------------
+
+type Mutation {
+    test: Boolean
+}

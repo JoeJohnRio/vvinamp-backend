@@ -2,11 +2,44 @@
 
 package model
 
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"strconv"
+)
+
+type ArtistHeader struct {
+	Name                   string  `json:"name"`
+	MonthlyListeners       int     `json:"monthlyListeners"`
+	ImageURL               string  `json:"imageUrl"`
+	VerticalVideoHeaderURL *string `json:"verticalVideoHeaderUrl,omitempty"`
+	IsFollowed             bool    `json:"isFollowed"`
+	Biography              *string `json:"biography,omitempty"`
+	IsVerified             bool    `json:"isVerified"`
+}
+
+type ArtistScreenData struct {
+	ArtistProfile *Artist            `json:"artistProfile,omitempty"`
+	TopSongs      *TopSongsResult    `json:"topSongs,omitempty"`
+	TopReleases   *TopReleasesResult `json:"topReleases,omitempty"`
+}
+
+type AuthSession struct {
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
+	IsLoggedIn   bool   `json:"isLoggedIn"`
+}
+
 type ListeningHistory struct {
-	User     *User  `json:"user"`
-	Track    *Track `json:"track"`
-	PlayedAt string `json:"playedAt"`
-	Progress int    `json:"progress"`
+	ID           string      `json:"id"`
+	ContentID    string      `json:"contentId"`
+	User         *User       `json:"user"`
+	PlayedAt     string      `json:"playedAt"`
+	Progress     *int        `json:"progress,omitempty"`
+	ContentType  ContentType `json:"contentType"`
+	ContentName  string      `json:"contentName"`
+	ContentImage *string     `json:"contentImage,omitempty"`
 }
 
 type Login struct {
@@ -15,7 +48,7 @@ type Login struct {
 }
 
 type LoginPayload struct {
-	Viewer *User `json:"viewer"`
+	Session *AuthSession `json:"session"`
 }
 
 type Mutation struct {
@@ -39,19 +72,38 @@ type PlaylistTrack struct {
 	AddedAt  string    `json:"addedAt"`
 }
 
+type PodcastEpisode struct {
+	ID            string         `json:"id"`
+	Series        *PodcastSeries `json:"series"`
+	Title         string         `json:"title"`
+	EpisodeNumber *int           `json:"episodeNumber,omitempty"`
+	SeasonNumber  *int           `json:"seasonNumber,omitempty"`
+	Description   *string        `json:"description,omitempty"`
+	ReleaseDate   *string        `json:"releaseDate,omitempty"`
+	Duration      int            `json:"duration"`
+	AudioFileURL  string         `json:"audioFileUrl"`
+	CoverArt      *string        `json:"coverArt,omitempty"`
+}
+
+type PodcastSeries struct {
+	ID          string            `json:"id"`
+	Title       string            `json:"title"`
+	Description *string           `json:"description,omitempty"`
+	CoverArt    *string           `json:"coverArt,omitempty"`
+	Publisher   *string           `json:"publisher,omitempty"`
+	Genre       *Genre            `json:"genre,omitempty"`
+	Episodes    []*PodcastEpisode `json:"episodes"`
+}
+
 type Query struct {
 }
 
-type QuickPick struct {
-	TrackID    string  `json:"trackId"`
-	Title      string  `json:"title"`
-	ArtistName string  `json:"artistName"`
-	PlayCount  int     `json:"playCount"`
-	CoverArt   *string `json:"coverArt,omitempty"`
+type RefreshTokenInput struct {
+	RefreshToken string `json:"refreshToken"`
 }
 
 type RegisterInput struct {
-	Username       string   `json:"username"`
+	Username       *string  `json:"username,omitempty"`
 	ProfilePicture string   `json:"profilePicture"`
 	Email          string   `json:"email"`
 	Password       string   `json:"password"`
@@ -62,6 +114,18 @@ type RegisterInput struct {
 
 type RegisterPayload struct {
 	User *User `json:"user"`
+}
+
+type TopReleasesResult struct {
+	Success bool     `json:"success"`
+	Error   *string  `json:"error,omitempty"`
+	Albums  []*Album `json:"albums"`
+}
+
+type TopSongsResult struct {
+	Success bool     `json:"success"`
+	Error   *string  `json:"error,omitempty"`
+	Tracks  []*Track `json:"tracks"`
 }
 
 type Track struct {
@@ -92,4 +156,67 @@ type UserLike struct {
 	User    *User  `json:"user"`
 	Track   *Track `json:"track"`
 	LikedAt string `json:"likedAt"`
+}
+
+type ContentType string
+
+const (
+	ContentTypeTrack          ContentType = "TRACK"
+	ContentTypePodcastEpisode ContentType = "PODCAST_EPISODE"
+	ContentTypePlaylist       ContentType = "PLAYLIST"
+	ContentTypePodcastSeries  ContentType = "PODCAST_SERIES"
+	ContentTypeAlbum          ContentType = "ALBUM"
+	ContentTypeArtist         ContentType = "ARTIST"
+)
+
+var AllContentType = []ContentType{
+	ContentTypeTrack,
+	ContentTypePodcastEpisode,
+	ContentTypePlaylist,
+	ContentTypePodcastSeries,
+	ContentTypeAlbum,
+	ContentTypeArtist,
+}
+
+func (e ContentType) IsValid() bool {
+	switch e {
+	case ContentTypeTrack, ContentTypePodcastEpisode, ContentTypePlaylist, ContentTypePodcastSeries, ContentTypeAlbum, ContentTypeArtist:
+		return true
+	}
+	return false
+}
+
+func (e ContentType) String() string {
+	return string(e)
+}
+
+func (e *ContentType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ContentType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ContentType", str)
+	}
+	return nil
+}
+
+func (e ContentType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ContentType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ContentType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }

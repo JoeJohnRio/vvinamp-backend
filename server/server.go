@@ -20,8 +20,6 @@ import (
 	"flag"
 
 	"golang.org/x/crypto/acme/autocert"
-
-	_ "github.com/go-sql-driver/mysql"
 )
 
 const defaultPort = "8080"
@@ -104,7 +102,7 @@ func handleArgs() {
 			connString := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8&parseTime=True&loc=Local&multiStatements=true",
 				user, pass, host, port, name)
 			// connect DB
-			db, err := sql.Open("mysql", connString)
+			db, err := sql.Open("postgre", connString)
 			if err != nil {
 				log.Fatalf("Error opening DB: %v", err)
 			}
@@ -115,6 +113,10 @@ func handleArgs() {
 				"GenresSeed",
 				"AlbumsSeed",
 			)
+
+			// Run GORM-based music seeder for Indonesian artists
+			// This requires a GORM connection, so we'll need to establish that separately
+			// For now, we'll run it separately after the SQL seeders
 			// seeds.Execute(db, args[1:]...)
 			os.Exit(0)
 		}

@@ -1,0 +1,44 @@
+input Login {
+  username: String!
+  password: String!
+}
+
+input RegisterInput {
+  username: String
+  profilePicture: String!
+  email: String!
+  password: String!
+  name: String!
+  avatar: String
+  roles: [String!]!
+}
+
+type AuthSession {
+  accessToken: String!
+  refreshToken: String!
+  isLoggedIn: Boolean!
+}
+
+type LoginPayload {
+  session: AuthSession!
+}
+
+type RegisterPayload {
+  user: User!
+}
+
+input RefreshTokenInput {
+  refreshToken: String!
+}
+
+extend type Query {
+  login(email: String!, password: String!): LoginPayload!
+  logout: Boolean!
+}
+
+# MUTATION SECTION ------------------------------------------------------------------------------
+
+extend type Mutation {
+  refreshToken(refreshToken: String!): LoginPayload!
+  register(input: RegisterInput!): RegisterPayload
+}

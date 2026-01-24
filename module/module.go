@@ -3,7 +3,8 @@ package module
 import (
 	"vvinamp/config"
 	"vvinamp/controller"
-	"vvinamp/database/mysql"
+	"vvinamp/controller/auth"
+	"vvinamp/database/postgre"
 	"vvinamp/logging"
 	"vvinamp/server"
 
@@ -16,10 +17,12 @@ var Module = fx.Options(
 		logging.New,
 		server.New,
 		// Database
-		mysql.New,
+		postgre.New,
 		// Controller
 		controller.NewGraphQLController,
-		controller.NewAuth,
+		controller.NewHomeController,
+		controller.NewFileServerController,
+		auth.NewAuth,
 	),
 	RepositoryModule,
 	ServiceModule,

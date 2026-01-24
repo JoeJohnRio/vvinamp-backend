@@ -1,0 +1,61 @@
+# Artist Screen Query Example
+
+This query fetches comprehensive artist information including profile, top songs, and top releases.
+
+## Query
+
+```graphql
+query GetArtistScreenData($artistId: ID!) {
+  getArtistScreenData(artistId: $artistId) {
+    artistProfile {
+      id
+      name
+      bio
+      profileImage
+      verified
+      monthlyListeners
+    }
+    topSongs {
+      success
+      error
+      tracks {
+        id
+        title
+        duration
+        streamCount
+        explicit
+        releaseDate
+        audioFileUrl
+      }
+    }
+    topReleases {
+      success
+      error
+      albums {
+        id
+        title
+        releaseDate
+        coverArt
+      }
+    }
+  }
+}
+```
+
+## Variables
+
+```json
+{
+  "artistId": "some-artist-id-here"
+}
+```
+
+## Description
+
+This query returns three separate sections of data:
+
+1. **artistProfile**: Basic information about the artist
+2. **topSongs**: Top 10 most popular songs based on view/stream count
+3. **topReleases**: Top albums/EPs released by the artist
+
+Each section has its own success/error handling, so if one section fails, the others will still return data. This provides resilience in case of partial data loading issues.

@@ -29,10 +29,12 @@ type Result struct {
 	Language string `name:"language"`
 	// Log path variables
 	LogPath string `name:"log_path"`
+	// Storage path variables
+	StoragePath string `name:"storage_path"`
 	// Secret
 	TokenPassword string `name:"token_password"`
 	// MongoDB
-	MySQLUrl string `name:"mysql_url"`
+	PostgreUrl string `name:"postgre_url"`
 }
 
 // New return all constants using in Project such as Dialogflow's ProjectID, Line's ChannelID
@@ -49,8 +51,9 @@ func New() (Result, error) {
 		GraphiQLEnable: os.Getenv("GRAPIHQL_ENABLE") == "true",
 		Language:       os.Getenv("LANGUAGE"),
 		LogPath:        os.Getenv("LOG_PATH"),
+		StoragePath:    os.Getenv("STORAGE_PATH"),
 		TokenPassword:  os.Getenv("TOKEN_PASSWORD"),
-		MySQLUrl:       os.Getenv("MYSQL_URL"),
+		PostgreUrl:     os.Getenv("POSTGRE_URL"),
 	}, nil
 }
 

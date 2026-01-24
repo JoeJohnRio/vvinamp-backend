@@ -6,6 +6,6 @@ type Artist struct {
 	Bio              *string  `json:"bio,omitempty"`
 	ProfileImage     *string  `json:"profileImage,omitempty"`
 	Verified         bool     `json:"verified"`
-	MonthlyListeners int32    `json:"monthlyListeners"`
+	MonthlyListeners int      `json:"monthlyListeners"`
 	Albums           []*Album `json:"albums"`
 }
