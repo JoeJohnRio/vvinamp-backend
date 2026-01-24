@@ -58,3 +58,8 @@ func (m *userService) ComparePassword(ctx context.Context, user *model.User, pas
 	err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	return err == nil
 }
+
+// GetByUsername retrieves a user by their username
+func (m *userService) GetByUsername(ctx context.Context, username string) (*model.User, error) {
+	return m.Repository.GetByUsername(ctx, username)
+}

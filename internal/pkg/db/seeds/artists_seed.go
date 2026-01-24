@@ -7,7 +7,7 @@ import (
 )
 
 func (s Seed) ArtistsSeed() {
-
+	// This is the original seeder - keeping it for reference
 	// Delete it first
 	_, erro := s.db.Exec("DELETE FROM artists")
 	if erro != nil {
@@ -26,4 +26,11 @@ func (s Seed) ArtistsSeed() {
 			log.Fatalf("Failed to execute statement: %v", err)
 		}
 	}
+}
+
+// IndonesianArtistsSeed seeds the database with real Indonesian artists
+func (s Seed) IndonesianArtistsSeed() {
+	// This function would be for the SQL-based approach
+	// For now, we'll use our GORM-based seeder in the seeder package
+	log.Println("Indonesian artists seeding should be done via GORM seeder in seeder package")
 }

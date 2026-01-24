@@ -10,4 +10,5 @@ import (
 type Repository interface {
 	Create(ctx context.Context, user *model.User) (*model.User, error)
 	GetByEmail(ctx context.Context, email string) (*model.User, error)
+	GetByUsername(ctx context.Context, username string) (*model.User, error)
 }

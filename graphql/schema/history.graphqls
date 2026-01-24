@@ -5,10 +5,9 @@ type ListeningHistory {
   playedAt: DateTime!
   progress: Int
   contentType: ContentType!
-  content: ListeningHistoryContent!
+  contentName: String!
+  contentImage: String
 }
-
-union ListeningHistoryContent = Track | PodcastEpisode
 
 extend type Query {
   listRecentHistory(limit: Int!): [ListeningHistory]!

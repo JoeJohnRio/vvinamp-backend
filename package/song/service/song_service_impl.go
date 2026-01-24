@@ -24,6 +24,11 @@ func (s *songService) GetSingleTrack(ctx context.Context, trackId string) (*mode
 	return s.Repository.GetTrackByID(ctx, trackId)
 }
 
+// GetAlbumByID implements song.Service.
+func (s *songService) GetAlbumByID(ctx context.Context, albumId string) (*model.Album, error) {
+	return s.Repository.GetAlbumByID(ctx, albumId)
+}
+
 type Target struct {
 	fx.In
 	Repository song.Repository

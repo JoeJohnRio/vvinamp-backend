@@ -25,7 +25,7 @@ models:
         resolver: true
       tracks:
         resolver: true
-      
+
   Artist:
     model: vvinamp/graphql/model.Artist
     fields:
@@ -33,13 +33,13 @@ models:
         resolver: true
       tracks:
         resolver: true
-        
+
   Genre:
     model: vvinamp/graphql/model.Genre
     fields:
       albums:
         resolver: true
-        
+
   User:
     model: vvinamp/graphql/model.User
     fields:
@@ -51,14 +51,14 @@ models:
         resolver: true
       followedArtists:
         resolver: true
-        
+
   Track:
     fields:
       album:
         resolver: true
       artists:
         resolver: true
-        
+
   Playlist:
     fields:
       creator:

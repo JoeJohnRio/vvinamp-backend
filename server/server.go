@@ -113,6 +113,10 @@ func handleArgs() {
 				"GenresSeed",
 				"AlbumsSeed",
 			)
+
+			// Run GORM-based music seeder for Indonesian artists
+			// This requires a GORM connection, so we'll need to establish that separately
+			// For now, we'll run it separately after the SQL seeders
 			// seeds.Execute(db, args[1:]...)
 			os.Exit(0)
 		}

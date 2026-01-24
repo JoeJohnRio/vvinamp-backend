@@ -29,6 +29,8 @@ type Result struct {
 	Language string `name:"language"`
 	// Log path variables
 	LogPath string `name:"log_path"`
+	// Storage path variables
+	StoragePath string `name:"storage_path"`
 	// Secret
 	TokenPassword string `name:"token_password"`
 	// MongoDB
@@ -49,6 +51,7 @@ func New() (Result, error) {
 		GraphiQLEnable: os.Getenv("GRAPIHQL_ENABLE") == "true",
 		Language:       os.Getenv("LANGUAGE"),
 		LogPath:        os.Getenv("LOG_PATH"),
+		StoragePath:    os.Getenv("STORAGE_PATH"),
 		TokenPassword:  os.Getenv("TOKEN_PASSWORD"),
 		PostgreUrl:     os.Getenv("POSTGRE_URL"),
 	}, nil

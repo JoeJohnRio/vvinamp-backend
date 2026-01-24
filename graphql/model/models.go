@@ -9,8 +9,20 @@ import (
 	"strconv"
 )
 
-type ListeningHistoryContent interface {
-	IsListeningHistoryContent()
+type ArtistHeader struct {
+	Name                   string  `json:"name"`
+	MonthlyListeners       int     `json:"monthlyListeners"`
+	ImageURL               string  `json:"imageUrl"`
+	VerticalVideoHeaderURL *string `json:"verticalVideoHeaderUrl,omitempty"`
+	IsFollowed             bool    `json:"isFollowed"`
+	Biography              *string `json:"biography,omitempty"`
+	IsVerified             bool    `json:"isVerified"`
+}
+
+type ArtistScreenData struct {
+	ArtistProfile *Artist            `json:"artistProfile,omitempty"`
+	TopSongs      *TopSongsResult    `json:"topSongs,omitempty"`
+	TopReleases   *TopReleasesResult `json:"topReleases,omitempty"`
 }
 
 type AuthSession struct {
@@ -20,13 +32,14 @@ type AuthSession struct {
 }
 
 type ListeningHistory struct {
-	ID          string                  `json:"id"`
-	ContentID   string                  `json:"contentId"`
-	User        *User                   `json:"user"`
-	PlayedAt    string                  `json:"playedAt"`
-	Progress    *int                    `json:"progress,omitempty"`
-	ContentType ContentType             `json:"contentType"`
-	Content     ListeningHistoryContent `json:"content"`
+	ID           string      `json:"id"`
+	ContentID    string      `json:"contentId"`
+	User         *User       `json:"user"`
+	PlayedAt     string      `json:"playedAt"`
+	Progress     *int        `json:"progress,omitempty"`
+	ContentType  ContentType `json:"contentType"`
+	ContentName  string      `json:"contentName"`
+	ContentImage *string     `json:"contentImage,omitempty"`
 }
 
 type Login struct {
@@ -72,8 +85,6 @@ type PodcastEpisode struct {
 	CoverArt      *string        `json:"coverArt,omitempty"`
 }
 
-func (PodcastEpisode) IsListeningHistoryContent() {}
-
 type PodcastSeries struct {
 	ID          string            `json:"id"`
 	Title       string            `json:"title"`
@@ -92,7 +103,7 @@ type RefreshTokenInput struct {
 }
 
 type RegisterInput struct {
-	Username       string   `json:"username"`
+	Username       *string  `json:"username,omitempty"`
 	ProfilePicture string   `json:"profilePicture"`
 	Email          string   `json:"email"`
 	Password       string   `json:"password"`
@@ -103,6 +114,18 @@ type RegisterInput struct {
 
 type RegisterPayload struct {
 	User *User `json:"user"`
+}
+
+type TopReleasesResult struct {
+	Success bool     `json:"success"`
+	Error   *string  `json:"error,omitempty"`
+	Albums  []*Album `json:"albums"`
+}
+
+type TopSongsResult struct {
+	Success bool     `json:"success"`
+	Error   *string  `json:"error,omitempty"`
+	Tracks  []*Track `json:"tracks"`
 }
 
 type Track struct {
@@ -117,8 +140,6 @@ type Track struct {
 	ReleaseDate  string         `json:"releaseDate"`
 	Artists      []*TrackArtist `json:"artists"`
 }
-
-func (Track) IsListeningHistoryContent() {}
 
 type TrackArtist struct {
 	Track  *Track  `json:"track"`

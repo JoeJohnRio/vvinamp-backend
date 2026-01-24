@@ -20,6 +20,8 @@ var Module = fx.Options(
 		postgre.New,
 		// Controller
 		controller.NewGraphQLController,
+		controller.NewHomeController,
+		controller.NewFileServerController,
 		auth.NewAuth,
 	),
 	RepositoryModule,

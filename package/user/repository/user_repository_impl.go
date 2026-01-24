@@ -78,7 +78,23 @@ func (m *sqlRepository) GetByEmail(ctx context.Context, email string) (*model.Us
 	var user model.User
 	err := m.DB(ctx).Where("email = ?", email).First(&user).Error
 
-	return &user, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+// GetByUsername returns one user which is matched by username
+func (m *sqlRepository) GetByUsername(ctx context.Context, username string) (*model.User, error) {
+	var user model.User
+	err := m.DB(ctx).Where("username = ?", username).First(&user).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 // Create will insert new user into database

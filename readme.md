@@ -16,3 +16,11 @@ go run -mod=mod github.com/99designs/gqlgen generate
 
 ngrok http http://localhost:8080
 go run github.com/99designs/gqlgen generate
+
+cloudflared tunnel run cirio-laptop
+
+run seeder
+go run cmd/seeder/main.go reset-and-seed-music
+
+id for user joel@joel.joel
+5d7f9219-26cc-4e77-8e1a-fcc38fbea99a

@@ -1,13 +1,14 @@
 package controller
 
 import (
-	context "context"
+	"context"
 	"log"
 
 	"vvinamp/controller/auth"
 	"vvinamp/database/postgre"
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/resolvers"
+	artistPackage "vvinamp/package/artist/service"
 	"vvinamp/package/history"
 	"vvinamp/package/song"
 	"vvinamp/package/user"
@@ -28,6 +29,7 @@ type GraphQLController struct {
 	user           user.Service
 	history        history.Service
 	song           song.Service
+	artist         artistPackage.ArtistService
 	logger         *zap.Logger
 }
 
@@ -40,6 +42,7 @@ type GraphQLControllerTarget struct {
 	History        history.Service
 	User           user.Service
 	Song           song.Service
+	Artist         artistPackage.ArtistService
 	Logger         *zap.Logger
 }
 
@@ -53,6 +56,7 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 			user:           target.User,
 			history:        target.History,
 			song:           target.Song,
+			artist:         target.Artist,
 			logger:         target.Logger,
 		},
 	}
@@ -61,8 +65,11 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 // GrqphQL is defining as the GraphQL handler
 // GrqphQL is defining as the GraphQL handler
 func (m *GraphQLController) GraphQL() gin.HandlerFunc {
+	// Create resolver with required services
+	resolver := resolvers.NewResolver(m.artist, m.user, m.history, m.song)
+
 	// 1. Create a new Server instance using handler.New()
-	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: &resolvers.Resolver{}}))
+	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 
 	// 2. Explicitly add the necessary transports for your application.
 	// This makes the handler modular and production-ready.

@@ -6,7 +6,6 @@ package resolvers
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -31,58 +30,6 @@ func (r *listeningHistoryResolver) PlayedAt(ctx context.Context, obj *graphqlMod
 	return time.Now().Format(time.RFC3339), nil
 }
 
-// Content is the resolver for the content field.
-func (r *listeningHistoryResolver) Content(ctx context.Context, obj *graphqlModel.ListeningHistory) (graphqlModel.ListeningHistoryContent, error) {
-	switch obj.ContentType {
-
-	case graphqlModel.ContentTypeAlbum:
-		return nil, fmt.Errorf("Not Implemented graphqlModel.ContentTypeAlbum:", obj.ContentType)
-
-	case graphqlModel.ContentTypeTrack:
-		songSvc := song.ForContext(ctx)
-		log.Println("joel123 objContentId", obj.ContentID)
-		data, err := songSvc.GetSingleTrack(ctx, obj.ContentID)
-
-		if err != nil {
-			return nil, err
-		}
-
-		return &graphqlModel.Track{
-			ID:           data.ID.String(),
-			Title:        data.Title,
-			Duration:     data.Duration,
-			AudioFileURL: data.AudioFileURL,
-			StreamCount:  data.StreamCount,
-			// Album: &graphqlModel.Album{ // fetch/resolve album as needed
-			// 	ID:          data.AlbumID,
-			// 	Title:       data.AlbumTitle,
-			// 	ReleaseDate: data.AlbumReleaseDate,
-			// 	// ...other Album fields
-			// },
-			Explicit:    data.Explicit,
-			Lyrics:      &data.Lyrics, // pointer, ensure non-nil handling
-			ReleaseDate: data.ReleaseDate,
-			// Artists:     mapArtists(data.Artists),
-		}, nil
-
-	case graphqlModel.ContentTypePodcastEpisode:
-		// episode, err := r.PodcastService.GetEpisodeByID(ctx, obj.ContentID)
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// // Optionally also fetch & attach the series info to episode.Series if not already attached
-		// return episode, nil
-		return &graphqlModel.PodcastEpisode{
-			ID:    "track-123",
-			Title: "Dummy Podcast",
-			// ...any other required fields here
-		}, nil
-
-	default:
-		return nil, fmt.Errorf("unsupported content type: %s", obj.ContentType)
-	}
-}
-
 // ListRecentHistory implements generated.QueryResolver.
 func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*graphqlModel.ListeningHistory, error) {
 	historySvc := history.ForContext(ctx)
@@ -96,10 +43,59 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 	for _, raw := range a {
 		log.Println("joel123 content 1", raw.ContentType)
 		log.Println("joel123 content 2", raw.ContentID)
+
+		// Inline the mapContentType logic
+		var contentType graphqlModel.ContentType
+		switch strings.ToLower(raw.ContentType) {
+		case "track":
+			contentType = graphqlModel.ContentTypeTrack
+		case "podcast":
+			contentType = graphqlModel.ContentTypePodcastEpisode
+		default:
+			contentType = graphqlModel.ContentTypeAlbum // Or handle error
+		}
+
+		// Get content name based on content type
+		var contentName string
+		var contentImage *string
+		switch contentType {
+		case graphqlModel.ContentTypeTrack:
+			songSvc := song.ForContext(ctx)
+			data, err := songSvc.GetSingleTrack(ctx, raw.ContentID)
+			if err != nil {
+				log.Printf("Error fetching track for content name/image: %v", err)
+				contentName = "Unknown Track"
+				empty := ""
+				contentImage = &empty
+			} else {
+				contentName = data.Title
+				album, err := songSvc.GetAlbumByID(ctx, data.AlbumID.String())
+				if err != nil {
+					log.Printf("Error fetching album for content image: %v", err)
+					empty := ""
+					contentImage = &empty
+				} else {
+					contentImage = &album.CoverArt
+				}
+			}
+		case graphqlModel.ContentTypePodcastEpisode:
+			// For podcasts, return empty string as requested and no content name for now
+			empty := ""
+			contentName = "Unknown Podcast"
+			contentImage = &empty
+		default:
+			// For other content types, return empty string
+			empty := ""
+			contentName = "Unknown Content"
+			contentImage = &empty
+		}
+
 		apiHistory := &graphqlModel.ListeningHistory{
-			ID:          raw.ID,
-			ContentID:   raw.ContentID,
-			ContentType: mapContentType(raw.ContentType),
+			ID:           raw.ID,
+			ContentID:    raw.ContentID,
+			ContentType:  contentType,
+			ContentName:  contentName,
+			ContentImage: contentImage,
 			// PlayedAt:    raw.PlayedAt,
 			// Progress:    raw.Progress,
 			// resolve user or relationships as required
@@ -116,29 +112,3 @@ func (r *Resolver) ListeningHistory() generated.ListeningHistoryResolver {
 }
 
 type listeningHistoryResolver struct{ *Resolver }
-
-func mapContentType(dbType string) graphqlModel.ContentType {
-	switch strings.ToLower(dbType) {
-	case "track":
-		return graphqlModel.ContentTypeTrack
-	case "podcast":
-		return graphqlModel.ContentTypePodcastEpisode
-	default:
-		return graphqlModel.ContentTypeAlbum // Or handle error
-	}
-}
-func pointerToInt(i int) *int {
-	return &i
-}
-func stringPointer(i string) *string {
-	return &i
-}
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
- */

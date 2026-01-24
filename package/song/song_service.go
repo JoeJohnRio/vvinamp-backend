@@ -16,6 +16,7 @@ const (
 type Service interface {
 	Repository
 	GetSingleTrack(ctx context.Context, trackId string) (*dbModel.Track, error)
+	GetAlbumByID(ctx context.Context, albumId string) (*dbModel.Album, error)
 }
 
 // ForContext is method to get user service from context

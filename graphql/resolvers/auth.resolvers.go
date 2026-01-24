@@ -11,6 +11,7 @@ import (
 	"vvinamp/controller/auth"
 	"vvinamp/graphql/model"
 	"vvinamp/package/user"
+	"vvinamp/package/utils"
 )
 
 // RefreshToken is the resolver for the refreshToken field.
@@ -20,7 +21,54 @@ func (r *mutationResolver) RefreshToken(ctx context.Context, refreshToken string
 
 // Register is the resolver for the register field.
 func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInput) (*model.RegisterPayload, error) {
-	panic(fmt.Errorf("not implemented: Register - register"))
+	// Get user service from context
+	userSvc := user.ForContext(ctx)
+
+	// Determine which picture to use: use Avatar if provided, otherwise use ProfilePicture
+	var profilePicture *string
+	if input.Avatar != nil && *input.Avatar != "" {
+		profilePicture = input.Avatar
+	} else {
+		profilePicture = &input.ProfilePicture
+	}
+
+	// Generate username if not provided
+	var username string
+	if input.Username == nil || *input.Username == "" {
+		// Check if username is available (doesn't exist in DB)
+		isUsernameAvailable := func(checkUsername string) bool {
+			_, err := userSvc.GetByUsername(ctx, checkUsername)
+			return err != nil // If error occurs, it means user doesn't exist (available)
+		}
+
+		// Generate a unique username based on the user's name
+		username = utils.GenerateUniqueUsername(input.Name, isUsernameAvailable)
+	} else {
+		username = *input.Username
+	}
+
+	// Create a new user model from the input
+	// Note: The name field from input is not used since User model doesn't have a name field
+	// Note: Roles field from input is not used since User model doesn't have a roles field
+	// Note: In the current implementation, the repository expects the plain password in PasswordHash field
+	// and then hashes it in the Create method
+	newUser := &model.User{
+		Username:       username,
+		Email:          input.Email,
+		PasswordHash:   input.Password, // This will be hashed in the repository's Create method
+		ProfilePicture: profilePicture,
+	}
+
+	// Call the user service to register the user
+	registeredUser, err := userSvc.Register(ctx, newUser)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return the registered user in the payload
+	return &model.RegisterPayload{
+		User: registeredUser,
+	}, nil
 }
 
 // Login is the resolver for the login field.
@@ -34,7 +82,7 @@ func (r *queryResolver) Login(ctx context.Context, email string, password string
 	var accessToken, refreshToken string
 	log.Println("joel123 Login")
 	// If you're using context to pass auth writer for middleware/token things:
-	if arw, ok := ctx.Value("authResponseWriter").(AuthResponseWriter); ok {
+	if arw, ok := ctx.Value("authResponseWriter").(*auth.AuthResponseWriter); ok {
 		log.Println("joel123 login 1")
 		arw.SetSessionToResolver(u.ID)
 		// At this point, the authentication.go middleware will set cookies
@@ -66,17 +114,3 @@ func (r *queryResolver) Login(ctx context.Context, email string, password string
 func (r *queryResolver) Logout(ctx context.Context) (bool, error) {
 	panic(fmt.Errorf("not implemented: Logout - logout"))
 }
-
-type AuthResponseWriter interface {
-	SetSessionToResolver(userID string)
-	GetAuth() *auth.Auth
-}
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
- */

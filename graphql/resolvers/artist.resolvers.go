@@ -6,6 +6,7 @@ package resolvers
 
 import (
 	"context"
+	"errors"
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/model"
 )
@@ -18,6 +19,44 @@ func (r *artistResolver) Albums(ctx context.Context, obj *model.Artist) ([]*mode
 // Tracks is the resolver for the tracks field.
 func (r *artistResolver) Tracks(ctx context.Context, obj *model.Artist) ([]*model.Track, error) {
 	panic("not implemented")
+}
+
+// GetArtistHeader is the resolver for the getArtistHeader field.
+func (r *queryResolver) GetArtistHeader(ctx context.Context, id string) (*model.ArtistHeader, error) {
+	// Get the user ID from context (for determining if the user is following the artist)
+	userID := getUserIDFromContext(ctx)
+
+	// Check if user is authenticated
+	if userID == nil {
+		return nil, errors.New("unauthorized: no valid session")
+	}
+
+	// Call the service to get artist data and follow status
+	artist, isFollowed, err := r.Resolver.ArtistService.GetArtistHeaderByID(ctx, id, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert database artist model to GraphQL ArtistHeader model
+	var imageURL string
+	if artist.ProfileImage != nil {
+		imageURL = *artist.ProfileImage
+	} else {
+		imageURL = "" // or a default image URL if needed
+	}
+
+	artistHeader := &model.ArtistHeader{
+		Name:                   artist.Name,
+		MonthlyListeners:       int(artist.MonthlyListeners),
+		VerticalVideoHeaderURL: artist.VerticalVideoHeaderUrl, // This field maps from the database model
+		IsFollowed:             isFollowed,
+		ImageURL:               imageURL,
+		// Map bio to biography field
+		Biography:  artist.Bio,
+		IsVerified: artist.Verified,
+	}
+
+	return artistHeader, nil
 }
 
 // Artist returns generated.ArtistResolver implementation.

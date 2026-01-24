@@ -8,3 +8,17 @@ type Artist {
   albums: [Album!]!
   tracks: [Track!]!
 }
+
+type ArtistHeader {
+  name: String!
+  monthlyListeners: Int!
+  imageUrl: String!
+  verticalVideoHeaderUrl: String
+  isFollowed: Boolean!
+  biography: String
+  isVerified: Boolean!
+}
+
+extend type Query {
+    getArtistHeader(id: ID!): ArtistHeader
+}

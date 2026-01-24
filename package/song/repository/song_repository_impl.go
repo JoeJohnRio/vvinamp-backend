@@ -24,6 +24,15 @@ func (m *sqlRepository) GetTrackByID(ctx context.Context, trackId string) (*dbMo
 	return track, err
 }
 
+// GetAlbumByID implements song.Repository.
+func (m *sqlRepository) GetAlbumByID(ctx context.Context, albumId string) (*dbModel.Album, error) {
+	var album *dbModel.Album
+
+	err := m.DB(ctx).Where("id = ?", albumId).First(&album).Error
+
+	return album, err
+}
+
 type SQLRepositoryTarget struct {
 	fx.In
 	Connection *postgre.Connection

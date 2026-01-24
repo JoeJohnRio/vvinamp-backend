@@ -1,0 +1,21 @@
+type ArtistScreenData {
+  artistProfile: Artist
+  topSongs: TopSongsResult
+  topReleases: TopReleasesResult
+}
+
+type TopSongsResult {
+  success: Boolean!
+  error: String
+  tracks: [Track!]!
+}
+
+type TopReleasesResult {
+  success: Boolean!
+  error: String
+  albums: [Album!]!
+}
+
+extend type Query {
+  getArtistScreenData(artistId: ID!): ArtistScreenData!
+}

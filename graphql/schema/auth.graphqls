@@ -4,7 +4,7 @@ input Login {
 }
 
 input RegisterInput {
-  username: String!
+  username: String
   profilePicture: String!
   email: String!
   password: String!
