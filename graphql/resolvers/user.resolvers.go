@@ -6,9 +6,35 @@ package resolvers
 
 import (
 	"context"
+	"fmt"
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/model"
+	"vvinamp/internal/pkg/session"
+	"vvinamp/package/user"
 )
+
+// Me is the resolver for the me field - returns the current authenticated user
+func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
+	// Use the session helper to validate the session
+	sessionHelper := session.NewGraphQLSessionHelper()
+
+	userID, err := sessionHelper.RequireSessionForResolver(ctx)
+	if err != nil {
+		// Return a GraphQL error indicating unauthorized access
+		return nil, fmt.Errorf("unauthorized: %v", err)
+	}
+
+	// Get the user service from context
+	userSvc := user.ForContext(ctx)
+
+	// Fetch the user by ID
+	currentUser, err := userSvc.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user: %v", err)
+	}
+
+	return currentUser, nil
+}
 
 // Playlists is the resolver for the playlists field.
 func (r *userResolver) Playlists(ctx context.Context, obj *model.User) ([]*model.Playlist, error) {

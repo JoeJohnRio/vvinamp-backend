@@ -63,3 +63,10 @@ func (m *userService) ComparePassword(ctx context.Context, user *model.User, pas
 func (m *userService) GetByUsername(ctx context.Context, username string) (*model.User, error) {
 	return m.Repository.GetByUsername(ctx, username)
 }
+
+// GetByID retrieves a user by their ID
+func (m *userService) GetByID(ctx context.Context, id string) (*model.User, error) {
+	// Since the repository interface has been updated to include GetByID,
+	// we can call it directly
+	return m.Repository.GetByID(ctx, id)
+}

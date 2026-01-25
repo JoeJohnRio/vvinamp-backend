@@ -6,7 +6,6 @@ package resolvers
 
 import (
 	"context"
-	"errors"
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/model"
 )
@@ -25,11 +24,6 @@ func (r *artistResolver) Tracks(ctx context.Context, obj *model.Artist) ([]*mode
 func (r *queryResolver) GetArtistHeader(ctx context.Context, id string) (*model.ArtistHeader, error) {
 	// Get the user ID from context (for determining if the user is following the artist)
 	userID := getUserIDFromContext(ctx)
-
-	// Check if user is authenticated
-	if userID == nil {
-		return nil, errors.New("unauthorized: no valid session")
-	}
 
 	// Call the service to get artist data and follow status
 	artist, isFollowed, err := r.Resolver.ArtistService.GetArtistHeaderByID(ctx, id, userID)
