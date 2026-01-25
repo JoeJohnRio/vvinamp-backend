@@ -1,8 +1,11 @@
 package controller
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"log"
+	"strings"
 
 	"vvinamp/controller/auth"
 	"vvinamp/database/postgre"
@@ -12,8 +15,10 @@ import (
 	"vvinamp/package/history"
 	"vvinamp/package/song"
 	"vvinamp/package/user"
+	"vvinamp/internal/pkg/session"
 
 	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
 	"github.com/99designs/gqlgen/graphql/handler/transport" // New import for transports
 	oldHandler "github.com/99designs/gqlgen/handler"
 	"github.com/gin-gonic/gin"
@@ -71,6 +76,9 @@ func (m *GraphQLController) GraphQL() gin.HandlerFunc {
 	// 1. Create a new Server instance using handler.New()
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 
+		// Enable introspection for development and schema exploration
+	srv.Use(extension.Introspection{})
+
 	// 2. Explicitly add the necessary transports for your application.
 	// This makes the handler modular and production-ready.
 	srv.AddTransport(transport.GET{})           // Supports GET requests
@@ -98,10 +106,51 @@ func (m *GraphQLController) GraphiQL() gin.HandlerFunc {
 
 // Register is function to register all controller's endpoint handler
 func (m *GraphQLController) Register(r *gin.Engine) {
-	r.Use(m.auth.Middleware()).
-		Use(m.postgre.Middleware()).
-		Use(m.Middleware()).
-		POST("/v1/graphql", m.GraphQL())
+	// Single route with conditional authentication
+	r.POST("/v1/graphql",
+		m.auth.Middleware(),
+		m.postgre.Middleware(),
+		m.Middleware(),
+		// Conditional authentication middleware
+		func(c *gin.Context) {
+			// Read request body to determine if this is a public operation
+			bodyBytes := make([]byte, c.Request.ContentLength)
+			if c.Request.ContentLength > 0 && c.Request.Body != nil {
+				// Read the body
+				n, _ := c.Request.Body.Read(bodyBytes)
+				bodyStr := string(bodyBytes[:n])
+
+				// Reset the body for further processing
+				c.Request.Body = io.NopCloser(bytes.NewBufferString(bodyStr))
+
+				// Check if this is a public operation (login, register, introspection, etc.)
+				isPublicOperation := strings.Contains(bodyStr, "login") ||
+					strings.Contains(bodyStr, "register") ||
+					(strings.Contains(bodyStr, "__schema") && !strings.Contains(bodyStr, "me")) || // Allow schema introspection but not protected fields
+					(strings.Contains(bodyStr, "__type") && !strings.Contains(bodyStr, "me")) ||   // Allow type introspection but not protected fields
+					strings.Contains(bodyStr, "getArtistScreenData")                               // Allow artist screen data to be public
+
+				// If this is NOT a public operation, validate session
+				if !isPublicOperation {
+					// Validate session for protected operations
+					ctx := c.Request.Context()
+					sessionMgr := session.NewSessionManager()
+					_, err := sessionMgr.ValidateSession(ctx)
+					if err != nil {
+						c.JSON(401, gin.H{
+							"error": "Unauthorized: Invalid or expired session",
+							"code":  "UNAUTHORIZED",
+						})
+						c.Abort()
+						return
+					}
+				}
+			}
+
+			c.Next()
+		},
+		m.GraphQL())
+
 	if !m.graphiQLEnable {
 		r.GET("/v1/graphiql", m.GraphiQL())
 	}
@@ -120,6 +169,10 @@ func (m *GraphQLController) Middleware() gin.HandlerFunc {
 		if arw, ok := c.Writer.(*auth.AuthResponseWriter); ok {
 			ctx = context.WithValue(ctx, "authResponseWriter", arw)
 		}
+
+		// Add session manager to context for resolvers that need to validate sessions
+		sessionMgr := session.NewSessionManager()
+		ctx = context.WithValue(ctx, "session_manager", sessionMgr)
 
 		c.Request = c.Request.WithContext(ctx)
 		c.Next()

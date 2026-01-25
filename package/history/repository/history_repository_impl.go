@@ -24,7 +24,7 @@ func (s *sqlRepository) GetRecentHistoryByUser(ctx context.Context, limit int) (
 	log.Println("joel123 getRecentHistoryByUser 1")
 	userID, ok := ctx.Value(constant.Session).(string)
 	if !ok || userID == "" {
-		return nil, errors.New("unauthorized: no valid session")
+		return nil, errors.New("unauthorized: no valid session 4")
 	}
 	err := s.DB(ctx).Where("user_id = ?", userID).Limit(limit).Order("played_at DESC").Find(&history).Error
 

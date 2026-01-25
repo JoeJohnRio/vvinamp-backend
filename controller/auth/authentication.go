@@ -1,11 +1,10 @@
 package auth
 
 import (
-	"context"
 	"log"
 	"strings"
 	"time"
-	"vvinamp/constant"
+	"vvinamp/internal/pkg/session"
 	"vvinamp/model"
 
 	"github.com/dgrijalva/jwt-go"
@@ -27,6 +26,7 @@ type AuthResponseWriter struct {
 type Auth struct {
 	tokenPassword string
 	logger        *zap.Logger
+	sessionMgr    *session.SessionManager
 }
 
 // SetSessionToResolver implements the AuthResponseWriter interface
@@ -54,6 +54,7 @@ func NewAuth(target AuthTarget) *Auth {
 	return &Auth{
 		tokenPassword: target.TokenPassword,
 		logger:        target.Logger,
+		sessionMgr:    session.NewSessionManager(),
 	}
 }
 
@@ -105,7 +106,6 @@ func (a *Auth) Middleware() gin.HandlerFunc {
 		authHeader := c.GetHeader("Authorization")
 		tokenPart := ""
 		if strings.HasPrefix(authHeader, "Bearer ") {
-
 			tokenPart = strings.TrimPrefix(authHeader, "Bearer ")
 		}
 
@@ -117,10 +117,20 @@ func (a *Auth) Middleware() gin.HandlerFunc {
 				return []byte(a.tokenPassword), nil
 			})
 			if err == nil && token.Valid && !time.Unix(tk.ExpiresAt, 0).Before(time.Now()) {
-				// Session logic: Write the user ID from token into the request context
-				ctx := context.WithValue(c.Request.Context(), constant.Session, tk.UserID)
+				log.Println("joel123 token is valid")
+				log.Println("joel123 user ID from token:", tk.UserID)
+
+				// Create session using session manager
+				ctx := a.sessionMgr.CreateSession(c.Request.Context(), tk.UserID)
 				c.Request = c.Request.WithContext(ctx)
+			} else {
+				log.Println("joel123 token is invalid, err:", err)
+				// Even if token is invalid, continue with the request but without session
+				// The session validation will happen later in specific routes
 			}
+		} else {
+			// No token provided, continue without session
+			log.Println("joel123 no token provided")
 		}
 
 		arw := &AuthResponseWriter{

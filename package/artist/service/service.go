@@ -20,7 +20,7 @@ func NewService(repo repository.ArtistRepository) ArtistService {
 }
 
 func (s *artistService) GetArtistHeaderByID(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, bool, error) {
-	artist, err := s.repo.GetArtistHeaderByID(ctx, artistID)
+	artist, err := s.repo.GetArtistHeaderByID(ctx, artistID, userID)
 	if err != nil {
 		return nil, false, err
 	}
@@ -39,14 +39,14 @@ func (s *artistService) GetArtistHeaderByID(ctx context.Context, artistID string
 
 func (s *artistService) GetArtistScreenData(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, []*dbModel.Track, []*dbModel.Album, error) {
 	// Get artist profile - this is critical and if it fails, we return an error
-	artist, err := s.repo.GetArtistHeaderByID(ctx, artistID)
+	artist, err := s.repo.GetArtistHeaderByID(ctx, artistID, userID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	// Get top songs (tracks) by stream count
 	// If this fails, we still continue with empty slice
-	topSongs, err := s.repo.GetTopSongsByArtist(ctx, artistID)
+	topSongs, err := s.repo.GetTopSongsByArtist(ctx, artistID, userID)
 	if err != nil {
 		// Log the error if needed, but continue execution
 		topSongs = []*dbModel.Track{}
@@ -54,7 +54,7 @@ func (s *artistService) GetArtistScreenData(ctx context.Context, artistID string
 
 	// Get top releases (albums) by popularity metric
 	// If this fails, we still continue with empty slice
-	topReleases, err := s.repo.GetTopReleasesByArtist(ctx, artistID)
+	topReleases, err := s.repo.GetTopReleasesByArtist(ctx, artistID, userID)
 	if err != nil {
 		// Log the error if needed, but continue execution
 		topReleases = []*dbModel.Album{}

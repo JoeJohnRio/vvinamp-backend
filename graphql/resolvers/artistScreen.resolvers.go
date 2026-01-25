@@ -6,7 +6,6 @@ package resolvers
 
 import (
 	"context"
-	"errors"
 	"vvinamp/graphql/model"
 )
 
@@ -14,11 +13,6 @@ import (
 func (r *queryResolver) GetArtistScreenData(ctx context.Context, artistID string) (*model.ArtistScreenData, error) {
 	// Get the user ID from context (for potential future use)
 	userID := getUserIDFromContext(ctx)
-
-	// Check if user is authenticated
-	if userID == nil {
-		return nil, errors.New("unauthorized: no valid session")
-	}
 
 	// Call the service to get artist screen data
 	artist, topSongs, topReleases, err := r.Resolver.ArtistService.GetArtistScreenData(ctx, artistID, userID)
@@ -41,7 +35,7 @@ func (r *queryResolver) GetArtistScreenData(ctx context.Context, artistID string
 
 	// Prepare top songs result
 	var topSongsResult *model.TopSongsResult
-	if topSongs != nil {
+	if topSongs != nil && len(topSongs) > 0 {
 		trackModels := make([]*model.Track, len(topSongs))
 		for i, track := range topSongs {
 			trackModels[i] = &model.Track{
@@ -66,14 +60,14 @@ func (r *queryResolver) GetArtistScreenData(ctx context.Context, artistID string
 	} else {
 		topSongsResult = &model.TopSongsResult{
 			Success: false,
-			Error:   &[]string{"Failed to load top songs"}[0],
+			Error:   &[]string{"No top songs available"}[0],
 			Tracks:  []*model.Track{},
 		}
 	}
 
 	// Prepare top releases result
 	var topReleasesResult *model.TopReleasesResult
-	if topReleases != nil {
+	if topReleases != nil && len(topReleases) > 0 {
 		albumModels := make([]*model.Album, len(topReleases))
 		for i, album := range topReleases {
 			albumModels[i] = &model.Album{
@@ -94,7 +88,7 @@ func (r *queryResolver) GetArtistScreenData(ctx context.Context, artistID string
 	} else {
 		topReleasesResult = &model.TopReleasesResult{
 			Success: false,
-			Error:   &[]string{"Failed to load top releases"}[0],
+			Error:   &[]string{"No top releases available"}[0],
 			Albums:  []*model.Album{},
 		}
 	}

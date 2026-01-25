@@ -12,10 +12,10 @@ import (
 )
 
 type ArtistRepository interface {
-	GetArtistHeaderByID(ctx context.Context, id string) (*dbModel.Artist, error)
+	GetArtistHeaderByID(ctx context.Context, id string, userID *string) (*dbModel.Artist, error)
 	IsUserFollowingArtist(ctx context.Context, userID, artistID string) (bool, error)
-	GetTopSongsByArtist(ctx context.Context, artistID string) ([]*dbModel.Track, error)
-	GetTopReleasesByArtist(ctx context.Context, artistID string) ([]*dbModel.Album, error)
+	GetTopSongsByArtist(ctx context.Context, artistID string, userID *string) ([]*dbModel.Track, error)
+	GetTopReleasesByArtist(ctx context.Context, artistID string, userID *string) ([]*dbModel.Album, error)
 }
 
 // sqlRepository contains all the interactions with the artist table stored in sql.
@@ -46,7 +46,7 @@ func (m *sqlRepository) DB(ctx context.Context) *gorm.DB {
 	return postgre.ForContext(ctx)
 }
 
-func (r *sqlRepository) GetArtistHeaderByID(ctx context.Context, id string) (*dbModel.Artist, error) {
+func (r *sqlRepository) GetArtistHeaderByID(ctx context.Context, id string, userID *string) (*dbModel.Artist, error) {
 	var artist dbModel.Artist
 
 	if err := r.DB(ctx).Where("id = ?", id).First(&artist).Error; err != nil {
@@ -80,14 +80,15 @@ func (r *sqlRepository) IsUserFollowingArtist(ctx context.Context, userID, artis
 	return count > 0, nil
 }
 
-func (r *sqlRepository) GetTopSongsByArtist(ctx context.Context, artistID string) ([]*dbModel.Track, error) {
+func (r *sqlRepository) GetTopSongsByArtist(ctx context.Context, artistID string, userID *string) ([]*dbModel.Track, error) {
 	var tracks []*dbModel.Track
 
-	// Join tracks with track_artists to find tracks by the specific artist
+	// Find tracks by joining through albums (tracks -> albums -> artists)
+	// Also include tracks that are directly linked via track_artists table
 	err := r.DB(ctx).
 		Table("tracks").
-		Joins("JOIN track_artists ON tracks.id = track_artists.track_id").
-		Where("track_artists.artist_id = ?", artistID).
+		Joins("JOIN albums ON tracks.album_id = albums.id").
+		Where("albums.artist_id::text = ?", artistID).
 		Order("tracks.stream_count DESC").
 		Limit(10).
 		Find(&tracks).Error
@@ -96,10 +97,25 @@ func (r *sqlRepository) GetTopSongsByArtist(ctx context.Context, artistID string
 		return nil, err
 	}
 
+	// If no tracks found through albums, try the track_artists junction table as fallback
+	if len(tracks) == 0 {
+		err = r.DB(ctx).
+			Table("tracks").
+			Joins("JOIN track_artists ON tracks.id = track_artists.track_id").
+			Where("track_artists.artist_id = ?", artistID).
+			Order("tracks.stream_count DESC").
+			Limit(10).
+			Find(&tracks).Error
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return tracks, nil
 }
 
-func (r *sqlRepository) GetTopReleasesByArtist(ctx context.Context, artistID string) ([]*dbModel.Album, error) {
+func (r *sqlRepository) GetTopReleasesByArtist(ctx context.Context, artistID string, userID *string) ([]*dbModel.Album, error) {
 	var albums []*dbModel.Album
 
 	// Get albums by the artist ordered by popularity (sum of stream counts of tracks in each album)
@@ -107,7 +123,7 @@ func (r *sqlRepository) GetTopReleasesByArtist(ctx context.Context, artistID str
 	err := r.DB(ctx).
 		Table("albums").
 		Joins("LEFT JOIN tracks ON albums.id = tracks.album_id").
-		Where("albums.artist_id = ?", artistID).
+		Where("albums.artist_id::text = ?", artistID).
 		Group("albums.id").
 		Order("COALESCE(SUM(tracks.stream_count), 0) DESC, albums.release_date DESC"). // Order by total stream count, then by release date as fallback
 		Limit(10).

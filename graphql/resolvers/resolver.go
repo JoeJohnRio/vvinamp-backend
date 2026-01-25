@@ -7,6 +7,7 @@ import (
 	songService "vvinamp/package/song"
 	artistService "vvinamp/package/artist/service"
 	"vvinamp/constant"
+	"vvinamp/internal/pkg/session"
 )
 
 type Resolver struct {
@@ -43,4 +44,10 @@ func getUserIDFromContext(ctx context.Context) *string {
 
 	// Return nil if no authenticated user is found in the context
 	return nil
+}
+
+// Helper function to validate session and get user ID with proper error handling
+func requireValidSession(ctx context.Context) (string, error) {
+	sessionHelper := session.NewGraphQLSessionHelper()
+	return sessionHelper.RequireSessionForResolver(ctx)
 }

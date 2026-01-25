@@ -19,6 +19,7 @@ type Service interface {
 	ComparePassword(ctx context.Context, user *model.User, password string) bool
 	Login(ctx context.Context, email, password string) (*model.User, error)
 	GetByUsername(ctx context.Context, username string) (*model.User, error)
+	GetByID(ctx context.Context, id string) (*model.User, error)
 }
 
 // ForContext is method to get user service from context

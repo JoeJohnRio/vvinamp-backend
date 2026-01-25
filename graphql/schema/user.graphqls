@@ -23,3 +23,8 @@ type UserFollow {
   user: User!
   artist: Artist!
 }
+
+extend type Query {
+  # Protected query that requires authentication
+  me: User!
+}
