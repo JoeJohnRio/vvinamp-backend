@@ -1,4 +1,3 @@
-
 first to migrate
 
 psql -U vvinampadmin -d vvinamp
