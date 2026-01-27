@@ -6,11 +6,19 @@ package resolvers
 
 import (
 	"context"
+	"fmt"
 	"vvinamp/graphql/model"
 )
 
 // GetArtistScreenData is the resolver for the getArtistScreenData field.
 func (r *queryResolver) GetArtistScreenData(ctx context.Context, artistID string) (*model.ArtistScreenData, error) {
+	// Check if session is valid (set by middleware)
+	sessionValid, ok := ctx.Value("session_valid").(bool)
+	if !ok || !sessionValid {
+		// Return a GraphQL error that follows standard format
+		return nil, fmt.Errorf("unauthorized: invalid or expired session")
+	}
+
 	// Get the user ID from context (for potential future use)
 	userID := getUserIDFromContext(ctx)
 

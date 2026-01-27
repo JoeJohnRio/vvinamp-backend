@@ -127,8 +127,7 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 				isPublicOperation := strings.Contains(bodyStr, "login") ||
 					strings.Contains(bodyStr, "register") ||
 					(strings.Contains(bodyStr, "__schema") && !strings.Contains(bodyStr, "me")) || // Allow schema introspection but not protected fields
-					(strings.Contains(bodyStr, "__type") && !strings.Contains(bodyStr, "me")) ||   // Allow type introspection but not protected fields
-					strings.Contains(bodyStr, "getArtistScreenData")                               // Allow artist screen data to be public
+					(strings.Contains(bodyStr, "__type") && !strings.Contains(bodyStr, "me"))      // Allow type introspection but not protected fields
 
 				// If this is NOT a public operation, validate session
 				if !isPublicOperation {
@@ -137,12 +136,24 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 					sessionMgr := session.NewSessionManager()
 					_, err := sessionMgr.ValidateSession(ctx)
 					if err != nil {
-						c.JSON(401, gin.H{
-							"error": "Unauthorized: Invalid or expired session",
-							"code":  "UNAUTHORIZED",
+						// Return GraphQL-formatted error response
+						c.JSON(200, gin.H{
+							"errors": []gin.H{
+								{
+									"message": "Unauthorized: Invalid or expired session",
+									"extensions": gin.H{
+										"code": "UNAUTHORIZED",
+									},
+								},
+							},
+							"data": nil,
 						})
 						c.Abort()
 						return
+					} else {
+						// Session is valid, add flag to context
+						ctx = context.WithValue(ctx, "session_valid", true)
+						c.Request = c.Request.WithContext(ctx)
 					}
 				}
 			}

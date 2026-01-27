@@ -74,10 +74,17 @@ func (sm *SessionManager) RequireSession() gin.HandlerFunc {
 			ctx = context.WithValue(ctx, "session_error", err.Error())
 			c.Request = c.Request.WithContext(ctx)
 
-			// Return unauthorized error
-			c.JSON(401, gin.H{
-				"error": err.Error(),
-				"code":  err.(*SessionError).Code,
+			// Return GraphQL-formatted error response
+			c.JSON(200, gin.H{
+				"errors": []gin.H{
+					{
+						"message": err.Error(),
+						"extensions": gin.H{
+							"code": err.(*SessionError).Code,
+						},
+					},
+				},
+				"data": nil,
 			})
 			c.Abort()
 			return

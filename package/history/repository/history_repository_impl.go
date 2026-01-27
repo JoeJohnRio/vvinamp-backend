@@ -45,7 +45,12 @@ func NewSQLRepository(target SQLRepositoryTarget) (history.Repository, error) {
 		return nil, err
 	}
 
-	if err := db.Debug().AutoMigrate(&model.ListeningHistory{}); err != nil {
+	if err := db.Debug().AutoMigrate(
+		&model.ListeningHistory{},
+		&model.PodcastSeries{},
+		&model.PodcastEpisode{},
+		&model.Playlist{},
+	); err != nil {
 		return nil, err
 	}
 

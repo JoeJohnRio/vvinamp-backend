@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
 	"time"
 	dbModel "vvinamp/model"
 
@@ -827,29 +828,273 @@ func (s *Seeder) SeedTrackArtists(ctx context.Context) error {
 }
 
 func (s *Seeder) SeedListeningHistory(ctx context.Context) error {
+	// Initialize random seed
+	rand.Seed(time.Now().UnixNano())
+
 	adminUserID := "5d7f9219-26cc-4e77-8e1a-fcc38fbea99a"
 
 	// Get some track IDs to create listening history
 	var tracks []dbModel.Track
-	if err := s.db.Limit(20).Find(&tracks).Error; err != nil {
+	if err := s.db.Limit(5).Find(&tracks).Error; err != nil {
 		return fmt.Errorf("failed to get tracks for listening history: %w", err)
 	}
 
-	// Create some listening history records for the admin user
+	// Create a mixed list of content for listening history
+	var allContent []struct {
+		ID          string
+		Type        string
+		Name        string
+		TimePattern string
+	}
+
+	// Add tracks to the content list
 	for i, track := range tracks {
+		allContent = append(allContent, struct {
+			ID          string
+			Type        string
+			Name        string
+			TimePattern string
+		}{
+			ID:          track.ID.String(),
+			Type:        "TRACK",
+			Name:        track.Title,
+			TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:30:00Z", (i%12)+1, (i%28)+1, (i%12)+1),
+		})
+	}
+
+	// Get some artist IDs to create listening history
+	var artists []dbModel.Artist
+	if err := s.db.Limit(5).Find(&artists).Error; err != nil {
+		log.Printf("Warning: failed to get artists for listening history: %v", err)
+	} else {
+		for i, artist := range artists {
+			allContent = append(allContent, struct {
+				ID          string
+				Type        string
+				Name        string
+				TimePattern string
+			}{
+				ID:          artist.ID,
+				Type:        "ARTIST",
+				Name:        artist.Name,
+				TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:45:00Z", ((i+5)%12)+1, ((i+5)%28)+1, ((i+5)%12)+1),
+			})
+		}
+	}
+
+	// Create some sample playlists if none exist
+	var playlists []dbModel.Playlist
+	if err := s.db.Limit(5).Find(&playlists).Error; err != nil {
+		log.Printf("Warning: failed to get playlists for listening history: %v", err)
+	} else if len(playlists) == 0 {
+		// Create sample playlists
+		samplePlaylists := []dbModel.Playlist{
+			{
+				ID:          uuid.New().String(),
+				Title:       "Indonesian Hits 2023",
+				Description: stringPtr("Popular Indonesian songs from 2023"),
+				CreatorID:   &adminUserID,
+				IsPublic:    true,
+				CoverImage:  stringPtr("https://example.com/indohits2023.jpg"),
+			},
+			{
+				ID:          uuid.New().String(),
+				Title:       "Relaxing Vibes",
+				Description: stringPtr("Chill music for relaxation"),
+				CreatorID:   &adminUserID,
+				IsPublic:    true,
+				CoverImage:  stringPtr("https://example.com/relaxing-vibes.jpg"),
+			},
+			{
+				ID:          uuid.New().String(),
+				Title:       "Workout Mix",
+				Description: stringPtr("High energy tracks for workout"),
+				CreatorID:   &adminUserID,
+				IsPublic:    true,
+				CoverImage:  stringPtr("https://example.com/workout-mix.jpg"),
+			},
+		}
+
+		for _, playlist := range samplePlaylists {
+			if err := s.db.Create(&playlist).Error; err != nil {
+				log.Printf("Error creating sample playlist: %v", err)
+				continue
+			}
+			playlists = append(playlists, playlist)
+		}
+	}
+
+	// Add playlists to the content list
+	for i, playlist := range playlists {
+		allContent = append(allContent, struct {
+			ID          string
+			Type        string
+			Name        string
+			TimePattern string
+		}{
+			ID:          playlist.ID,
+			Type:        "PLAYLIST",
+			Name:        playlist.Title,
+			TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:15:00Z", ((i+10)%12)+1, ((i+10)%28)+1, ((i+10)%12)+1),
+		})
+	}
+
+	// Create some sample podcast episodes if none exist
+	var podcastEpisodes []dbModel.PodcastEpisode
+	if err := s.db.Limit(5).Find(&podcastEpisodes).Error; err != nil {
+		log.Printf("Warning: failed to get podcast episodes for listening history: %v", err)
+	} else if len(podcastEpisodes) == 0 {
+		// First create a sample podcast series
+		sampleSeries := dbModel.PodcastSeries{
+			ID:          uuid.New().String(),
+			Title:       "Indonesian Stories",
+			Description: stringPtr("Stories and tales from Indonesia"),
+			CoverArt:    stringPtr("https://example.com/indostories.jpg"),
+			Publisher:   stringPtr("IndoMedia"),
+		}
+
+		if err := s.db.Create(&sampleSeries).Error; err != nil {
+			log.Printf("Error creating sample podcast series: %v", err)
+		} else {
+			// Create sample podcast episodes
+			sampleEpisodes := []dbModel.PodcastEpisode{
+				{
+					ID:           uuid.New().String(),
+					SeriesID:     sampleSeries.ID,
+					Title:        "The Legend of Borobudur",
+					Description:  stringPtr("Exploring the ancient Buddhist temple of Borobudur"),
+					EpisodeNumber: intPtr(1),
+					SeasonNumber:  intPtr(1),
+					Duration:     1800, // 30 minutes in seconds
+					AudioFileURL: "https://example.com/borobudur.mp3",
+					CoverArt:     stringPtr("https://example.com/borobudur-cover.jpg"),
+				},
+				{
+					ID:           uuid.New().String(),
+					SeriesID:     sampleSeries.ID,
+					Title:        "Cultural Diversity in Java",
+					Description:  stringPtr("Understanding the diverse cultures of Java island"),
+					EpisodeNumber: intPtr(2),
+					SeasonNumber:  intPtr(1),
+					Duration:     2100, // 35 minutes in seconds
+					AudioFileURL: "https://example.com/java-diversity.mp3",
+					CoverArt:     stringPtr("https://example.com/java-cover.jpg"),
+				},
+				{
+					ID:           uuid.New().String(),
+					SeriesID:     sampleSeries.ID,
+					Title:        "Traditional Music of Indonesia",
+					Description:  stringPtr("Discovering traditional music instruments and styles"),
+					EpisodeNumber: intPtr(3),
+					SeasonNumber:  intPtr(1),
+					Duration:     1950, // 32.5 minutes in seconds
+					AudioFileURL: "https://example.com/traditional-music.mp3",
+					CoverArt:     stringPtr("https://example.com/music-cover.jpg"),
+				},
+			}
+
+			for _, episode := range sampleEpisodes {
+				if err := s.db.Create(&episode).Error; err != nil {
+					log.Printf("Error creating sample podcast episode: %v", err)
+					continue
+				}
+				podcastEpisodes = append(podcastEpisodes, episode)
+			}
+		}
+	}
+
+	// Add podcast episodes to the content list
+	for i, episode := range podcastEpisodes {
+		allContent = append(allContent, struct {
+			ID          string
+			Type        string
+			Name        string
+			TimePattern string
+		}{
+			ID:          episode.ID,
+			Type:        "PODCAST_EPISODE",
+			Name:        episode.Title,
+			TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:20:00Z", ((i+15)%12)+1, ((i+15)%28)+1, ((i+15)%12)+1),
+		})
+	}
+
+	// Create some sample podcast series if none exist
+	var podcastSeries []dbModel.PodcastSeries
+	if err := s.db.Limit(5).Find(&podcastSeries).Error; err != nil {
+		log.Printf("Warning: failed to get podcast series for listening history: %v", err)
+	} else if len(podcastSeries) == 0 {
+		// Create more sample podcast series
+		moreSampleSeries := []dbModel.PodcastSeries{
+			{
+				ID:          uuid.New().String(),
+				Title:       "Tech Talk Indonesia",
+				Description: stringPtr("Discussions about technology trends in Indonesia"),
+				CoverArt:    stringPtr("https://example.com/techtalk.jpg"),
+				Publisher:   stringPtr("TechMedia Indonesia"),
+			},
+			{
+				ID:          uuid.New().String(),
+				Title:       "Business Insights",
+				Description: stringPtr("Insights and interviews with Indonesian entrepreneurs"),
+				CoverArt:    stringPtr("https://example.com/business-insights.jpg"),
+				Publisher:   stringPtr("BizInsight Media"),
+			},
+		}
+
+		for _, series := range moreSampleSeries {
+			if err := s.db.Create(&series).Error; err != nil {
+				log.Printf("Error creating sample podcast series: %v", err)
+				continue
+			}
+			podcastSeries = append(podcastSeries, series)
+		}
+	}
+
+	// Add podcast series to the content list
+	for i, series := range podcastSeries {
+		allContent = append(allContent, struct {
+			ID          string
+			Type        string
+			Name        string
+			TimePattern string
+		}{
+			ID:          series.ID,
+			Type:        "PODCAST_SERIES",
+			Name:        series.Title,
+			TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:25:00Z", ((i+20)%12)+1, ((i+20)%28)+1, ((i+20)%12)+1),
+		})
+	}
+
+	// Shuffle the content to create a more realistic mix
+	for i := len(allContent) - 1; i > 0; i-- {
+		j := rand.Intn(i + 1)
+		allContent[i], allContent[j] = allContent[j], allContent[i]
+	}
+
+	// Create listening history records with mixed content types
+	for idx, content := range allContent {
+		// Make the first few entries more recent by adjusting their timestamp
+		var adjustedTimePattern string
+		if idx < 8 { // For the first 8 entries
+			// Use a more recent time to ensure they appear first when ordered by played_at DESC
+			adjustedTimePattern = fmt.Sprintf("2024-01-0%dT2%d:30:00Z", idx+1, 23-idx)
+		} else {
+			adjustedTimePattern = content.TimePattern
+		}
+
 		listeningHistory := dbModel.ListeningHistory{
 			UserID:      adminUserID,
-			ContentID:   track.ID.String(),
-			ContentType: "TRACK",
-			PlayedAt:    parseTime(fmt.Sprintf("2023-0%d-0%dT1%d:30:00Z", (i%12)+1, (i%28)+1, (i%12)+1)),
-			Progress:    100, // Fully listened
+			ContentID:   content.ID,
+			ContentType: content.Type,
+			PlayedAt:    parseTime(adjustedTimePattern),
+			Progress:    100, // Fully listened/viewed
 		}
 
 		if err := s.db.Create(&listeningHistory).Error; err != nil {
-			log.Printf("Error seeding listening history: %v", err)
+			log.Printf("Error seeding listening history for %s (%s): %v", content.Name, content.Type, err)
 			continue
 		}
-		log.Printf("Seeded listening history for user %s and content %s", listeningHistory.UserID, listeningHistory.ContentID)
+		log.Printf("Seeded listening history for user %s and %s %s", listeningHistory.UserID, content.Type, content.Name)
 	}
 
 	return nil

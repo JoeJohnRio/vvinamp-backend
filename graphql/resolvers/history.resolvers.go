@@ -6,11 +6,14 @@ package resolvers
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 	"time"
+	"vvinamp/database/postgre"
 	"vvinamp/graphql/generated"
 	graphqlModel "vvinamp/graphql/model"
+	dbModel "vvinamp/model"
 	"vvinamp/package/history"
 	"vvinamp/package/song"
 )
@@ -32,6 +35,13 @@ func (r *listeningHistoryResolver) PlayedAt(ctx context.Context, obj *graphqlMod
 
 // ListRecentHistory implements generated.QueryResolver.
 func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*graphqlModel.ListeningHistory, error) {
+	// Check if session is valid (set by middleware)
+	sessionValid, ok := ctx.Value("session_valid").(bool)
+	if !ok || !sessionValid {
+		// Return a GraphQL error that follows standard format
+		return nil, fmt.Errorf("unauthorized: invalid or expired session")
+	}
+
 	historySvc := history.ForContext(ctx)
 	a, err := historySvc.ListRecentHistory(ctx, limit)
 
@@ -46,11 +56,17 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 
 		// Inline the mapContentType logic
 		var contentType graphqlModel.ContentType
-		switch strings.ToLower(raw.ContentType) {
-		case "track":
+		switch strings.ToUpper(raw.ContentType) {
+		case "TRACK":
 			contentType = graphqlModel.ContentTypeTrack
-		case "podcast":
+		case "PODCAST_EPISODE":
 			contentType = graphqlModel.ContentTypePodcastEpisode
+		case "PLAYLIST":
+			contentType = graphqlModel.ContentTypePlaylist
+		case "PODCAST_SERIES":
+			contentType = graphqlModel.ContentTypePodcastSeries
+		case "ARTIST":
+			contentType = graphqlModel.ContentTypeArtist
 		default:
 			contentType = graphqlModel.ContentTypeAlbum // Or handle error
 		}
@@ -79,10 +95,61 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 				}
 			}
 		case graphqlModel.ContentTypePodcastEpisode:
-			// For podcasts, return empty string as requested and no content name for now
-			empty := ""
-			contentName = "Unknown Podcast"
-			contentImage = &empty
+			// For podcasts, fetch podcast episode info
+			var podcastEpisode dbModel.PodcastEpisode
+			db := postgre.ForContext(ctx)
+			result := db.Where("id = ?", raw.ContentID).First(&podcastEpisode)
+			if result.Error != nil {
+				log.Printf("Error fetching podcast episode: %v", result.Error)
+				contentName = "Unknown Podcast Episode"
+				empty := ""
+				contentImage = &empty
+			} else {
+				contentName = podcastEpisode.Title
+				contentImage = podcastEpisode.CoverArt
+			}
+		case graphqlModel.ContentTypePlaylist:
+			// For playlists, fetch playlist info
+			var playlist dbModel.Playlist
+			db := postgre.ForContext(ctx)
+			result := db.Where("id = ?", raw.ContentID).First(&playlist)
+			if result.Error != nil {
+				log.Printf("Error fetching playlist: %v", result.Error)
+				contentName = "Unknown Playlist"
+				empty := ""
+				contentImage = &empty
+			} else {
+				contentName = playlist.Title
+				contentImage = playlist.CoverImage
+			}
+		case graphqlModel.ContentTypePodcastSeries:
+			// For podcast series, fetch series info
+			var podcastSeries dbModel.PodcastSeries
+			db := postgre.ForContext(ctx)
+			result := db.Where("id = ?", raw.ContentID).First(&podcastSeries)
+			if result.Error != nil {
+				log.Printf("Error fetching podcast series: %v", result.Error)
+				contentName = "Unknown Podcast Series"
+				empty := ""
+				contentImage = &empty
+			} else {
+				contentName = podcastSeries.Title
+				contentImage = podcastSeries.CoverArt
+			}
+		case graphqlModel.ContentTypeArtist:
+			// For artists, fetch artist info
+			var artist dbModel.Artist
+			db := postgre.ForContext(ctx)
+			result := db.Where("id = ?", raw.ContentID).First(&artist)
+			if result.Error != nil {
+				log.Printf("Error fetching artist: %v", result.Error)
+				contentName = "Unknown Artist"
+				empty := ""
+				contentImage = &empty
+			} else {
+				contentName = artist.Name
+				contentImage = artist.ProfileImage
+			}
 		default:
 			// For other content types, return empty string
 			empty := ""
