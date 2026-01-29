@@ -28,7 +28,7 @@ type ArtistScreenData struct {
 type AuthSession struct {
 	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
-	IsLoggedIn   bool   `json:"isLoggedIn"`
+	ExpiresAt    string `json:"expiresAt"`
 }
 
 type ListeningHistory struct {

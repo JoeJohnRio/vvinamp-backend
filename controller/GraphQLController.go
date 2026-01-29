@@ -123,9 +123,10 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 				// Reset the body for further processing
 				c.Request.Body = io.NopCloser(bytes.NewBufferString(bodyStr))
 
-				// Check if this is a public operation (login, register, introspection, etc.)
+				// Check if this is a public operation (login, register, refreshToken, introspection, etc.)
 				isPublicOperation := strings.Contains(bodyStr, "login") ||
 					strings.Contains(bodyStr, "register") ||
+					strings.Contains(bodyStr, "refreshToken") ||
 					(strings.Contains(bodyStr, "__schema") && !strings.Contains(bodyStr, "me")) || // Allow schema introspection but not protected fields
 					(strings.Contains(bodyStr, "__type") && !strings.Contains(bodyStr, "me"))      // Allow type introspection but not protected fields
 

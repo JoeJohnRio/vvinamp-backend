@@ -8,19 +8,64 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 	"vvinamp/controller/auth"
-	"vvinamp/graphql/model"
+	graphqlModel "vvinamp/graphql/model"
+	domainModel "vvinamp/model"
 	"vvinamp/package/user"
 	"vvinamp/package/utils"
+
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
 // RefreshToken is the resolver for the refreshToken field.
-func (r *mutationResolver) RefreshToken(ctx context.Context, refreshToken string) (*model.LoginPayload, error) {
-	panic(fmt.Errorf("not implemented: RefreshToken - refreshToken"))
+func (r *mutationResolver) RefreshToken(ctx context.Context, refreshToken string) (*graphqlModel.LoginPayload, error) {
+	// Get the auth service from the context using the AuthResponseWriter
+	arw, ok := ctx.Value("authResponseWriter").(*auth.AuthResponseWriter)
+	if !ok {
+		return nil, fmt.Errorf("auth service not available in context")
+	}
+
+	// Use the tokenPassword from the AuthResponseWriter
+	tokenPassword := arw.GetTokenPassword()
+
+	// Parse and validate the refresh token
+	tk := &domainModel.Token{}
+	token, err := jwt.ParseWithClaims(refreshToken, tk, func(token *jwt.Token) (interface{}, error) {
+		return []byte(tokenPassword), nil
+	})
+
+	if err != nil || !token.Valid || tk.Type != "refresh" {
+		return nil, fmt.Errorf("invalid refresh token")
+	}
+
+	if time.Unix(tk.ExpiresAt, 0).Before(time.Now()) {
+		return nil, fmt.Errorf("refresh token has expired")
+	}
+
+	// Get the auth service to generate new tokens
+	authSvc := arw.GetAuth()
+
+	// Generate new tokens using the authenticated user ID from the refresh token
+	newAccessToken, newRefreshToken, err := authSvc.GenerateTokens(tk.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate new tokens: %w", err)
+	}
+
+	// Calculate the expiration time for the access token (60 minutes from now)
+	expiresAt := time.Now().Add(60 * time.Minute).Format(time.RFC3339) // ISO 8601 format
+
+	return &graphqlModel.LoginPayload{
+		Session: &graphqlModel.AuthSession{
+			AccessToken:  newAccessToken,
+			RefreshToken: newRefreshToken,
+			ExpiresAt:    expiresAt,
+		},
+	}, nil
 }
 
 // Register is the resolver for the register field.
-func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInput) (*model.RegisterPayload, error) {
+func (r *mutationResolver) Register(ctx context.Context, input graphqlModel.RegisterInput) (*graphqlModel.RegisterPayload, error) {
 	// Get user service from context
 	userSvc := user.ForContext(ctx)
 
@@ -52,7 +97,7 @@ func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInp
 	// Note: Roles field from input is not used since User model doesn't have a roles field
 	// Note: In the current implementation, the repository expects the plain password in PasswordHash field
 	// and then hashes it in the Create method
-	newUser := &model.User{
+	newUser := &graphqlModel.User{
 		Username:       username,
 		Email:          input.Email,
 		PasswordHash:   input.Password, // This will be hashed in the repository's Create method
@@ -66,13 +111,13 @@ func (r *mutationResolver) Register(ctx context.Context, input model.RegisterInp
 	}
 
 	// Return the registered user in the payload
-	return &model.RegisterPayload{
+	return &graphqlModel.RegisterPayload{
 		User: registeredUser,
 	}, nil
 }
 
 // Login is the resolver for the login field.
-func (r *queryResolver) Login(ctx context.Context, email string, password string) (*model.LoginPayload, error) {
+func (r *queryResolver) Login(ctx context.Context, email string, password string) (*graphqlModel.LoginPayload, error) {
 	// Assume user.ForContext(ctx) returns a service to authenticate
 	userSvc := user.ForContext(ctx)
 	u, err := userSvc.Login(ctx, email, password)
@@ -101,11 +146,14 @@ func (r *queryResolver) Login(ctx context.Context, email string, password string
 
 	// Typically, JWT + Cookie logic is handled by Gin or your HTTP middleware.
 	// In GraphQL response, deliver basic session data:
-	return &model.LoginPayload{
-		Session: &model.AuthSession{
-			IsLoggedIn:   true,
+	// Calculate the expiration time for the access token (60 minutes from now)
+	expiresAt := time.Now().Add(60 * time.Minute).Format(time.RFC3339) // ISO 8601 format
+
+	return &graphqlModel.LoginPayload{
+		Session: &graphqlModel.AuthSession{
 			AccessToken:  accessToken,
 			RefreshToken: refreshToken,
+			ExpiresAt:    expiresAt,
 		},
 	}, nil
 }

@@ -16,7 +16,7 @@ input RegisterInput {
 type AuthSession {
   accessToken: String!
   refreshToken: String!
-  isLoggedIn: Boolean!
+  expiresAt: String!
 }
 
 type LoginPayload {

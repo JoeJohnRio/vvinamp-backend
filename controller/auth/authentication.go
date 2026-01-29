@@ -40,6 +40,10 @@ func (arw *AuthResponseWriter) GetAuth() *Auth {
 	return arw.auth
 }
 
+func (arw *AuthResponseWriter) GetTokenPassword() string {
+	return arw.tokenPassword
+}
+
 // Auth is class provided middleware for read/write token in to request/response cache
 
 // AuthTarget is parameter object for getting all Auth's dependency
@@ -66,7 +70,7 @@ func (a *Auth) GenerateTokens(userID string) (accessToken, refreshToken string, 
 		UserID: userID,
 		Type:   "access",
 		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(15000 * time.Minute).Unix(),
+			ExpiresAt: time.Now().Add(60 * time.Minute).Unix(),
 			IssuedAt:  time.Now().Unix(),
 		},
 	}

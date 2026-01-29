@@ -93,7 +93,7 @@ type ComplexityRoot struct {
 
 	AuthSession struct {
 		AccessToken  func(childComplexity int) int
-		IsLoggedIn   func(childComplexity int) int
+		ExpiresAt    func(childComplexity int) int
 		RefreshToken func(childComplexity int) int
 	}
 
@@ -486,12 +486,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.AuthSession.AccessToken(childComplexity), true
 
-	case "AuthSession.isLoggedIn":
-		if e.complexity.AuthSession.IsLoggedIn == nil {
+	case "AuthSession.expiresAt":
+		if e.complexity.AuthSession.ExpiresAt == nil {
 			break
 		}
 
-		return e.complexity.AuthSession.IsLoggedIn(childComplexity), true
+		return e.complexity.AuthSession.ExpiresAt(childComplexity), true
 
 	case "AuthSession.refreshToken":
 		if e.complexity.AuthSession.RefreshToken == nil {
@@ -1324,7 +1324,7 @@ input RegisterInput {
 type AuthSession {
   accessToken: String!
   refreshToken: String!
-  isLoggedIn: Boolean!
+  expiresAt: String!
 }
 
 type LoginPayload {
@@ -3124,8 +3124,8 @@ func (ec *executionContext) fieldContext_AuthSession_refreshToken(_ context.Cont
 	return fc, nil
 }
 
-func (ec *executionContext) _AuthSession_isLoggedIn(ctx context.Context, field graphql.CollectedField, obj *model.AuthSession) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_AuthSession_isLoggedIn(ctx, field)
+func (ec *executionContext) _AuthSession_expiresAt(ctx context.Context, field graphql.CollectedField, obj *model.AuthSession) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_AuthSession_expiresAt(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3138,7 +3138,7 @@ func (ec *executionContext) _AuthSession_isLoggedIn(ctx context.Context, field g
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.IsLoggedIn, nil
+		return obj.ExpiresAt, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -3150,19 +3150,19 @@ func (ec *executionContext) _AuthSession_isLoggedIn(ctx context.Context, field g
 		}
 		return graphql.Null
 	}
-	res := resTmp.(bool)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+	return ec.marshalNString2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_AuthSession_isLoggedIn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_AuthSession_expiresAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "AuthSession",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type Boolean does not have child fields")
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -3772,8 +3772,8 @@ func (ec *executionContext) fieldContext_LoginPayload_session(_ context.Context,
 				return ec.fieldContext_AuthSession_accessToken(ctx, field)
 			case "refreshToken":
 				return ec.fieldContext_AuthSession_refreshToken(ctx, field)
-			case "isLoggedIn":
-				return ec.fieldContext_AuthSession_isLoggedIn(ctx, field)
+			case "expiresAt":
+				return ec.fieldContext_AuthSession_expiresAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type AuthSession", field.Name)
 		},
@@ -10201,8 +10201,8 @@ func (ec *executionContext) _AuthSession(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "isLoggedIn":
-			out.Values[i] = ec._AuthSession_isLoggedIn(ctx, field, obj)
+		case "expiresAt":
+			out.Values[i] = ec._AuthSession_expiresAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
