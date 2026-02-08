@@ -11,11 +11,12 @@ import (
 	"vvinamp/database/postgre"
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/resolvers"
+	"vvinamp/internal/pkg/session"
 	artistPackage "vvinamp/package/artist/service"
 	"vvinamp/package/history"
 	"vvinamp/package/song"
+	"vvinamp/package/streaming"
 	"vvinamp/package/user"
-	"vvinamp/internal/pkg/session"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -35,6 +36,7 @@ type GraphQLController struct {
 	history        history.Service
 	song           song.Service
 	artist         artistPackage.ArtistService
+	streaming      *streaming.Service
 	logger         *zap.Logger
 }
 
@@ -48,6 +50,7 @@ type GraphQLControllerTarget struct {
 	User           user.Service
 	Song           song.Service
 	Artist         artistPackage.ArtistService
+	Streaming      *streaming.Service
 	Logger         *zap.Logger
 }
 
@@ -62,6 +65,7 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 			history:        target.History,
 			song:           target.Song,
 			artist:         target.Artist,
+			streaming:      target.Streaming,
 			logger:         target.Logger,
 		},
 	}
@@ -71,12 +75,12 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 // GrqphQL is defining as the GraphQL handler
 func (m *GraphQLController) GraphQL() gin.HandlerFunc {
 	// Create resolver with required services
-	resolver := resolvers.NewResolver(m.artist, m.user, m.history, m.song)
+	resolver := resolvers.NewResolver(m.artist, m.user, m.history, m.song, m.streaming)
 
 	// 1. Create a new Server instance using handler.New()
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
 
-		// Enable introspection for development and schema exploration
+	// Enable introspection for development and schema exploration
 	srv.Use(extension.Introspection{})
 
 	// 2. Explicitly add the necessary transports for your application.
@@ -128,7 +132,7 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 					strings.Contains(bodyStr, "register") ||
 					strings.Contains(bodyStr, "refreshToken") ||
 					(strings.Contains(bodyStr, "__schema") && !strings.Contains(bodyStr, "me")) || // Allow schema introspection but not protected fields
-					(strings.Contains(bodyStr, "__type") && !strings.Contains(bodyStr, "me"))      // Allow type introspection but not protected fields
+					(strings.Contains(bodyStr, "__type") && !strings.Contains(bodyStr, "me")) // Allow type introspection but not protected fields
 
 				// If this is NOT a public operation, validate session
 				if !isPublicOperation {
@@ -137,8 +141,9 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 					sessionMgr := session.NewSessionManager()
 					_, err := sessionMgr.ValidateSession(ctx)
 					if err != nil {
-						// Return GraphQL-formatted error response
-						c.JSON(200, gin.H{
+						// Return HTTP 401 for unauthorized access
+						c.Header("WWW-Authenticate", "Bearer")
+						c.JSON(401, gin.H{
 							"errors": []gin.H{
 								{
 									"message": "Unauthorized: Invalid or expired session",
@@ -156,6 +161,11 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 						ctx = context.WithValue(ctx, "session_valid", true)
 						c.Request = c.Request.WithContext(ctx)
 					}
+				} else {
+					// For public operations, set session_valid to true to allow the resolvers to proceed
+					ctx := c.Request.Context()
+					ctx = context.WithValue(ctx, "session_valid", true)
+					c.Request = c.Request.WithContext(ctx)
 				}
 			}
 

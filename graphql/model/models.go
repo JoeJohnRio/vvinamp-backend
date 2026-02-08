@@ -54,6 +54,16 @@ type LoginPayload struct {
 type Mutation struct {
 }
 
+type PlaybackInfo struct {
+	HlsURL      string  `json:"hlsUrl"`
+	Mp3Fallback *string `json:"mp3Fallback,omitempty"`
+	DurationMs  *int    `json:"durationMs,omitempty"`
+}
+
+type PlaybackInput struct {
+	TrackID string `json:"trackId"`
+}
+
 type Playlist struct {
 	ID         string           `json:"id"`
 	Title      string           `json:"title"`

@@ -1,0 +1,13 @@
+type PlaybackInfo {
+  hlsUrl: String!
+  mp3Fallback: String
+  durationMs: Int  # For progress bars too
+}
+
+input PlaybackInput {
+  trackId: ID!
+}
+
+extend type Query {
+  playbackInfo(input: PlaybackInput!): PlaybackInfo!
+}

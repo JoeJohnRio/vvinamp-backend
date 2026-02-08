@@ -5,6 +5,7 @@ import (
 	history "vvinamp/package/history/service"
 	song "vvinamp/package/song/service"
 	user "vvinamp/package/user/service"
+	streamingService "vvinamp/package/streaming"
 
 	"go.uber.org/fx"
 )
@@ -15,4 +16,5 @@ var ServiceModule = fx.Provide(
 	user.NewService,
 	history.NewService,
 	song.NewService,
+	streamingService.NewService,
 )
