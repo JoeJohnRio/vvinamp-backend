@@ -848,19 +848,19 @@ func (s *Seeder) SeedListeningHistory(ctx context.Context) error {
 	}
 
 	// Add tracks to the content list
-	for i, track := range tracks {
-		allContent = append(allContent, struct {
-			ID          string
-			Type        string
-			Name        string
-			TimePattern string
-		}{
-			ID:          track.ID.String(),
-			Type:        "TRACK",
-			Name:        track.Title,
-			TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:30:00Z", (i%12)+1, (i%28)+1, (i%12)+1),
-		})
-	}
+	// for i, track := range tracks {
+	// 	allContent = append(allContent, struct {
+	// 		ID          string
+	// 		Type        string
+	// 		Name        string
+	// 		TimePattern string
+	// 	}{
+	// 		ID:          track.ID.String(),
+	// 		Type:        "TRACK",
+	// 		Name:        track.Title,
+	// 		TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:30:00Z", (i%12)+1, (i%28)+1, (i%12)+1),
+	// 	})
+	// }
 
 	// Get some artist IDs to create listening history
 	var artists []dbModel.Artist
@@ -925,19 +925,19 @@ func (s *Seeder) SeedListeningHistory(ctx context.Context) error {
 	}
 
 	// Add playlists to the content list
-	for i, playlist := range playlists {
-		allContent = append(allContent, struct {
-			ID          string
-			Type        string
-			Name        string
-			TimePattern string
-		}{
-			ID:          playlist.ID,
-			Type:        "PLAYLIST",
-			Name:        playlist.Title,
-			TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:15:00Z", ((i+10)%12)+1, ((i+10)%28)+1, ((i+10)%12)+1),
-		})
-	}
+	// for i, playlist := range playlists {
+	// 	allContent = append(allContent, struct {
+	// 		ID          string
+	// 		Type        string
+	// 		Name        string
+	// 		TimePattern string
+	// 	}{
+	// 		ID:          playlist.ID,
+	// 		Type:        "PLAYLIST",
+	// 		Name:        playlist.Title,
+	// 		TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:15:00Z", ((i+10)%12)+1, ((i+10)%28)+1, ((i+10)%12)+1),
+	// 	})
+	// }
 
 	// Create some sample podcast episodes if none exist
 	var podcastEpisodes []dbModel.PodcastEpisode
@@ -959,37 +959,37 @@ func (s *Seeder) SeedListeningHistory(ctx context.Context) error {
 			// Create sample podcast episodes
 			sampleEpisodes := []dbModel.PodcastEpisode{
 				{
-					ID:           uuid.New().String(),
-					SeriesID:     sampleSeries.ID,
-					Title:        "The Legend of Borobudur",
-					Description:  stringPtr("Exploring the ancient Buddhist temple of Borobudur"),
+					ID:            uuid.New().String(),
+					SeriesID:      sampleSeries.ID,
+					Title:         "The Legend of Borobudur",
+					Description:   stringPtr("Exploring the ancient Buddhist temple of Borobudur"),
 					EpisodeNumber: intPtr(1),
 					SeasonNumber:  intPtr(1),
-					Duration:     1800, // 30 minutes in seconds
-					AudioFileURL: "https://example.com/borobudur.mp3",
-					CoverArt:     stringPtr("https://example.com/borobudur-cover.jpg"),
+					Duration:      1800, // 30 minutes in seconds
+					AudioFileURL:  "https://example.com/borobudur.mp3",
+					CoverArt:      stringPtr("https://example.com/borobudur-cover.jpg"),
 				},
 				{
-					ID:           uuid.New().String(),
-					SeriesID:     sampleSeries.ID,
-					Title:        "Cultural Diversity in Java",
-					Description:  stringPtr("Understanding the diverse cultures of Java island"),
+					ID:            uuid.New().String(),
+					SeriesID:      sampleSeries.ID,
+					Title:         "Cultural Diversity in Java",
+					Description:   stringPtr("Understanding the diverse cultures of Java island"),
 					EpisodeNumber: intPtr(2),
 					SeasonNumber:  intPtr(1),
-					Duration:     2100, // 35 minutes in seconds
-					AudioFileURL: "https://example.com/java-diversity.mp3",
-					CoverArt:     stringPtr("https://example.com/java-cover.jpg"),
+					Duration:      2100, // 35 minutes in seconds
+					AudioFileURL:  "https://example.com/java-diversity.mp3",
+					CoverArt:      stringPtr("https://example.com/java-cover.jpg"),
 				},
 				{
-					ID:           uuid.New().String(),
-					SeriesID:     sampleSeries.ID,
-					Title:        "Traditional Music of Indonesia",
-					Description:  stringPtr("Discovering traditional music instruments and styles"),
+					ID:            uuid.New().String(),
+					SeriesID:      sampleSeries.ID,
+					Title:         "Traditional Music of Indonesia",
+					Description:   stringPtr("Discovering traditional music instruments and styles"),
 					EpisodeNumber: intPtr(3),
 					SeasonNumber:  intPtr(1),
-					Duration:     1950, // 32.5 minutes in seconds
-					AudioFileURL: "https://example.com/traditional-music.mp3",
-					CoverArt:     stringPtr("https://example.com/music-cover.jpg"),
+					Duration:      1950, // 32.5 minutes in seconds
+					AudioFileURL:  "https://example.com/traditional-music.mp3",
+					CoverArt:      stringPtr("https://example.com/music-cover.jpg"),
 				},
 			}
 
@@ -1004,19 +1004,19 @@ func (s *Seeder) SeedListeningHistory(ctx context.Context) error {
 	}
 
 	// Add podcast episodes to the content list
-	for i, episode := range podcastEpisodes {
-		allContent = append(allContent, struct {
-			ID          string
-			Type        string
-			Name        string
-			TimePattern string
-		}{
-			ID:          episode.ID,
-			Type:        "PODCAST_EPISODE",
-			Name:        episode.Title,
-			TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:20:00Z", ((i+15)%12)+1, ((i+15)%28)+1, ((i+15)%12)+1),
-		})
-	}
+	// for i, episode := range podcastEpisodes {
+	// 	allContent = append(allContent, struct {
+	// 		ID          string
+	// 		Type        string
+	// 		Name        string
+	// 		TimePattern string
+	// 	}{
+	// 		ID:          episode.ID,
+	// 		Type:        "PODCAST_EPISODE",
+	// 		Name:        episode.Title,
+	// 		TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:20:00Z", ((i+15)%12)+1, ((i+15)%28)+1, ((i+15)%12)+1),
+	// 	})
+	// }
 
 	// Create some sample podcast series if none exist
 	var podcastSeries []dbModel.PodcastSeries
@@ -1051,19 +1051,19 @@ func (s *Seeder) SeedListeningHistory(ctx context.Context) error {
 	}
 
 	// Add podcast series to the content list
-	for i, series := range podcastSeries {
-		allContent = append(allContent, struct {
-			ID          string
-			Type        string
-			Name        string
-			TimePattern string
-		}{
-			ID:          series.ID,
-			Type:        "PODCAST_SERIES",
-			Name:        series.Title,
-			TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:25:00Z", ((i+20)%12)+1, ((i+20)%28)+1, ((i+20)%12)+1),
-		})
-	}
+	// for i, series := range podcastSeries {
+	// 	allContent = append(allContent, struct {
+	// 		ID          string
+	// 		Type        string
+	// 		Name        string
+	// 		TimePattern string
+	// 	}{
+	// 		ID:          series.ID,
+	// 		Type:        "PODCAST_SERIES",
+	// 		Name:        series.Title,
+	// 		TimePattern: fmt.Sprintf("2023-0%d-0%dT1%d:25:00Z", ((i+20)%12)+1, ((i+20)%28)+1, ((i+20)%12)+1),
+	// 	})
+	// }
 
 	// Shuffle the content to create a more realistic mix
 	for i := len(allContent) - 1; i > 0; i-- {

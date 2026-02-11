@@ -6,6 +6,7 @@ import (
 
 	"vvinamp/database/postgre"
 	dbModel "vvinamp/model"
+	"vvinamp/model/dto"
 
 	"go.uber.org/fx"
 	"gorm.io/gorm"
@@ -14,7 +15,7 @@ import (
 type ArtistRepository interface {
 	GetArtistHeaderByID(ctx context.Context, id string, userID *string) (*dbModel.Artist, error)
 	IsUserFollowingArtist(ctx context.Context, userID, artistID string) (bool, error)
-	GetTopSongsByArtist(ctx context.Context, artistID string, userID *string) ([]*dbModel.Track, error)
+	GetTopSongsByArtist(ctx context.Context, artistID string, userID *string) ([]*dto.TrackWithDetails, error)
 	GetTopReleasesByArtist(ctx context.Context, artistID string, userID *string) ([]*dbModel.Album, error)
 }
 
@@ -85,18 +86,20 @@ func (r *sqlRepository) IsUserFollowingArtist(ctx context.Context, userID, artis
 	return count > 0, nil
 }
 
-func (r *sqlRepository) GetTopSongsByArtist(ctx context.Context, artistID string, userID *string) ([]*dbModel.Track, error) {
-	var tracks []*dbModel.Track
+func (r *sqlRepository) GetTopSongsByArtist(ctx context.Context, artistID string, userID *string) ([]*dto.TrackWithDetails, error) {
+	var tracks []*dto.TrackWithDetails // Changed from []*dbModel.Track
 
 	// Find tracks by joining through albums (tracks -> albums -> artists)
-	// Also include tracks that are directly linked via track_artists table
+	// Also join to get album cover and artist name
 	err := r.DB(ctx).
 		Table("tracks").
+		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name").
 		Joins("JOIN albums ON tracks.album_id = albums.id").
+		Joins("JOIN artists ON albums.artist_id = artists.id"). // Added to get artist name
 		Where("albums.artist_id::text = ?", artistID).
 		Order("tracks.stream_count DESC").
 		Limit(10).
-		Find(&tracks).Error
+		Scan(&tracks).Error // Changed from Find to Scan
 
 	if err != nil {
 		return nil, err
@@ -106,11 +109,14 @@ func (r *sqlRepository) GetTopSongsByArtist(ctx context.Context, artistID string
 	if len(tracks) == 0 {
 		err = r.DB(ctx).
 			Table("tracks").
+			Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name").
 			Joins("JOIN track_artists ON tracks.id = track_artists.track_id").
+			Joins("JOIN artists ON track_artists.artist_id = artists.id"). // Get artist name
+			Joins("JOIN albums ON tracks.album_id = albums.id").           // Get album cover
 			Where("track_artists.artist_id = ?", artistID).
 			Order("tracks.stream_count DESC").
 			Limit(10).
-			Find(&tracks).Error
+			Scan(&tracks).Error // Changed from Find to Scan
 
 		if err != nil {
 			return nil, err

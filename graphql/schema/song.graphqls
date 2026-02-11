@@ -3,13 +3,12 @@ type Track {
   id: ID!
   title: String!
   duration: Int!
-  audioFileUrl: String!
   streamCount: Int!
-  album: Album!
+  albumCoverUrl: String!
+  artistName: String!
   explicit: Boolean!
   lyrics: String
   releaseDate: String!
-  artists: [TrackArtist!]!
 }
 
 type TrackArtist {

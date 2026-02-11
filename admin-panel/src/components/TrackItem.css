@@ -1,0 +1,58 @@
+.track-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.track-item:hover {
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.track-item.dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+}
+
+.track-item.drop-target {
+  background-color: rgba(58, 110, 165, 0.2);
+  border: 2px dashed #3a6ea5;
+}
+
+.track-info h4 {
+  margin: 0 0 5px 0;
+  color: #333;
+}
+
+.track-info p {
+  margin: 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.track-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-edit, .btn-delete {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-edit {
+  background-color: #3a6ea5;
+  color: white;
+}
+
+.btn-delete {
+  background-color: #ff6b6b;
+  color: white;
+}

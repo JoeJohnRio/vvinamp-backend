@@ -47,14 +47,15 @@ func (r *queryResolver) GetArtistScreenData(ctx context.Context, artistID string
 		trackModels := make([]*model.Track, len(topSongs))
 		for i, track := range topSongs {
 			trackModels[i] = &model.Track{
-				ID:           track.ID.String(),
-				Title:        track.Title,
-				Duration:     track.Duration,
-				AudioFileURL: track.AudioFileURL,
-				StreamCount:  track.StreamCount,
-				Explicit:     track.Explicit,
-				Lyrics:       &track.Lyrics,
-				ReleaseDate:  track.ReleaseDate,
+				ID:            track.ID.String(),
+				Title:         track.Title,
+				Duration:      track.Duration,
+				StreamCount:   track.StreamCount,
+				Explicit:      track.Explicit,
+				Lyrics:        &track.Lyrics,
+				ReleaseDate:   track.ReleaseDate,
+				AlbumCoverURL: track.AlbumCoverURL,
+				ArtistName:    artist.Name,
 				// Note: We're not populating Album and Artists here to avoid circular dependencies
 				// These would be resolved by their respective resolvers
 			}

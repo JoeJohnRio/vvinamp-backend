@@ -1,0 +1,38 @@
+.album-folder {
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.album-folder.drop-target {
+  background-color: rgba(58, 110, 165, 0.2);
+  border: 2px dashed #3a6ea5;
+}
+
+.album-header {
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  background-color: #f0f7ff;
+}
+
+.album-header:hover {
+  background-color: #e1efff;
+}
+
+.folder-icon {
+  margin-right: 10px;
+  font-size: 1.2rem;
+}
+
+.album-name {
+  flex: 1;
+  font-weight: bold;
+}
+
+.album-count {
+  color: #666;
+}

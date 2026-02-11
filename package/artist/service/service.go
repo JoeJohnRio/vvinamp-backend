@@ -3,12 +3,13 @@ package service
 import (
 	"context"
 	dbModel "vvinamp/model"
+	"vvinamp/model/dto"
 	"vvinamp/package/artist/repository"
 )
 
 type ArtistService interface {
 	GetArtistHeaderByID(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, bool, error)
-	GetArtistScreenData(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, []*dbModel.Track, []*dbModel.Album, error)
+	GetArtistScreenData(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, []*dto.TrackWithDetails, []*dbModel.Album, error)
 }
 
 type artistService struct {
@@ -37,7 +38,7 @@ func (s *artistService) GetArtistHeaderByID(ctx context.Context, artistID string
 	return artist, isFollowed, nil
 }
 
-func (s *artistService) GetArtistScreenData(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, []*dbModel.Track, []*dbModel.Album, error) {
+func (s *artistService) GetArtistScreenData(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, []*dto.TrackWithDetails, []*dbModel.Album, error) {
 	// Get artist profile - this is critical and if it fails, we return an error
 	artist, err := s.repo.GetArtistHeaderByID(ctx, artistID, userID)
 	if err != nil {
@@ -49,7 +50,7 @@ func (s *artistService) GetArtistScreenData(ctx context.Context, artistID string
 	topSongs, err := s.repo.GetTopSongsByArtist(ctx, artistID, userID)
 	if err != nil {
 		// Log the error if needed, but continue execution
-		topSongs = []*dbModel.Track{}
+		topSongs = []*dto.TrackWithDetails{}
 	}
 
 	// Get top releases (albums) by popularity metric

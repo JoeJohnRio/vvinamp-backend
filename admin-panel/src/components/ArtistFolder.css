@@ -1,0 +1,63 @@
+.folder {
+  background: white;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+
+.folder.drop-target {
+  background-color: rgba(58, 110, 165, 0.2);
+  border: 2px dashed #3a6ea5;
+}
+
+.folder-header {
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  background-color: #f9f9f9;
+}
+
+.folder-header:hover {
+  background-color: #f0f0f0;
+}
+
+.folder-icon {
+  margin-right: 10px;
+  font-size: 1.2rem;
+}
+
+.folder-name {
+  flex: 1;
+  font-weight: bold;
+}
+
+.folder-count {
+  color: #666;
+}
+
+.folder-content {
+  padding: 10px;
+}
+
+.folder-track {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.folder-track:last-child {
+  border-bottom: none;
+}
+
+.track-title {
+  font-weight: 500;
+}
+
+.track-album {
+  color: #666;
+  font-size: 0.9rem;
+}

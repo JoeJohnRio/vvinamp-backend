@@ -46,10 +46,13 @@ func (f *FileServerController) Register(r *gin.Engine) {
 	// You can also create specific routes for different file types
 	// These will serve from specific subdirectories in storage
 
-	r.Static("/hls", filepath.Join(f.storagePath, "hls"))
-	r.Static("/images", filepath.Join(f.storagePath, "images"))
-	r.Static("/tracks", filepath.Join(f.storagePath, "tracks"))
-	r.Static("/files", filepath.Join(f.storagePath, "files"))
+	// r.Static("/hls", filepath.Join(f.storagePath, "hls"))
+	// r.Static("/images", filepath.Join(f.storagePath, "images"))
+	// r.Static("/tracks", filepath.Join(f.storagePath, "tracks"))
+	// r.Static("/files", filepath.Join(f.storagePath, "files"))
+	r.Static("/artist", filepath.Join(f.storagePath, "artist"))
+	// r.Static("/vvinamp", filepath.Join(f.storagePath, "/vvinamp/artist/michael_jackson")) //this works
+	// r.Static("/vvinamp", filepath.Join(f.storagePath, "/vvinamp/artist"))//this doesnt works
 }
 
 func (f *FileServerController) ConvertToHLS(ctx context.Context, mp3RelativePath, trackId string) (string, error) {

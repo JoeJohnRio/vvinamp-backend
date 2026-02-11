@@ -1,0 +1,41 @@
+.upload-zone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  margin-bottom: 30px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.upload-zone:hover {
+  border-color: #3a6ea5;
+  background-color: rgba(58, 110, 165, 0.05);
+}
+
+.upload-zone.drag-over {
+  border-color: #3a6ea5;
+  background-color: rgba(58, 110, 165, 0.1);
+}
+
+.upload-zone.uploading {
+  background-color: rgba(58, 110, 165, 0.2);
+  border-color: #3a6ea5;
+}
+
+.upload-content p {
+  margin: 0 0 10px 0;
+  font-size: 1.2rem;
+  color: #666;
+}
+
+.upload-content span {
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.upload-status {
+  color: #3a6ea5;
+  font-weight: bold;
+  margin-top: 10px;
+}
