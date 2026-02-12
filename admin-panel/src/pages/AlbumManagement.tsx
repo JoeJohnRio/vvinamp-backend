@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getAllArtists, getAllAlbums, createAlbum, updateAlbum, deleteAlbum } from '../utils/apiService';
 import { Artist, Album } from '../types';
 import './AlbumManagement.css';
@@ -8,12 +8,15 @@ const AlbumManagement: React.FC = () => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     artistId: '',
     releaseDate: '',
     coverArt: ''
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadArtists();
@@ -46,18 +49,73 @@ const AlbumManagement: React.FC = () => {
     }));
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedImage(file);
+
+      // Create a preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+
+      // Validate file type
+      if (!file.type.match('image.*')) {
+        alert('Please drop an image file');
+        return;
+      }
+
+      setSelectedImage(file);
+
+      // Create a preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      if (editingAlbum) {
-        // Update existing album
-        await updateAlbum(editingAlbum.id, formData);
-      } else {
-        // Create new album
-        await createAlbum(formData);
+      const formDataToSend = new FormData();
+
+      // Add form fields
+      Object.keys(formData).forEach(key => {
+        formDataToSend.append(key, String((formData as any)[key]));
+      });
+
+      // Add image if selected
+      if (selectedImage) {
+        formDataToSend.append('coverArt', selectedImage);
       }
-      
+
+      if (editingAlbum) {
+        // For updates, send the complete FormData (with image if selected)
+        await updateAlbum(editingAlbum.id, formDataToSend);
+      } else {
+        // Create new album with image
+        await createAlbum(formDataToSend);
+      }
+
       resetForm();
       loadAlbums();
     } catch (error) {
@@ -73,6 +131,8 @@ const AlbumManagement: React.FC = () => {
       releaseDate: album.releaseDate || '',
       coverArt: album.coverArt || ''
     });
+    // Set the image preview if the album has cover art
+    setImagePreview(album.coverArt || null);
     setShowForm(true);
   };
 
@@ -95,6 +155,8 @@ const AlbumManagement: React.FC = () => {
       releaseDate: '',
       coverArt: ''
     });
+    setSelectedImage(null);
+    setImagePreview(null);
     setShowForm(false);
   };
 
@@ -153,17 +215,29 @@ const AlbumManagement: React.FC = () => {
               />
             </div>
             
-            <div className="form-group">
-              <label htmlFor="coverArt">Cover Art URL</label>
+            <div
+              className={`form-group drop-area ${imagePreview ? 'has-image' : ''}`}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onClick={() => fileInputRef.current?.click()}
+            >
               <input
-                type="text"
-                id="coverArt"
-                name="coverArt"
-                value={formData.coverArt}
-                onChange={handleInputChange}
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageChange}
+                style={{ display: 'none' }}
+                accept="image/*"
               />
+              {imagePreview ? (
+                <img src={imagePreview} alt="Preview" className="image-preview" />
+              ) : (
+                <div className="drop-message">
+                  <p>Drag & drop album cover image here or click to browse</p>
+                  <span>Supports JPG, PNG, GIF</span>
+                </div>
+              )}
             </div>
-            
+
             <div className="form-actions">
               <button type="submit" className="btn-primary">
                 {editingAlbum ? 'Update Album' : 'Create Album'}
@@ -187,12 +261,14 @@ const AlbumManagement: React.FC = () => {
               </div>
             </div>
             <div className="card-body">
+              {album.coverArt && (
+                <img src={album.coverArt} alt={`${album.title} cover`} className="album-cover" style={{ maxWidth: '100%', height: 'auto', marginBottom: '10px' }} />
+              )}
               <p><strong>Artist:</strong> {album.artistName}</p>
               <p><strong>Release Date:</strong> {album.releaseDate ? new Date(album.releaseDate).toLocaleDateString() : 'Not set'}</p>
-              {album.coverArt && <p><strong>Cover Art:</strong> Available</p>}
             </div>
             <div className="card-footer">
-              <small>Created: {album.createdAt ? new Date(album.createdAt).toLocaleDateString() : 'N/A'}</small>
+              <small>Created: {album.releaseDate ? new Date(album.releaseDate).toLocaleDateString() : 'N/A'}</small>
             </div>
           </div>
         ))}

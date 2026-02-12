@@ -146,7 +146,17 @@ export const getAllAlbums = async () => {
 // Function to create a new album
 export const createAlbum = async (albumData: any) => {
   try {
-    const response = await axios.post(`${BACKEND_API_URL}/albums`, albumData);
+    // Check if albumData is FormData (for image uploads) or regular object
+    let response;
+    if (albumData instanceof FormData) {
+      response = await axios.post(`${BACKEND_API_URL}/albums`, albumData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } else {
+      response = await axios.post(`${BACKEND_API_URL}/albums`, albumData);
+    }
     return response.data;
   } catch (error) {
     console.error('Error creating album:', error);
@@ -157,7 +167,17 @@ export const createAlbum = async (albumData: any) => {
 // Function to update an album
 export const updateAlbum = async (albumId: string, albumData: any) => {
   try {
-    const response = await axios.put(`${BACKEND_API_URL}/albums/${albumId}`, albumData);
+    // Check if albumData is FormData (for image uploads) or regular object
+    let response;
+    if (albumData instanceof FormData) {
+      response = await axios.put(`${BACKEND_API_URL}/albums/${albumId}`, albumData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } else {
+      response = await axios.put(`${BACKEND_API_URL}/albums/${albumId}`, albumData);
+    }
     return response.data;
   } catch (error) {
     console.error('Error updating album:', error);

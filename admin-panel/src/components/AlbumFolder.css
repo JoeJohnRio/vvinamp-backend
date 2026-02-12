@@ -1,4 +1,4 @@
-.album-folder {
+.folder {
   background: white;
   border-radius: 8px;
   margin-bottom: 10px;
@@ -7,20 +7,21 @@
   transition: all 0.3s ease;
 }
 
-.album-folder.drop-target {
+.folder.drop-target {
   background-color: rgba(58, 110, 165, 0.2);
   border: 2px dashed #3a6ea5;
 }
 
-.album-header {
+.folder-header {
   padding: 15px;
   display: flex;
   align-items: center;
-  background-color: #f0f7ff;
+  cursor: pointer;
+  background-color: #f9f9f9;
 }
 
-.album-header:hover {
-  background-color: #e1efff;
+.folder-header:hover {
+  background-color: #f0f0f0;
 }
 
 .folder-icon {
@@ -28,11 +29,35 @@
   font-size: 1.2rem;
 }
 
-.album-name {
+.folder-name {
   flex: 1;
   font-weight: bold;
 }
 
-.album-count {
+.folder-count {
   color: #666;
+}
+
+.folder-content {
+  padding: 10px;
+}
+
+.folder-track {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 15px;
+  border-bottom: 1px solid #eee;
+}
+
+.folder-track:last-child {
+  border-bottom: none;
+}
+
+.track-title {
+  font-weight: 500;
+}
+
+.track-artist {
+  color: #666;
+  font-size: 0.9rem;
 }

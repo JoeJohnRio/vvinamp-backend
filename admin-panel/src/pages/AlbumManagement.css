@@ -141,6 +141,13 @@
   color: #495057;
 }
 
+.card-body img.album-cover {
+  max-width: 100%;
+  height: auto;
+  margin-bottom: 10px;
+  border-radius: 4px;
+}
+
 .card-footer {
   margin-top: 10px;
   padding-top: 10px;

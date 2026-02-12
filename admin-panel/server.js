@@ -459,8 +459,7 @@ app.get('/api/albums', async (req, res) => {
         a.artist_id AS "artistId",
         ar.name AS "artistName",
         a.release_date AS "releaseDate",
-        a.cover_art AS "coverArt",
-        a.created_at AS "createdAt"
+        a.cover_art AS "coverArt"
       FROM albums a
       LEFT JOIN artists ar ON a.artist_id = ar.id
       ORDER BY a.title
@@ -559,8 +558,7 @@ app.post('/api/albums', async (req, res) => {
         a.artist_id AS "artistId",
         ar.name AS "artistName",
         a.release_date AS "releaseDate",
-        a.cover_art AS "coverArt",
-        a.created_at AS "createdAt"
+        a.cover_art AS "coverArt"
       FROM albums a
       LEFT JOIN artists ar ON a.artist_id = ar.id
       WHERE a.id = $1
@@ -695,8 +693,7 @@ app.put('/api/albums/:id', async (req, res) => {
         a.artist_id AS "artistId",
         ar.name AS "artistName",
         a.release_date AS "releaseDate",
-        a.cover_art AS "coverArt",
-        a.created_at AS "createdAt"
+        a.cover_art AS "coverArt"
       FROM albums a
       LEFT JOIN artists ar ON a.artist_id = ar.id
       WHERE a.id = $1
