@@ -539,15 +539,77 @@ app.post('/api/artists', uploadArtistImage.single('profileImage'), async (req, r
   }
 });
 
+// Multer setup for album cover art uploads during creation
+const albumCoverCreateStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Use a temporary location for all requests
+    // We'll move the file to the correct location in the route handlers
+    const storageDir = path.join(__dirname, '..', '..', 'Storage', 'temp');
+    if (!fs.existsSync(storageDir)) {
+      fs.mkdirSync(storageDir, { recursive: true });
+    }
+    cb(null, storageDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate a unique filename for the cover art based on album title
+    const sanitizedAlbumTitle = req.body.title ? req.body.title.replace(/[^a-zA-Z0-9\s\-_]/g, '_') : 'album_cover';
+    const sanitizedFileName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
+    const ext = path.extname(file.originalname);
+    cb(null, sanitizedFileName + ext);
+  }
+});
+const uploadAlbumCoverCreate = multer({ storage: albumCoverCreateStorage });
+
 // Create a new album
-app.post('/api/albums', async (req, res) => {
+app.post('/api/albums', uploadAlbumCoverCreate.single('coverArt'), async (req, res) => {
   try {
-    const { title, artistId, releaseDate, coverArt } = req.body;
+    let coverArtUrl = null;
+    
+    if (req.file) {
+      // Get artist name to create the proper folder structure
+      let artistName = '';
+      if (req.body.artistId) {
+        const artistResult = await pool.query('SELECT name FROM artists WHERE id = $1', [req.body.artistId]);
+        if (artistResult.rows.length > 0) {
+          artistName = artistResult.rows[0].name;
+        }
+      }
+      
+      // Generate CDN URL for the cover art with the artist/album structure
+      const sanitizedArtistName = artistName.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+      const sanitizedArtistFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
+      const sanitizedAlbumTitle = req.body.title ? req.body.title.replace(/[^a-zA-Z0-9\s\-_]/g, '_') : 'album_cover';
+      const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
+      const fileNameWithoutExt = path.parse(req.file.filename).name;
+      coverArtUrl = `https://cirio.my.id/artist/${sanitizedArtistFolderName}/album/${sanitizedAlbumFolderName}/${fileNameWithoutExt}.jpg`;
+      
+      // Create the proper directory structure: Storage/artist/artist_name/album/album_name/
+      const artistDir = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedArtistFolderName);
+      const albumDir = path.join(artistDir, 'album', sanitizedAlbumFolderName);
+      if (!fs.existsSync(artistDir)) {
+        fs.mkdirSync(artistDir, { recursive: true });
+      }
+      if (!fs.existsSync(albumDir)) {
+        fs.mkdirSync(albumDir, { recursive: true });
+      }
+      
+      // Define the new file path
+      const newFilePath = path.join(albumDir, fileNameWithoutExt + '.jpg');
+      await fs.promises.copyFile(req.file.path, newFilePath);
+      await fs.promises.unlink(req.file.path); // Remove the temp file
+    }
+    
+    const { title, artistId, releaseDate } = req.body;
+    
+    // If coverArt is provided in the body (not as a file upload), use that instead
+    if (req.body.coverArt && !req.file) {
+      coverArtUrl = req.body.coverArt;
+    }
 
     const result = await pool.query(
       `INSERT INTO albums (title, artist_id, release_date, cover_art)
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [title, artistId, releaseDate || null, coverArt || null]
+      [title, artistId, releaseDate || null, coverArtUrl || null]
     );
 
     // Also return artist name with the album
@@ -667,18 +729,89 @@ app.delete('/api/artists/:id', async (req, res) => {
   }
 });
 
+// Multer setup for album cover art uploads
+const albumCoverStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Use a temporary location for all requests
+    // We'll move the file to the correct location in the route handlers
+    const storageDir = path.join(__dirname, '..', '..', 'Storage', 'temp');
+    if (!fs.existsSync(storageDir)) {
+      fs.mkdirSync(storageDir, { recursive: true });
+    }
+    cb(null, storageDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate a unique filename for the cover art based on album title
+    const sanitizedAlbumTitle = req.body.title ? req.body.title.replace(/[^a-zA-Z0-9\s\-_]/g, '_') : 'album_cover';
+    const sanitizedFileName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
+    const ext = path.extname(file.originalname);
+    cb(null, sanitizedFileName + ext);
+  }
+});
+const uploadAlbumCover = multer({ storage: albumCoverStorage });
+
 // Update an album
-app.put('/api/albums/:id', async (req, res) => {
+app.put('/api/albums/:id', uploadAlbumCover.single('coverArt'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, artistId, releaseDate, coverArt } = req.body;
+    
+    // First, get the current album information to create the proper folder structure
+    const currentAlbumResult = await pool.query(`
+      SELECT a.title, ar.name as artist_name
+      FROM albums a
+      LEFT JOIN artists ar ON a.artist_id = ar.id
+      WHERE a.id = $1
+    `, [id]);
+    
+    if (currentAlbumResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Album not found' });
+    }
+    
+    const currentAlbum = currentAlbumResult.rows[0];
+    const artistName = currentAlbum.artist_name || 'unknown_artist';
+    
+    // Handle the case where there might be file upload
+    let coverArtUrl = null;
+    
+    if (req.file) {
+      // Generate CDN URL for the cover art with the artist/album structure
+      const sanitizedArtistName = artistName.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+      const sanitizedArtistFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
+      const sanitizedAlbumTitle = req.body.title ? req.body.title.replace(/[^a-zA-Z0-9\s\-_]/g, '_') : currentAlbum.title.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+      const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
+      const fileNameWithoutExt = path.parse(req.file.filename).name;
+      coverArtUrl = `https://cirio.my.id/artist/${sanitizedArtistFolderName}/album/${sanitizedAlbumFolderName}/${fileNameWithoutExt}.jpg`;
+      
+      // Create the proper directory structure: Storage/artist/artist_name/album/album_name/
+      const artistDir = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedArtistFolderName);
+      const albumDir = path.join(artistDir, 'album', sanitizedAlbumFolderName);
+      if (!fs.existsSync(artistDir)) {
+        fs.mkdirSync(artistDir, { recursive: true });
+      }
+      if (!fs.existsSync(albumDir)) {
+        fs.mkdirSync(albumDir, { recursive: true });
+      }
+      
+      // Define the new file path
+      const newFilePath = path.join(albumDir, fileNameWithoutExt + '.jpg');
+      await fs.promises.copyFile(req.file.path, newFilePath);
+      await fs.promises.unlink(req.file.path); // Remove the temp file
+    }
+    
+    // Get the other fields from the request body
+    const { title, artistId, releaseDate } = req.body;
+    
+    // If coverArt is provided in the body (not as a file upload), use that instead
+    if (req.body.coverArt && !req.file) {
+      coverArtUrl = req.body.coverArt;
+    }
 
     const result = await pool.query(
-      `UPDATE albums 
+      `UPDATE albums
        SET title = $1, artist_id = $2, release_date = $3, cover_art = $4
        WHERE id = $5
        RETURNING *`,
-      [title, artistId, releaseDate || null, coverArt || null, id]
+      [title, artistId, releaseDate || null, coverArtUrl || null, id]
     );
 
     if (result.rowCount === 0) {
