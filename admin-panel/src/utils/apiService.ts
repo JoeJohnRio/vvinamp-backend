@@ -32,10 +32,35 @@ export const getAllTracks = async () => {
   }
 };
 
+// Function to update a track file
+export const updateTrackFile = async (trackId: string, fileData: FormData) => {
+  try {
+    const response = await axios.put(`${BACKEND_API_URL}/tracks/${trackId}/file`, fileData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error updating track file:', error);
+    throw error;
+  }
+};
+
 // Function to update a track
 export const updateTrack = async (trackId: string, trackData: any) => {
   try {
-    const response = await axios.put(`${BACKEND_API_URL}/tracks/${trackId}`, trackData);
+    // Check if trackData is FormData (for file uploads) or regular object
+    let response;
+    if (trackData instanceof FormData) {
+      response = await axios.put(`${BACKEND_API_URL}/tracks/${trackId}`, trackData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } else {
+      response = await axios.put(`${BACKEND_API_URL}/tracks/${trackId}`, trackData);
+    }
     return response.data;
   } catch (error) {
     console.error('Error updating track:', error);

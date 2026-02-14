@@ -221,14 +221,13 @@ app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Get album ID from request body
     const { albumId, title } = req.body;
     
     if (!albumId) {
       return res.status(400).json({ error: 'Album ID is required' });
     }
 
-    // Get album and artist info to create the proper file path
+    // --- 1. Get Album & Artist Info for Folder Structure ---
     const albumInfo = await pool.query(`
       SELECT a.title as album_title, ar.name as artist_name
       FROM albums a
@@ -241,47 +240,185 @@ app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
     }
 
     const { album_title, artist_name } = albumInfo.rows[0];
+
+    // --- 2. Determine Display Title ---
+    // Use provided title OR fallback to original filename (without extension)
+    // Example: "Hindia - Masalah Masa Depan (Official Lyric Video)"
+    const rawTrackTitle = title || file.originalname.replace(/\.[^/.]+$/, "");
+
+    // --- 3. Generate Sanitized Filename (Like Artist Logic) ---
+    // Example: "hindia_-_masalah_masa_depan_(official_lyric_video)"
+    const sanitizedTitle = rawTrackTitle.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+    const cleanFileName = sanitizedTitle.toLowerCase().replace(/\s+/g, '_');
     
-    // Sanitize names for file system
-    const sanitizeName = (name) => name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
-    const sanitizedArtist = sanitizeName(artist_name || 'Unknown Artist');
-    const sanitizedAlbum = sanitizeName(album_title || 'Unknown Album');
+    // Get extension (.mp3, .wav)
+    const fileExtension = path.extname(file.originalname); 
+    const finalFilename = cleanFileName + fileExtension; // "hindia_-_masalah...video).mp3"
+
+    // --- 4. Setup Directories ---
+    // Helper to sanitize folder names
+    const sanitizeFolder = (name) => name.replace(/[^a-zA-Z0-9\s\-_]/g, '_').replace(/\s+/g, '_');
     
-    // Create the hierarchical folder structure in the Storage directory
+    const sanitizedArtist = sanitizeFolder(artist_name || 'Unknown_Artist');
+    const sanitizedAlbum = sanitizeFolder(album_title || 'Unknown_Album');
+
+    // Path: Storage/Artist_Name/Album_Name/tracks/
     const storageDir = path.join(__dirname, '..', '..', 'Storage');
     const artistDir = path.join(storageDir, sanitizedArtist);
     const albumDir = path.join(artistDir, sanitizedAlbum);
+    const tracksDir = path.join(albumDir, 'tracks');
+
+    // Recursive creation handles all parents (Storage -> Artist -> Album -> tracks)
+    if (!fs.existsSync(tracksDir)) {
+      fs.mkdirSync(tracksDir, { recursive: true });
+    }
+
+    // --- 5. Move File to Final Destination ---
+    const newFilePath = path.join(tracksDir, finalFilename);
     
+    // Move from temp upload location to final path
+    fs.renameSync(path.join(__dirname, 'uploads', file.filename), newFilePath);
+
+    // --- 6. Insert into DB ---
+    // Mock duration
+    const duration = Math.floor(Math.random() * 300) + 60;
+
+    const insertResult = await pool.query(
+      `INSERT INTO tracks (title, duration, audio_file_url, album_id, explicit, lyrics)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [
+        rawTrackTitle, // Store the READABLE title in DB ("Hindia - Masalah...")
+        duration,
+        null, // URL set in next step
+        albumId,
+        false, 
+        '' 
+      ]
+    );
+
+    const insertedTrack = insertResult.rows[0];
+
+    // --- 7. Generate URL & Update DB ---
+    // URL matches the file on disk: /track/{ID}/clean_file_name.mp3
+    const idBasedUrl = `https://cirio.my.id/track/${insertedTrack.id}/${cleanFileName}${fileExtension}`;
+    
+    await pool.query(
+      `UPDATE tracks SET audio_file_url = $1 WHERE id = $2`,
+      [idBasedUrl, insertedTrack.id]
+    );
+    
+    // Update object for response
+    insertedTrack.audio_file_url = idBasedUrl;
+
+    // --- 8. Final Response with Details ---
+    const trackWithDetails = await pool.query(`
+      SELECT t.*, a.title as album_title, ar.name as artist_name
+      FROM tracks t
+      LEFT JOIN albums a ON t.album_id = a.id
+      LEFT JOIN artists ar ON a.artist_id = ar.id
+      WHERE t.id = $1
+    `, [insertedTrack.id]);
+
+    res.json(trackWithDetails.rows[0]);
+
+  } catch (err) {
+    console.error('Error uploading track:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+// Update track file
+app.put('/api/tracks/:id/file', upload.single('file'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Get track to find current file path
+    const trackResult = await pool.query('SELECT * FROM tracks WHERE id = $1', [id]);
+    
+    if (trackResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    const track = trackResult.rows[0];
+
+    // Get album and artist info to create the proper file path
+    const albumInfo = await pool.query(`
+      SELECT a.title as album_title, ar.name as artist_name
+      FROM albums a
+      LEFT JOIN artists ar ON a.artist_id = ar.id
+      WHERE a.id = $1
+    `, [track.album_id]);
+
+    if (albumInfo.rows.length === 0) {
+      return res.status(404).json({ error: 'Album not found' });
+    }
+
+    const { album_title, artist_name } = albumInfo.rows[0];
+
+    // Sanitize names for file system
+    const sanitizeName = (name) => name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+    const sanitizedArtistName = artist_name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+    const sanitizedArtistFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
+    const sanitizedAlbumTitle = album_title.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+    const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
+
+    // Create the hierarchical folder structure in the Storage directory
+    const storageDir = path.join(__dirname, '..', '..', 'Storage');
+    const artistBaseDir = path.join(storageDir, 'artist'); // Add 'artist' directory level
+    const artistDir = path.join(artistBaseDir, sanitizedArtistFolderName);
+    const albumBaseDir = path.join(artistDir, 'album'); // Add 'album' directory level
+    const albumDir = path.join(albumBaseDir, sanitizedAlbumFolderName);
+    const tracksDir = path.join(albumDir, 'tracks'); // Add 'tracks' subfolder
+
     // Create directories if they don't exist
     if (!fs.existsSync(storageDir)) {
       fs.mkdirSync(storageDir, { recursive: true });
     }
+    if (!fs.existsSync(artistBaseDir)) {
+      fs.mkdirSync(artistBaseDir, { recursive: true });
+    }
     if (!fs.existsSync(artistDir)) {
       fs.mkdirSync(artistDir, { recursive: true });
+    }
+    if (!fs.existsSync(albumBaseDir)) {
+      fs.mkdirSync(albumBaseDir, { recursive: true });
     }
     if (!fs.existsSync(albumDir)) {
       fs.mkdirSync(albumDir, { recursive: true });
     }
-    
-    // Move the uploaded file to the proper location
-    const newFilePath = path.join(albumDir, file.filename);
+    if (!fs.existsSync(tracksDir)) {
+      fs.mkdirSync(tracksDir, { recursive: true });
+    }
+
+    // Move the uploaded file to the proper location in the tracks subfolder
+    // Use the original filename for storage but generate ID-based URL
+    const newFilePath = path.join(tracksDir, file.filename);
     fs.renameSync(path.join(__dirname, 'uploads', file.filename), newFilePath);
-    
+
     // Calculate duration (in a real implementation, you'd use a library like ffmpeg to get the actual duration)
     // For now, we'll keep the random duration approach
     const duration = Math.floor(Math.random() * 300) + 60;
 
-    // Insert the track record with the proper file path
+    // Update the track record with the CDN URL
+    const fileNameWithoutExt = path.parse(file.filename).name;
+    const fileExtension = path.extname(file.filename);
+    const idBasedUrl = `https://cirio.my.id/track/${id}/${fileNameWithoutExt}${fileExtension}`;
+    
     const result = await pool.query(
-      `INSERT INTO tracks (title, duration, audio_file_url, album_id, explicit, lyrics)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      `UPDATE tracks
+       SET audio_file_url = $1, duration = $2
+       WHERE id = $3
+       RETURNING *`,
       [
-        title || file.originalname.replace(/\.[^/.]+$/, ""), // Use provided title or derive from filename
+        idBasedUrl, // Store ID-based CDN URL instead of relative path
         duration,
-        path.relative(__dirname, newFilePath), // Store relative path to the file
-        albumId,
-        false, // explicit
-        '' // lyrics
+        id
       ]
     );
 
@@ -296,7 +433,7 @@ app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
 
     res.json(trackWithDetails.rows[0]);
   } catch (err) {
-    console.error('Error uploading track:', err);
+    console.error('Error updating track file:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -306,6 +443,13 @@ app.put('/api/tracks/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { title, duration, explicit, lyrics, albumId } = req.body;
+
+    // First, get the current track to check if title is changing and get the current file path
+    const currentTrackResult = await pool.query('SELECT * FROM tracks WHERE id = $1', [id]);
+    if (currentTrackResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+    const currentTrack = currentTrackResult.rows[0];
 
     // Build dynamic query based on provided fields
     let query = 'UPDATE tracks SET ';
@@ -344,6 +488,60 @@ app.put('/api/tracks/:id', async (req, res) => {
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Track not found' });
+    }
+
+    // If title was updated, we need to rename the file to match the new title
+    if (title !== undefined && title !== currentTrack.title) {
+      try {
+        // Parse the current audio_file_url to extract the file extension
+        const urlParts = currentTrack.audio_file_url.split('/');
+        const fileNameWithExt = urlParts[urlParts.length - 1];
+        const fileExtension = path.extname(fileNameWithExt);
+        
+        // Get album and artist info to recreate the file path
+        const albumInfo = await pool.query(`
+          SELECT a.title as album_title, ar.name as artist_name
+          FROM albums a
+          LEFT JOIN artists ar ON a.artist_id = ar.id
+          WHERE a.id = $1
+        `, [result.rows[0].album_id]);
+
+        if (albumInfo.rows.length > 0) {
+          const { album_title, artist_name } = albumInfo.rows[0];
+          
+          // Sanitize names for file system
+          const sanitizeName = (name) => name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+          const sanitizedArtist = sanitizeName(artist_name || 'Unknown Artist');
+          const sanitizedAlbum = sanitizeName(album_title || 'Unknown Album');
+
+          // Construct the old and new file paths
+          const storageDir = path.join(__dirname, '..', '..', 'Storage');
+          const artistDir = path.join(storageDir, sanitizedArtist);
+          const albumDir = path.join(artistDir, sanitizedAlbum);
+          const tracksDir = path.join(albumDir, 'tracks');
+          
+          const oldFileName = path.parse(fileNameWithExt).name + fileExtension;
+          const newFileName = title + fileExtension;
+          
+          const oldFilePath = path.join(tracksDir, oldFileName);
+          const newFilePath = path.join(tracksDir, newFileName);
+          
+          // Rename the file if it exists
+          if (fs.existsSync(oldFilePath)) {
+            fs.renameSync(oldFilePath, newFilePath);
+            
+            // Update the audio_file_url in the database to reflect the new filename
+            const newAudioFileUrl = `https://cirio.my.id/track/${id}/${title}${fileExtension}`;
+            await pool.query(
+              `UPDATE tracks SET audio_file_url = $1 WHERE id = $2`,
+              [newAudioFileUrl, id]
+            );
+          }
+        }
+      } catch (renameErr) {
+        console.error('Error renaming track file:', renameErr);
+        // Don't return an error here as the database update was successful
+      }
     }
 
     // Return track with album and artist info
@@ -504,35 +702,50 @@ app.post('/api/artists', uploadArtistImage.single('profileImage'), async (req, r
     let profileImagePath = null;
     
     if (req.file) {
-      // Generate CDN URL for the image
+      // Generate readable folder name for file storage
       const sanitizedArtistName = name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
-      const sanitizedFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
-      profileImagePath = `https://cirio.my.id/artist/${sanitizedFolderName}/${sanitizedFolderName}.jpg`;
-      
-      // Move the uploaded file to the correct location
-      const sanitizedArtistNameClean = name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
-      const sanitizedFolderNameClean = sanitizedArtistNameClean.toLowerCase().replace(/\s+/g, '_');
-      
+      const sanitizedFolderNameClean = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
+
       // Create the proper directory structure: Storage/artist/artist_name/
       const artistDir = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedFolderNameClean);
       if (!fs.existsSync(artistDir)) {
         fs.mkdirSync(artistDir, { recursive: true });
       }
-      
+
       // Define the new file path
       const newFilePath = path.join(artistDir, sanitizedFolderNameClean + '.jpg');
-      
+
       // Move the uploaded file to the correct location
       fs.renameSync(req.file.path, newFilePath);
     }
 
-    const result = await pool.query(
+    // Insert the artist record first to get the ID
+    const insertResult = await pool.query(
       `INSERT INTO artists (name, bio, profile_image, verified, monthly_listeners)
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [name, bio || null, profileImagePath, verified, 0]
+      [name, bio || null, null, verified, 0]  // Initially set profile_image to null
     );
+    
+    const insertedArtist = insertResult.rows[0];
+    
+    // If there's a profile image, update the record with the ID-based URL
+    if (req.file) {
+      // Generate ID-based CDN URL for the image
+      const sanitizedArtistName = name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+      const sanitizedFolderNameClean = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
+      const idBasedUrl = `https://cirio.my.id/artist/${insertedArtist.id}/${sanitizedFolderNameClean}.jpg`;
+      
+      // Update the record with the ID-based URL
+      await pool.query(
+        `UPDATE artists SET profile_image = $1 WHERE id = $2`,
+        [idBasedUrl, insertedArtist.id]
+      );
+      
+      // Update the insertedArtist object to return the correct URL
+      insertedArtist.profile_image = idBasedUrl;
+    }
 
-    res.json(result.rows[0]);
+    res.json(insertedArtist);
   } catch (err) {
     console.error('Error creating artist:', err);
     res.status(500).json({ error: 'Internal server error' });
@@ -565,6 +778,15 @@ app.post('/api/albums', uploadAlbumCoverCreate.single('coverArt'), async (req, r
   try {
     let coverArtUrl = null;
     
+    // Insert the album record first to get the ID (without cover art initially)
+    const insertResult = await pool.query(
+      `INSERT INTO albums (title, artist_id, release_date, cover_art)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [req.body.title, req.body.artistId, req.body.releaseDate || null, null]  // Initially set cover_art to null
+    );
+    
+    const insertedAlbum = insertResult.rows[0];
+    
     if (req.file) {
       // Get artist name to create the proper folder structure
       let artistName = '';
@@ -574,14 +796,12 @@ app.post('/api/albums', uploadAlbumCoverCreate.single('coverArt'), async (req, r
           artistName = artistResult.rows[0].name;
         }
       }
-      
-      // Generate CDN URL for the cover art with the artist/album structure
+
+      // Generate readable folder names for file storage
       const sanitizedArtistName = artistName.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
       const sanitizedArtistFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
       const sanitizedAlbumTitle = req.body.title ? req.body.title.replace(/[^a-zA-Z0-9\s\-_]/g, '_') : 'album_cover';
       const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
-      const fileNameWithoutExt = path.parse(req.file.filename).name;
-      coverArtUrl = `https://cirio.my.id/artist/${sanitizedArtistFolderName}/album/${sanitizedAlbumFolderName}/${fileNameWithoutExt}.jpg`;
       
       // Create the proper directory structure: Storage/artist/artist_name/album/album_name/
       const artistDir = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedArtistFolderName);
@@ -592,25 +812,35 @@ app.post('/api/albums', uploadAlbumCoverCreate.single('coverArt'), async (req, r
       if (!fs.existsSync(albumDir)) {
         fs.mkdirSync(albumDir, { recursive: true });
       }
-      
+
       // Define the new file path
+      const fileNameWithoutExt = path.parse(req.file.filename).name;
       const newFilePath = path.join(albumDir, fileNameWithoutExt + '.jpg');
       await fs.promises.copyFile(req.file.path, newFilePath);
       await fs.promises.unlink(req.file.path); // Remove the temp file
+      
+      // Generate ID-based CDN URL for the cover art
+      coverArtUrl = `https://cirio.my.id/album/${insertedAlbum.id}/${fileNameWithoutExt}.jpg`;
+      
+      // Update the album record with the ID-based URL
+      await pool.query(
+        `UPDATE albums SET cover_art = $1 WHERE id = $2`,
+        [coverArtUrl, insertedAlbum.id]
+      );
+      
+      // Update the insertedAlbum object to return the correct URL
+      insertedAlbum.cover_art = coverArtUrl;
     }
-    
-    const { title, artistId, releaseDate } = req.body;
-    
+
     // If coverArt is provided in the body (not as a file upload), use that instead
     if (req.body.coverArt && !req.file) {
       coverArtUrl = req.body.coverArt;
+      // Update the album record with the provided URL
+      await pool.query(
+        `UPDATE albums SET cover_art = $1 WHERE id = $2`,
+        [coverArtUrl, insertedAlbum.id]
+      );
     }
-
-    const result = await pool.query(
-      `INSERT INTO albums (title, artist_id, release_date, cover_art)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [title, artistId, releaseDate || null, coverArtUrl || null]
-    );
 
     // Also return artist name with the album
     const albumWithArtist = await pool.query(`
@@ -650,40 +880,38 @@ app.put('/api/artists/:id', uploadArtistImage.single('profileImage'), async (req
     let profileImagePath = null;
     
     if (req.file) {
-      // Generate CDN URL for the image
-      const sanitizedArtistName = (name || currentArtistName).replace(/[^a-zA-Z0-9\s\-_]/g, '_');
-      const sanitizedFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
-      profileImagePath = `https://cirio.my.id/artist/${sanitizedFolderName}/${sanitizedFolderName}.jpg`;
-      
-      // Move the uploaded file to the correct location
+      // Generate readable folder name for file storage
       const sanitizedNewArtistName = (name || currentArtistName).replace(/[^a-zA-Z0-9\s\-_]/g, '_');
       const sanitizedNewFolderName = sanitizedNewArtistName.toLowerCase().replace(/\s+/g, '_');
-      
+
       // Create the proper directory structure: Storage/artist/artist_name/
       const newArtistDir = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedNewFolderName);
       if (!fs.existsSync(newArtistDir)) {
         fs.mkdirSync(newArtistDir, { recursive: true });
       }
-      
+
       // Define the new file path
       const newFilePath = path.join(newArtistDir, sanitizedNewFolderName + '.jpg');
       await fs.promises.copyFile(req.file.path, newFilePath);
       await fs.promises.unlink(req.file.path);
+
+      // Generate ID-based CDN URL for the image
+      profileImagePath = `https://cirio.my.id/artist/${id}/${sanitizedNewFolderName}.jpg`;
     }
 
     let query;
     let queryParams;
-    
+
     if (profileImagePath) {
       // Update with new profile image
-      query = `UPDATE artists 
+      query = `UPDATE artists
                SET name = $1, bio = $2, profile_image = $3, verified = $4, updated_at = CURRENT_TIMESTAMP
                WHERE id = $5
                RETURNING *`;
       queryParams = [name, bio || null, profileImagePath, verified, id];
     } else {
       // Update without changing profile image
-      query = `UPDATE artists 
+      query = `UPDATE artists
                SET name = $1, bio = $2, verified = $3, updated_at = CURRENT_TIMESTAMP
                WHERE id = $4
                RETURNING *`;
@@ -774,13 +1002,11 @@ app.put('/api/albums/:id', uploadAlbumCover.single('coverArt'), async (req, res)
     let coverArtUrl = null;
     
     if (req.file) {
-      // Generate CDN URL for the cover art with the artist/album structure
+      // Generate readable folder names for file storage
       const sanitizedArtistName = artistName.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
       const sanitizedArtistFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
       const sanitizedAlbumTitle = req.body.title ? req.body.title.replace(/[^a-zA-Z0-9\s\-_]/g, '_') : currentAlbum.title.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
       const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
-      const fileNameWithoutExt = path.parse(req.file.filename).name;
-      coverArtUrl = `https://cirio.my.id/artist/${sanitizedArtistFolderName}/album/${sanitizedAlbumFolderName}/${fileNameWithoutExt}.jpg`;
       
       // Create the proper directory structure: Storage/artist/artist_name/album/album_name/
       const artistDir = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedArtistFolderName);
@@ -791,16 +1017,20 @@ app.put('/api/albums/:id', uploadAlbumCover.single('coverArt'), async (req, res)
       if (!fs.existsSync(albumDir)) {
         fs.mkdirSync(albumDir, { recursive: true });
       }
-      
+
       // Define the new file path
+      const fileNameWithoutExt = path.parse(req.file.filename).name;
       const newFilePath = path.join(albumDir, fileNameWithoutExt + '.jpg');
       await fs.promises.copyFile(req.file.path, newFilePath);
       await fs.promises.unlink(req.file.path); // Remove the temp file
+      
+      // Generate ID-based CDN URL for the cover art
+      coverArtUrl = `https://cirio.my.id/album/${id}/${fileNameWithoutExt}.jpg`;
     }
-    
+
     // Get the other fields from the request body
     const { title, artistId, releaseDate } = req.body;
-    
+
     // If coverArt is provided in the body (not as a file upload), use that instead
     if (req.body.coverArt && !req.file) {
       coverArtUrl = req.body.coverArt;
@@ -874,6 +1104,123 @@ app.get('/test', async (req, res) => {
   } catch (err) {
     console.error('Error in test route:', err);
     res.status(500).json({ error: 'Test route error', details: err.message });
+  }
+});
+
+// Mapping endpoints to serve files by ID
+// Serve artist profile image by ID
+app.get('/artist/:artistId/:fileName', async (req, res) => {
+  try {
+    const { artistId, fileName } = req.params;
+    
+    // Look up the artist by ID to get the actual file path
+    const artistResult = await pool.query(
+      'SELECT name FROM artists WHERE id = $1', 
+      [artistId]
+    );
+    
+    if (artistResult.rows.length === 0) {
+      return res.status(404).send('Artist not found');
+    }
+    
+    const artistName = artistResult.rows[0].name;
+    const sanitizedArtistName = artistName.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+    const sanitizedFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
+    
+    // Construct the actual file path
+    const filePath = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedFolderName, fileName);
+    console.log('joel123', req.params);
+    console.log('joel123 sanitizedFolderName:', sanitizedFolderName);
+    console.log('joel123 filePath:', filePath);
+
+    // Check if file exists before sending
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('File not found');
+    }
+    
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('Error serving artist file:', err);
+    res.status(500).send('Internal server error');
+  }
+});
+
+// Serve album cover by ID
+app.get('/album/:albumId/:fileName', async (req, res) => {
+  try {
+    const { albumId, fileName } = req.params;
+    
+    // Look up the album by ID to get the artist and album names
+    const albumResult = await pool.query(`
+      SELECT a.title as album_title, ar.name as artist_name
+      FROM albums a
+      LEFT JOIN artists ar ON a.artist_id = ar.id
+      WHERE a.id = $1
+    `, [albumId]);
+    
+    if (albumResult.rows.length === 0) {
+      return res.status(404).send('Album not found');
+    }
+    
+    const { album_title, artist_name } = albumResult.rows[0];
+    
+    const sanitizedArtistName = artist_name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+    const sanitizedArtistFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
+    const sanitizedAlbumTitle = album_title.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+    const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
+    
+    // Construct the actual file path
+    const filePath = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedArtistFolderName, 'album', sanitizedAlbumFolderName, fileName);
+    
+    // Check if file exists before sending
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('File not found');
+    }
+    
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('Error serving album file:', err);
+    res.status(500).send('Internal server error');
+  }
+});
+
+// Serve track file by ID
+app.get('/track/:trackId/:fileName', async (req, res) => {
+  try {
+    const { trackId, fileName } = req.params;
+    
+    // Look up the track by ID to get the album and artist information
+    const trackResult = await pool.query(`
+      SELECT a.title as album_title, ar.name as artist_name
+      FROM tracks t
+      LEFT JOIN albums a ON t.album_id = a.id
+      LEFT JOIN artists ar ON a.artist_id = ar.id
+      WHERE t.id = $1
+    `, [trackId]);
+    
+    if (trackResult.rows.length === 0) {
+      return res.status(404).send('Track not found');
+    }
+    
+    const { album_title, artist_name } = trackResult.rows[0];
+    
+    const sanitizedArtistName = artist_name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+    const sanitizedArtistFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
+    const sanitizedAlbumTitle = album_title.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
+    const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
+    
+    // Construct the actual file path
+    const filePath = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedArtistFolderName, 'album', sanitizedAlbumFolderName, 'tracks', fileName);
+    
+    // Check if file exists before sending
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).send('File not found');
+    }
+    
+    res.sendFile(filePath);
+  } catch (err) {
+    console.error('Error serving track file:', err);
+    res.status(500).send('Internal server error');
   }
 });
 

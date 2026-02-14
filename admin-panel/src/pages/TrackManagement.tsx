@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { getAllArtists, getAllAlbums, getAllTracks, createTrack, updateTrack, deleteTrack } from '../utils/apiService';
+import React, { useState, useEffect, useRef } from 'react';
+import { getAllArtists, getAllAlbums, getAllTracks, createTrack, updateTrack, updateTrackFile, deleteTrack } from '../utils/apiService';
 import { Artist, Album, Track } from '../types';
 import './TrackManagement.css';
 
@@ -10,6 +10,7 @@ const TrackManagement: React.FC = () => {
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     albumId: '',
@@ -17,6 +18,7 @@ const TrackManagement: React.FC = () => {
     explicit: false,
     lyrics: ''
   });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadArtists();
@@ -54,7 +56,7 @@ const TrackManagement: React.FC = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = type === 'checkbox' ? (e.target as HTMLInputElement).checked : undefined;
-    
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : (type === 'number' ? Number(value) : value)
@@ -63,35 +65,87 @@ const TrackManagement: React.FC = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setSelectedFile(file);
+
+      // Create a preview URL for the audio file
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFilePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const file = e.dataTransfer.files[0];
+
+      // Validate file type
+      if (!file.type.startsWith('audio/')) {
+        alert('Please drop an audio file (mp3, wav, flac, mpeg)');
+        return;
+      }
+
+      setSelectedFile(file);
+
+      // Create a preview URL for the audio file
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFilePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    try {
-      const formDataToSend = new FormData();
-      
-      if (selectedFile) {
-        formDataToSend.append('file', selectedFile);
-      }
-      
-      Object.keys(formData).forEach(key => {
-        if (key !== 'file') {
-          formDataToSend.append(key, String((formData as any)[key]));
-        }
-      });
 
+    try {
       if (editingTrack) {
-        // For updates, we might need a different approach since we can't send file with other data in multipart
-        // For now, we'll just update metadata
-        await updateTrack(editingTrack.id, formData);
+        // For updates, handle differently based on whether a new file was selected
+        if (selectedFile) {
+          // If a new file was selected, update the track file
+          const formDataToSend = new FormData();
+          formDataToSend.append('file', selectedFile);
+          
+          // Add other form data
+          Object.keys(formData).forEach(key => {
+            if (key !== 'file') {
+              formDataToSend.append(key, String((formData as any)[key]));
+            }
+          });
+          
+          await updateTrackFile(editingTrack.id, formDataToSend);
+        } else {
+          // Just update metadata
+          await updateTrack(editingTrack.id, formData);
+        }
       } else {
         // Create new track with file
+        const formDataToSend = new FormData();
+        
+        if (selectedFile) {
+          formDataToSend.append('file', selectedFile);
+        }
+        
+        Object.keys(formData).forEach(key => {
+          if (key !== 'file') {
+            formDataToSend.append(key, String((formData as any)[key]));
+          }
+        });
+        
         await createTrack(formDataToSend);
       }
-      
+
       resetForm();
       loadTracks();
     } catch (error) {
@@ -101,20 +155,19 @@ const TrackManagement: React.FC = () => {
 
   const handleEdit = (track: Track) => {
     setEditingTrack(track);
+    
+    // Find the album ID based on the track's album
+    const album = albums.find(a => a.title === track.album);
+    const albumId = album ? album.id : '';
+
     setFormData({
       title: track.title || '',
-      albumId: '', // We'll need to find the album ID based on the track's album
+      albumId: albumId,
       duration: track.duration || 0,
       explicit: track.explicit || false,
       lyrics: track.lyrics || ''
     });
-    
-    // Find the album ID based on the track's album
-    const album = albums.find(a => a.title === track.album);
-    if (album) {
-      setFormData(prev => ({ ...prev, albumId: album.id }));
-    }
-    
+
     setShowForm(true);
   };
 
@@ -139,13 +192,14 @@ const TrackManagement: React.FC = () => {
       lyrics: ''
     });
     setSelectedFile(null);
+    setFilePreview(null);
     setShowForm(false);
   };
 
   return (
     <div className="track-management">
       <h1>Track Management</h1>
-      
+
       <div className="controls">
         <button onClick={() => {resetForm(); setShowForm(true);}} className="btn-primary">
           Add New Track
@@ -167,21 +221,42 @@ const TrackManagement: React.FC = () => {
                 required
               />
             </div>
-            
-            {!editingTrack && (
+
+            {(editingTrack ? true : true) && (
               <>
-                <div className="form-group">
-                  <label htmlFor="file">Audio File *</label>
+                <div
+                  className={`form-group drop-area ${filePreview ? 'has-file' : ''}`}
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <input
                     type="file"
-                    id="file"
-                    name="file"
-                    accept="audio/mp3,audio/wav,audio/flac,audio/mpeg"
+                    ref={fileInputRef}
                     onChange={handleFileChange}
-                    required={!editingTrack}
+                    style={{ display: 'none' }}
+                    accept="audio/*"
                   />
+                  {filePreview ? (
+                    <div className="file-preview">
+                      <p>Selected: {selectedFile?.name}</p>
+                      <audio controls src={filePreview} className="audio-preview" />
+                    </div>
+                  ) : (
+                    editingTrack && !selectedFile ? (
+                      <div className="drop-message">
+                        <p>Drag & drop new audio file here to replace current file, or click to browse</p>
+                        <span>Supports MP3, WAV, FLAC, MPEG</span>
+                      </div>
+                    ) : (
+                      <div className="drop-message">
+                        <p>Drag & drop audio file here or click to browse</p>
+                        <span>Supports MP3, WAV, FLAC, MPEG</span>
+                      </div>
+                    )
+                  )}
                 </div>
-                
+
                 <div className="form-group">
                   <label htmlFor="albumId">Album *</label>
                   <select
@@ -189,7 +264,7 @@ const TrackManagement: React.FC = () => {
                     name="albumId"
                     value={formData.albumId}
                     onChange={handleInputChange}
-                    required
+                    required={!editingTrack} // Not required when editing since it's already set
                   >
                     <option value="">Select an album</option>
                     {albums.map(album => (
@@ -199,9 +274,19 @@ const TrackManagement: React.FC = () => {
                     ))}
                   </select>
                 </div>
+                
+                {/* Show current file info when editing and no new file selected */}
+                {editingTrack && !selectedFile && (
+                  <div className="form-group">
+                    <label>Current File</label>
+                    <div className="current-file-info">
+                      <p>{editingTrack.fileName ? editingTrack.fileName.split('/').pop() : 'No file available'}</p>
+                    </div>
+                  </div>
+                )}
               </>
             )}
-            
+
             <div className="form-group">
               <label htmlFor="duration">Duration (seconds)</label>
               <input
@@ -213,7 +298,7 @@ const TrackManagement: React.FC = () => {
                 min="0"
               />
             </div>
-            
+
             <div className="form-group checkbox-group">
               <label htmlFor="explicit">Explicit Content</label>
               <input
@@ -224,7 +309,7 @@ const TrackManagement: React.FC = () => {
                 onChange={handleInputChange}
               />
             </div>
-            
+
             <div className="form-group">
               <label htmlFor="lyrics">Lyrics</label>
               <textarea
@@ -235,7 +320,7 @@ const TrackManagement: React.FC = () => {
                 rows={6}
               />
             </div>
-            
+
             <div className="form-actions">
               <button type="submit" className="btn-primary">
                 {editingTrack ? 'Update Track' : 'Create Track'}
