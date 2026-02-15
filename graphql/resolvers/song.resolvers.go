@@ -35,11 +35,6 @@ func (r *playlistResolver) Tracks(ctx context.Context, obj *model.Playlist) ([]*
 	panic("not implemented")
 }
 
-// Artists is the resolver for the artists field.
-func (r *trackResolver) Artists(ctx context.Context, obj *model.Track) ([]*model.TrackArtist, error) {
-	panic("not implemented")
-}
-
 // Album returns generated.AlbumResolver implementation.
 func (r *Resolver) Album() generated.AlbumResolver { return &albumResolver{r} }
 
@@ -49,13 +44,9 @@ func (r *Resolver) Genre() generated.GenreResolver { return &genreResolver{r} }
 // Playlist returns generated.PlaylistResolver implementation.
 func (r *Resolver) Playlist() generated.PlaylistResolver { return &playlistResolver{r} }
 
-// Track returns generated.TrackResolver implementation.
-func (r *Resolver) Track() generated.TrackResolver { return &trackResolver{r} }
-
 type albumResolver struct{ *Resolver }
 type genreResolver struct{ *Resolver }
 type playlistResolver struct{ *Resolver }
-type trackResolver struct{ *Resolver }
 
 // !!! WARNING !!!
 // The code below was going to be deleted when updating resolvers. It has been copied here so you have
@@ -64,7 +55,9 @@ type trackResolver struct{ *Resolver }
 //    it when you're done.
 //  - You have helper methods in this file. Move them out to keep these resolver files clean.
 /*
-	func (r *trackResolver) Album(ctx context.Context, obj *model.Track) (*model.Album, error) {
+	func (r *trackResolver) Artists(ctx context.Context, obj *model.Track) ([]*model.TrackArtist, error) {
 	panic("not implemented")
 }
+func (r *Resolver) Track() generated.TrackResolver { return &trackResolver{r} }
+type trackResolver struct{ *Resolver }
 */

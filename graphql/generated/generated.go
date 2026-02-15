@@ -46,7 +46,6 @@ type ResolverRoot interface {
 	Mutation() MutationResolver
 	Playlist() PlaylistResolver
 	Query() QueryResolver
-	Track() TrackResolver
 	User() UserResolver
 }
 
@@ -202,7 +201,7 @@ type ComplexityRoot struct {
 	Track struct {
 		AlbumCoverURL func(childComplexity int) int
 		ArtistName    func(childComplexity int) int
-		Artists       func(childComplexity int) int
+		AudioFileURL  func(childComplexity int) int
 		Duration      func(childComplexity int) int
 		Explicit      func(childComplexity int) int
 		ID            func(childComplexity int) int
@@ -280,9 +279,6 @@ type QueryResolver interface {
 	ListRecentHistory(ctx context.Context, limit int) ([]*model.ListeningHistory, error)
 	PlaybackInfo(ctx context.Context, input model.PlaybackInput) (*model.PlaybackInfo, error)
 	Me(ctx context.Context) (*model.User, error)
-}
-type TrackResolver interface {
-	Artists(ctx context.Context, obj *model.Track) ([]*model.TrackArtist, error)
 }
 type UserResolver interface {
 	Playlists(ctx context.Context, obj *model.User) ([]*model.Playlist, error)
@@ -996,12 +992,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Track.ArtistName(childComplexity), true
 
-	case "Track.artists":
-		if e.complexity.Track.Artists == nil {
+	case "Track.audioFileUrl":
+		if e.complexity.Track.AudioFileURL == nil {
 			break
 		}
 
-		return e.complexity.Track.Artists(childComplexity), true
+		return e.complexity.Track.AudioFileURL(childComplexity), true
 
 	case "Track.duration":
 		if e.complexity.Track.Duration == nil {
@@ -1470,12 +1466,12 @@ type Track {
   title: String!
   duration: Int!
   streamCount: Int!
+  audioFileUrl: String!
   albumCoverUrl: String!
   artistName: String!
   explicit: Boolean!
   lyrics: String
   releaseDate: String!
-  artists: [TrackArtist!]!
 }
 
 type TrackArtist {
@@ -2255,6 +2251,8 @@ func (ec *executionContext) fieldContext_Album_tracks(_ context.Context, field g
 				return ec.fieldContext_Track_duration(ctx, field)
 			case "streamCount":
 				return ec.fieldContext_Track_streamCount(ctx, field)
+			case "audioFileUrl":
+				return ec.fieldContext_Track_audioFileUrl(ctx, field)
 			case "albumCoverUrl":
 				return ec.fieldContext_Track_albumCoverUrl(ctx, field)
 			case "artistName":
@@ -2265,8 +2263,6 @@ func (ec *executionContext) fieldContext_Album_tracks(_ context.Context, field g
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
-			case "artists":
-				return ec.fieldContext_Track_artists(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -2639,6 +2635,8 @@ func (ec *executionContext) fieldContext_Artist_tracks(_ context.Context, field 
 				return ec.fieldContext_Track_duration(ctx, field)
 			case "streamCount":
 				return ec.fieldContext_Track_streamCount(ctx, field)
+			case "audioFileUrl":
+				return ec.fieldContext_Track_audioFileUrl(ctx, field)
 			case "albumCoverUrl":
 				return ec.fieldContext_Track_albumCoverUrl(ctx, field)
 			case "artistName":
@@ -2649,8 +2647,6 @@ func (ec *executionContext) fieldContext_Artist_tracks(_ context.Context, field 
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
-			case "artists":
-				return ec.fieldContext_Track_artists(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -4635,6 +4631,8 @@ func (ec *executionContext) fieldContext_PlaylistTrack_track(_ context.Context, 
 				return ec.fieldContext_Track_duration(ctx, field)
 			case "streamCount":
 				return ec.fieldContext_Track_streamCount(ctx, field)
+			case "audioFileUrl":
+				return ec.fieldContext_Track_audioFileUrl(ctx, field)
 			case "albumCoverUrl":
 				return ec.fieldContext_Track_albumCoverUrl(ctx, field)
 			case "artistName":
@@ -4645,8 +4643,6 @@ func (ec *executionContext) fieldContext_PlaylistTrack_track(_ context.Context, 
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
-			case "artists":
-				return ec.fieldContext_Track_artists(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -6470,6 +6466,8 @@ func (ec *executionContext) fieldContext_TopSongsResult_tracks(_ context.Context
 				return ec.fieldContext_Track_duration(ctx, field)
 			case "streamCount":
 				return ec.fieldContext_Track_streamCount(ctx, field)
+			case "audioFileUrl":
+				return ec.fieldContext_Track_audioFileUrl(ctx, field)
 			case "albumCoverUrl":
 				return ec.fieldContext_Track_albumCoverUrl(ctx, field)
 			case "artistName":
@@ -6480,8 +6478,6 @@ func (ec *executionContext) fieldContext_TopSongsResult_tracks(_ context.Context
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
-			case "artists":
-				return ec.fieldContext_Track_artists(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -6660,6 +6656,50 @@ func (ec *executionContext) fieldContext_Track_streamCount(_ context.Context, fi
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Track_audioFileUrl(ctx context.Context, field graphql.CollectedField, obj *model.Track) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Track_audioFileUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AudioFileURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Track_audioFileUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Track",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -6882,58 +6922,6 @@ func (ec *executionContext) fieldContext_Track_releaseDate(_ context.Context, fi
 	return fc, nil
 }
 
-func (ec *executionContext) _Track_artists(ctx context.Context, field graphql.CollectedField, obj *model.Track) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Track_artists(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Track().Artists(rctx, obj)
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*model.TrackArtist)
-	fc.Result = res
-	return ec.marshalNTrackArtist2ᚕᚖvvinampᚋgraphqlᚋmodelᚐTrackArtistᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Track_artists(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Track",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "track":
-				return ec.fieldContext_TrackArtist_track(ctx, field)
-			case "artist":
-				return ec.fieldContext_TrackArtist_artist(ctx, field)
-			case "role":
-				return ec.fieldContext_TrackArtist_role(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type TrackArtist", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _TrackArtist_track(ctx context.Context, field graphql.CollectedField, obj *model.TrackArtist) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_TrackArtist_track(ctx, field)
 	if err != nil {
@@ -6981,6 +6969,8 @@ func (ec *executionContext) fieldContext_TrackArtist_track(_ context.Context, fi
 				return ec.fieldContext_Track_duration(ctx, field)
 			case "streamCount":
 				return ec.fieldContext_Track_streamCount(ctx, field)
+			case "audioFileUrl":
+				return ec.fieldContext_Track_audioFileUrl(ctx, field)
 			case "albumCoverUrl":
 				return ec.fieldContext_Track_albumCoverUrl(ctx, field)
 			case "artistName":
@@ -6991,8 +6981,6 @@ func (ec *executionContext) fieldContext_TrackArtist_track(_ context.Context, fi
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
-			case "artists":
-				return ec.fieldContext_Track_artists(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -7924,6 +7912,8 @@ func (ec *executionContext) fieldContext_UserLike_track(_ context.Context, field
 				return ec.fieldContext_Track_duration(ctx, field)
 			case "streamCount":
 				return ec.fieldContext_Track_streamCount(ctx, field)
+			case "audioFileUrl":
+				return ec.fieldContext_Track_audioFileUrl(ctx, field)
 			case "albumCoverUrl":
 				return ec.fieldContext_Track_albumCoverUrl(ctx, field)
 			case "artistName":
@@ -7934,8 +7924,6 @@ func (ec *executionContext) fieldContext_UserLike_track(_ context.Context, field
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
-			case "artists":
-				return ec.fieldContext_Track_artists(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -11536,81 +11524,50 @@ func (ec *executionContext) _Track(ctx context.Context, sel ast.SelectionSet, ob
 		case "id":
 			out.Values[i] = ec._Track_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "title":
 			out.Values[i] = ec._Track_title(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "duration":
 			out.Values[i] = ec._Track_duration(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "streamCount":
 			out.Values[i] = ec._Track_streamCount(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
+			}
+		case "audioFileUrl":
+			out.Values[i] = ec._Track_audioFileUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
 			}
 		case "albumCoverUrl":
 			out.Values[i] = ec._Track_albumCoverUrl(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "artistName":
 			out.Values[i] = ec._Track_artistName(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "explicit":
 			out.Values[i] = ec._Track_explicit(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
 		case "lyrics":
 			out.Values[i] = ec._Track_lyrics(ctx, field, obj)
 		case "releaseDate":
 			out.Values[i] = ec._Track_releaseDate(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				atomic.AddUint32(&out.Invalids, 1)
+				out.Invalids++
 			}
-		case "artists":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Track_artists(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -12902,60 +12859,6 @@ func (ec *executionContext) marshalNTrack2ᚖvvinampᚋgraphqlᚋmodelᚐTrack(c
 		return graphql.Null
 	}
 	return ec._Track(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNTrackArtist2ᚕᚖvvinampᚋgraphqlᚋmodelᚐTrackArtistᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.TrackArtist) graphql.Marshaler {
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNTrackArtist2ᚖvvinampᚋgraphqlᚋmodelᚐTrackArtist(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
-}
-
-func (ec *executionContext) marshalNTrackArtist2ᚖvvinampᚋgraphqlᚋmodelᚐTrackArtist(ctx context.Context, sel ast.SelectionSet, v *model.TrackArtist) graphql.Marshaler {
-	if v == nil {
-		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
-			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
-		}
-		return graphql.Null
-	}
-	return ec._TrackArtist(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNUser2vvinampᚋgraphqlᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {

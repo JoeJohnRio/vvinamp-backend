@@ -4,6 +4,7 @@ type Track {
   title: String!
   duration: Int!
   streamCount: Int!
+  audioFileUrl: String!
   albumCoverUrl: String!
   artistName: String!
   explicit: Boolean!

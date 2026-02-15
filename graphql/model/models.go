@@ -139,16 +139,16 @@ type TopSongsResult struct {
 }
 
 type Track struct {
-	ID            string         `json:"id"`
-	Title         string         `json:"title"`
-	Duration      int            `json:"duration"`
-	StreamCount   int            `json:"streamCount"`
-	AlbumCoverURL string         `json:"albumCoverUrl"`
-	ArtistName    string         `json:"artistName"`
-	Explicit      bool           `json:"explicit"`
-	Lyrics        *string        `json:"lyrics,omitempty"`
-	ReleaseDate   string         `json:"releaseDate"`
-	Artists       []*TrackArtist `json:"artists"`
+	ID            string  `json:"id"`
+	Title         string  `json:"title"`
+	Duration      int     `json:"duration"`
+	StreamCount   int     `json:"streamCount"`
+	AudioFileURL  string  `json:"audioFileUrl"`
+	AlbumCoverURL string  `json:"albumCoverUrl"`
+	ArtistName    string  `json:"artistName"`
+	Explicit      bool    `json:"explicit"`
+	Lyrics        *string `json:"lyrics,omitempty"`
+	ReleaseDate   string  `json:"releaseDate"`
 }
 
 type TrackArtist struct {

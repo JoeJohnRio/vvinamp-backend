@@ -56,6 +56,7 @@ func (r *queryResolver) GetArtistScreenData(ctx context.Context, artistID string
 				ReleaseDate:   track.ReleaseDate,
 				AlbumCoverURL: track.AlbumCoverURL,
 				ArtistName:    artist.Name,
+				AudioFileURL:  track.AudioFileURL,
 				// Note: We're not populating Album and Artists here to avoid circular dependencies
 				// These would be resolved by their respective resolvers
 			}
