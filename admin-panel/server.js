@@ -211,7 +211,6 @@ app.get('/api/tracks', async (req, res) => {
     res.status(500).json({ error: 'Internal server error', details: err.message });
   }
 });
-
 // Upload a track
 app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
   try {
@@ -243,32 +242,29 @@ app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
 
     // --- 2. Determine Display Title ---
     // Use provided title OR fallback to original filename (without extension)
-    // Example: "Hindia - Masalah Masa Depan (Official Lyric Video)"
     const rawTrackTitle = title || file.originalname.replace(/\.[^/.]+$/, "");
 
-    // --- 3. Generate Sanitized Filename (Like Artist Logic) ---
-    // Example: "hindia_-_masalah_masa_depan_(official_lyric_video)"
-    const sanitizedTitle = rawTrackTitle.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
-    const cleanFileName = sanitizedTitle.toLowerCase().replace(/\s+/g, '_');
+    // --- 3. Generate Sanitized Filename ---
+    // Clean helper: "My Song!" -> "my_song"
+    const sanitizeName = (name) => name.replace(/[^a-zA-Z0-9\s\-_]/g, '').trim().replace(/\s+/g, '_').toLowerCase();
+
+    const sanitizedTitle = sanitizeName(rawTrackTitle);
     
     // Get extension (.mp3, .wav)
-    const fileExtension = path.extname(file.originalname); 
-    const finalFilename = cleanFileName + fileExtension; // "hindia_-_masalah...video).mp3"
+    const fileExtension = path.extname(file.originalname).toLowerCase(); 
+    const finalFilename = sanitizedTitle + fileExtension; // "my_song.mp3"
 
     // --- 4. Setup Directories ---
-    // Helper to sanitize folder names
-    const sanitizeFolder = (name) => name.replace(/[^a-zA-Z0-9\s\-_]/g, '_').replace(/\s+/g, '_');
-    
-    const sanitizedArtist = sanitizeFolder(artist_name || 'Unknown_Artist');
-    const sanitizedAlbum = sanitizeFolder(album_title || 'Unknown_Album');
+    const sanitizedArtist = sanitizeName(artist_name || 'unknown_artist');
+    const sanitizedAlbum = sanitizeName(album_title || 'unknown_album');
 
-    // Path: Storage/Artist_Name/Album_Name/tracks/
+    // Path Structure: Storage/artist/{Artist}/album/{Album}/tracks/
     const storageDir = path.join(__dirname, '..', '..', 'Storage');
-    const artistDir = path.join(storageDir, sanitizedArtist);
-    const albumDir = path.join(artistDir, sanitizedAlbum);
+    const artistDir = path.join(storageDir, 'artist', sanitizedArtist); // Added 'artist' layer
+    const albumDir = path.join(artistDir, 'album', sanitizedAlbum);     // Added 'album' layer
     const tracksDir = path.join(albumDir, 'tracks');
 
-    // Recursive creation handles all parents (Storage -> Artist -> Album -> tracks)
+    // Recursive creation handles all parents
     if (!fs.existsSync(tracksDir)) {
       fs.mkdirSync(tracksDir, { recursive: true });
     }
@@ -276,20 +272,19 @@ app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
     // --- 5. Move File to Final Destination ---
     const newFilePath = path.join(tracksDir, finalFilename);
     
-    // Move from temp upload location to final path
-    fs.renameSync(path.join(__dirname, 'uploads', file.filename), newFilePath);
+    // SAFE FIX: Use 'file.path' (absolute path from multer) instead of manual assumption
+    fs.renameSync(file.path, newFilePath);
 
     // --- 6. Insert into DB ---
-    // Mock duration
-    const duration = Math.floor(Math.random() * 300) + 60;
+    const duration = Math.floor(Math.random() * 300) + 60; // Mock duration
 
     const insertResult = await pool.query(
       `INSERT INTO tracks (title, duration, audio_file_url, album_id, explicit, lyrics)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [
-        rawTrackTitle, // Store the READABLE title in DB ("Hindia - Masalah...")
+        rawTrackTitle, // Readable title: "My Song!"
         duration,
-        null, // URL set in next step
+        null,          // Placeholder URL
         albumId,
         false, 
         '' 
@@ -299,8 +294,8 @@ app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
     const insertedTrack = insertResult.rows[0];
 
     // --- 7. Generate URL & Update DB ---
-    // URL matches the file on disk: /track/{ID}/clean_file_name.mp3
-    const idBasedUrl = `https://cirio.my.id/track/${insertedTrack.id}/${cleanFileName}${fileExtension}`;
+    // URL matches the file on disk: /track/{ID}/my_song.mp3
+    const idBasedUrl = `https://cirio.my.id/track/${insertedTrack.id}/${sanitizedTitle}${fileExtension}`;
     
     await pool.query(
       `UPDATE tracks SET audio_file_url = $1 WHERE id = $2`,
@@ -323,9 +318,14 @@ app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
 
   } catch (err) {
     console.error('Error uploading track:', err);
+    // Cleanup temp file on error
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {} 
+    }
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 // Update track file
@@ -341,11 +341,15 @@ app.put('/api/tracks/:id/file', upload.single('file'), async (req, res) => {
     // Get track to find current file path
     const trackResult = await pool.query('SELECT * FROM tracks WHERE id = $1', [id]);
     
+    // Check if track exists
     if (trackResult.rows.length === 0) {
       return res.status(404).json({ error: 'Track not found' });
     }
 
     const track = trackResult.rows[0];
+    
+    // 1. Get the title (e.g., "Billie Jean")
+    const trackTitle = track.title || 'untitled_track';
 
     // Get album and artist info to create the proper file path
     const albumInfo = await pool.query(`
@@ -362,53 +366,39 @@ app.put('/api/tracks/:id/file', upload.single('file'), async (req, res) => {
     const { album_title, artist_name } = albumInfo.rows[0];
 
     // Sanitize names for file system
-    const sanitizeName = (name) => name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
-    const sanitizedArtistName = artist_name.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
-    const sanitizedArtistFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
-    const sanitizedAlbumTitle = album_title.replace(/[^a-zA-Z0-9\s\-_]/g, '_');
-    const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
+    // 2. Create the "name_of_the_song" format
+    const sanitizeName = (name) => name.replace(/[^a-zA-Z0-9\s\-_]/g, '').trim().replace(/\s+/g, '_').toLowerCase();
+    
+    const sanitizedTrackName = sanitizeName(trackTitle); // "Billie Jean" -> "billie_jean"
+    const sanitizedArtistName = sanitizeName(artist_name);
+    const sanitizedAlbumTitle = sanitizeName(album_title);
 
-    // Create the hierarchical folder structure in the Storage directory
+    // Create the hierarchical folder structure
     const storageDir = path.join(__dirname, '..', '..', 'Storage');
-    const artistBaseDir = path.join(storageDir, 'artist'); // Add 'artist' directory level
-    const artistDir = path.join(artistBaseDir, sanitizedArtistFolderName);
-    const albumBaseDir = path.join(artistDir, 'album'); // Add 'album' directory level
-    const albumDir = path.join(albumBaseDir, sanitizedAlbumFolderName);
-    const tracksDir = path.join(albumDir, 'tracks'); // Add 'tracks' subfolder
+    const artistDir = path.join(storageDir, 'artist', sanitizedArtistName);
+    const albumDir = path.join(artistDir, 'album', sanitizedAlbumTitle);
+    const tracksDir = path.join(albumDir, 'tracks');
 
-    // Create directories if they don't exist
-    if (!fs.existsSync(storageDir)) {
-      fs.mkdirSync(storageDir, { recursive: true });
-    }
-    if (!fs.existsSync(artistBaseDir)) {
-      fs.mkdirSync(artistBaseDir, { recursive: true });
-    }
-    if (!fs.existsSync(artistDir)) {
-      fs.mkdirSync(artistDir, { recursive: true });
-    }
-    if (!fs.existsSync(albumBaseDir)) {
-      fs.mkdirSync(albumBaseDir, { recursive: true });
-    }
-    if (!fs.existsSync(albumDir)) {
-      fs.mkdirSync(albumDir, { recursive: true });
-    }
+    // Create directories recursively (simpler one-line approach)
     if (!fs.existsSync(tracksDir)) {
       fs.mkdirSync(tracksDir, { recursive: true });
     }
 
-    // Move the uploaded file to the proper location in the tracks subfolder
-    // Use the original filename for storage but generate ID-based URL
-    const newFilePath = path.join(tracksDir, file.filename);
+    // 3. Construct the new filename with the correct extension
+    // We try to get extension from originalname (e.g. song.mp3), fallback to uploaded filename
+    const fileExtension = path.extname(file.originalname || file.filename).toLowerCase();
+    const newFileName = `${sanitizedTrackName}${fileExtension}`; // e.g., "billie_jean.mp3"
+    
+    const newFilePath = path.join(tracksDir, newFileName);
+
+    // Move the uploaded file from temp 'uploads' folder to final destination
     fs.renameSync(path.join(__dirname, 'uploads', file.filename), newFilePath);
 
-    // Calculate duration (in a real implementation, you'd use a library like ffmpeg to get the actual duration)
-    // For now, we'll keep the random duration approach
+    // Calculate duration (random for now)
     const duration = Math.floor(Math.random() * 300) + 60;
 
-    // Update the track record with the CDN URL
-    const fileNameWithoutExt = path.parse(file.filename).name;
-    const fileExtension = path.extname(file.filename);
-    const idBasedUrl = `https://cirio.my.id/track/${id}/${fileNameWithoutExt}${fileExtension}`;
+    // 4. Update the URL to match the new filename
+    const idBasedUrl = `https://cirio.my.id/track/${id}/${sanitizedTrackName}${fileExtension}`;
     
     const result = await pool.query(
       `UPDATE tracks
@@ -416,13 +406,13 @@ app.put('/api/tracks/:id/file', upload.single('file'), async (req, res) => {
        WHERE id = $3
        RETURNING *`,
       [
-        idBasedUrl, // Store ID-based CDN URL instead of relative path
+        idBasedUrl, 
         duration,
         id
       ]
     );
 
-    // Also join with album and artist info for the response
+    // Join with album and artist info for response
     const trackWithDetails = await pool.query(`
       SELECT t.*, a.title as album_title, ar.name as artist_name
       FROM tracks t
@@ -854,7 +844,7 @@ app.post('/api/albums', uploadAlbumCoverCreate.single('coverArt'), async (req, r
       FROM albums a
       LEFT JOIN artists ar ON a.artist_id = ar.id
       WHERE a.id = $1
-    `, [result.rows[0].id]);
+    `, [insertedAlbum.id]);
 
     res.json(albumWithArtist.rows[0]);
   } catch (err) {
@@ -1129,10 +1119,6 @@ app.get('/artist/:artistId/:fileName', async (req, res) => {
     
     // Construct the actual file path
     const filePath = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedFolderName, fileName);
-    console.log('joel123', req.params);
-    console.log('joel123 sanitizedFolderName:', sanitizedFolderName);
-    console.log('joel123 filePath:', filePath);
-
     // Check if file exists before sending
     if (!fs.existsSync(filePath)) {
       return res.status(404).send('File not found');
