@@ -1,0 +1,36 @@
+input SearchFilter {
+  query: String
+  contentType: ContentType
+  genre: String
+  tags: [String!]
+  dateRange: DateRangeInput
+  explicit: Boolean
+}
+
+input DateRangeInput {
+  from: String
+  to: String
+}
+
+type SearchItemConnection {
+  edges: [SearchItemEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type SearchItemEdge {
+  cursor: String!
+  node: SearchItem!
+}
+
+union SearchItem = Track | PodcastEpisode | Playlist | PodcastSeries | Album | Artist
+
+extend type Query {
+  search(
+    filter: SearchFilter!
+    first: Int
+    after: String
+    last: Int
+    before: String
+  ): SearchItemConnection!
+}

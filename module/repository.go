@@ -3,6 +3,7 @@ package module
 import (
 	artist "vvinamp/package/artist/repository"
 	history "vvinamp/package/history/repository"
+	search "vvinamp/package/search/repository"
 	song "vvinamp/package/song/repository"
 	user "vvinamp/package/user/repository"
 
@@ -14,4 +15,5 @@ var RepositoryModule = fx.Provide(
 	user.NewSQLRepository,
 	history.NewSQLRepository,
 	song.NewSQLRepository,
+	search.NewSQLRepository,
 )

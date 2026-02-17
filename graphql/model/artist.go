@@ -9,3 +9,5 @@ type Artist struct {
 	MonthlyListeners int      `json:"monthlyListeners"`
 	Albums           []*Album `json:"albums"`
 }
+
+func (Artist) IsSearchItem() {}

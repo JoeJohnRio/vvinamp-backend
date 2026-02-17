@@ -3,18 +3,22 @@ package streaming
 import (
 	"context"
 	"fmt"
+	"vvinamp/package/song"
 
+	"github.com/google/uuid"
 	"go.uber.org/fx"
 )
 
 // HLSConverter interface defines the methods needed for HLS conversion
 type HLSConverter interface {
-	ConvertToHLS(ctx context.Context, mp3RelativePath, trackId string) (string, error)
+	ConvertToHLS(ctx context.Context, sourcePath, trackId string) (string, error)
+	GetTrackPath(ctx context.Context, trackID uuid.UUID) (string, error)
 	HLSExists(trackId string) bool
 }
 
 // Service handles streaming-related operations
 type Service struct {
+	Repo           song.Repository
 	FileController HLSConverter
 }
 
@@ -32,11 +36,22 @@ func NewService(target ServiceTarget) *Service {
 }
 
 // GetPlaybackInfo returns the HLS URL for a given track
-func (s *Service) GetPlaybackInfo(ctx context.Context, trackID string) (*PlaybackInfoResult, error) {
-	mp3Path := fmt.Sprintf("tracks/%s.mp3", trackID) // adjust to your file layout
+func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string) (*PlaybackInfoResult, error) {
 
-	if !s.FileController.HLSExists(trackID) {
-		if _, err := s.FileController.ConvertToHLS(ctx, mp3Path, trackID); err != nil {
+	trackIdUuid, err := uuid.Parse(sourcePath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid track id: %w", err)
+	}
+
+	// 1. GET THE REAL PATH using the new helper
+	// The Service asks the FileController: "Where is the MP3 for this track?"
+	mp3Path, err := s.FileController.GetTrackPath(ctx, trackIdUuid)
+	if err != nil {
+		return nil, fmt.Errorf("could not find mp3 path: %w", err)
+	}
+
+	if !s.FileController.HLSExists(sourcePath) {
+		if _, err := s.FileController.ConvertToHLS(ctx, mp3Path, sourcePath); err != nil {
 			return nil, fmt.Errorf("hls convert: %w", err)
 		}
 	}
@@ -44,7 +59,7 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, trackID string) (*Playbac
 	// Note: The actual base URL should come from configuration
 	// For now, returning just the path part which will be combined with the server's base URL
 	return &PlaybackInfoResult{
-		HlsURL: fmt.Sprintf("/hls/%s/playlist.m3u8", trackID),
+		HlsURL: fmt.Sprintf("/hls/%s/playlist.m3u8", sourcePath),
 		// Mp3Fallback: fmt.Sprintf("/tracks/%s.mp3", trackID), // optional fallback
 	}, nil
 }

@@ -9,6 +9,10 @@ import (
 	"strconv"
 )
 
+type SearchItem interface {
+	IsSearchItem()
+}
+
 type ArtistHeader struct {
 	Name                   string  `json:"name"`
 	MonthlyListeners       int     `json:"monthlyListeners"`
@@ -29,6 +33,11 @@ type AuthSession struct {
 	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
 	ExpiresAt    string `json:"expiresAt"`
+}
+
+type DateRangeInput struct {
+	From *string `json:"from,omitempty"`
+	To   *string `json:"to,omitempty"`
 }
 
 type ListeningHistory struct {
@@ -54,6 +63,13 @@ type LoginPayload struct {
 type Mutation struct {
 }
 
+type PageInfo struct {
+	HasNextPage     bool    `json:"hasNextPage"`
+	HasPreviousPage bool    `json:"hasPreviousPage"`
+	StartCursor     *string `json:"startCursor,omitempty"`
+	EndCursor       *string `json:"endCursor,omitempty"`
+}
+
 type PlaybackInfo struct {
 	HlsURL      string  `json:"hlsUrl"`
 	Mp3Fallback *string `json:"mp3Fallback,omitempty"`
@@ -75,6 +91,8 @@ type Playlist struct {
 	Tracks     []*PlaylistTrack `json:"tracks"`
 }
 
+func (Playlist) IsSearchItem() {}
+
 type PlaylistTrack struct {
 	Playlist *Playlist `json:"playlist"`
 	Track    *Track    `json:"track"`
@@ -95,6 +113,8 @@ type PodcastEpisode struct {
 	CoverArt      *string        `json:"coverArt,omitempty"`
 }
 
+func (PodcastEpisode) IsSearchItem() {}
+
 type PodcastSeries struct {
 	ID          string            `json:"id"`
 	Title       string            `json:"title"`
@@ -104,6 +124,8 @@ type PodcastSeries struct {
 	Genre       *Genre            `json:"genre,omitempty"`
 	Episodes    []*PodcastEpisode `json:"episodes"`
 }
+
+func (PodcastSeries) IsSearchItem() {}
 
 type Query struct {
 }
@@ -124,6 +146,37 @@ type RegisterInput struct {
 
 type RegisterPayload struct {
 	User *User `json:"user"`
+}
+
+type SearchFilter struct {
+	Query       *string         `json:"query,omitempty"`
+	ContentType *ContentType    `json:"contentType,omitempty"`
+	Genre       *string         `json:"genre,omitempty"`
+	Tags        []string        `json:"tags,omitempty"`
+	DateRange   *DateRangeInput `json:"dateRange,omitempty"`
+	Explicit    *bool           `json:"explicit,omitempty"`
+}
+
+type SearchItemConnection struct {
+	Edges      []*SearchItemEdge `json:"edges"`
+	PageInfo   *PageInfo         `json:"pageInfo"`
+	TotalCount int               `json:"totalCount"`
+}
+
+type SearchItemEdge struct {
+	Cursor string     `json:"cursor"`
+	Node   SearchItem `json:"node"`
+}
+
+type StringConnection struct {
+	Edges      []*StringEdge `json:"edges"`
+	PageInfo   *PageInfo     `json:"pageInfo"`
+	TotalCount int           `json:"totalCount"`
+}
+
+type StringEdge struct {
+	Cursor string `json:"cursor"`
+	Node   string `json:"node"`
 }
 
 type TopReleasesResult struct {
@@ -150,6 +203,8 @@ type Track struct {
 	Lyrics        *string `json:"lyrics,omitempty"`
 	ReleaseDate   string  `json:"releaseDate"`
 }
+
+func (Track) IsSearchItem() {}
 
 type TrackArtist struct {
 	Track  *Track  `json:"track"`

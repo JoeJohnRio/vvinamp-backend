@@ -124,6 +124,13 @@ type ComplexityRoot struct {
 		Test         func(childComplexity int) int
 	}
 
+	PageInfo struct {
+		EndCursor       func(childComplexity int) int
+		HasNextPage     func(childComplexity int) int
+		HasPreviousPage func(childComplexity int) int
+		StartCursor     func(childComplexity int) int
+	}
+
 	PlaybackInfo struct {
 		DurationMs  func(childComplexity int) int
 		HlsURL      func(childComplexity int) int
@@ -179,11 +186,34 @@ type ComplexityRoot struct {
 		Logout              func(childComplexity int) int
 		Me                  func(childComplexity int) int
 		PlaybackInfo        func(childComplexity int, input model.PlaybackInput) int
+		Search              func(childComplexity int, filter model.SearchFilter, first *int, after *string, last *int, before *string) int
 		Test                func(childComplexity int) int
 	}
 
 	RegisterPayload struct {
 		User func(childComplexity int) int
+	}
+
+	SearchItemConnection struct {
+		Edges      func(childComplexity int) int
+		PageInfo   func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+	}
+
+	SearchItemEdge struct {
+		Cursor func(childComplexity int) int
+		Node   func(childComplexity int) int
+	}
+
+	StringConnection struct {
+		Edges      func(childComplexity int) int
+		PageInfo   func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+	}
+
+	StringEdge struct {
+		Cursor func(childComplexity int) int
+		Node   func(childComplexity int) int
 	}
 
 	TopReleasesResult struct {
@@ -278,6 +308,7 @@ type QueryResolver interface {
 	Logout(ctx context.Context) (bool, error)
 	ListRecentHistory(ctx context.Context, limit int) ([]*model.ListeningHistory, error)
 	PlaybackInfo(ctx context.Context, input model.PlaybackInput) (*model.PlaybackInfo, error)
+	Search(ctx context.Context, filter model.SearchFilter, first *int, after *string, last *int, before *string) (*model.SearchItemConnection, error)
 	Me(ctx context.Context) (*model.User, error)
 }
 type UserResolver interface {
@@ -624,6 +655,34 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.Test(childComplexity), true
 
+	case "PageInfo.endCursor":
+		if e.complexity.PageInfo.EndCursor == nil {
+			break
+		}
+
+		return e.complexity.PageInfo.EndCursor(childComplexity), true
+
+	case "PageInfo.hasNextPage":
+		if e.complexity.PageInfo.HasNextPage == nil {
+			break
+		}
+
+		return e.complexity.PageInfo.HasNextPage(childComplexity), true
+
+	case "PageInfo.hasPreviousPage":
+		if e.complexity.PageInfo.HasPreviousPage == nil {
+			break
+		}
+
+		return e.complexity.PageInfo.HasPreviousPage(childComplexity), true
+
+	case "PageInfo.startCursor":
+		if e.complexity.PageInfo.StartCursor == nil {
+			break
+		}
+
+		return e.complexity.PageInfo.StartCursor(childComplexity), true
+
 	case "PlaybackInfo.durationMs":
 		if e.complexity.PlaybackInfo.DurationMs == nil {
 			break
@@ -922,6 +981,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.PlaybackInfo(childComplexity, args["input"].(model.PlaybackInput)), true
 
+	case "Query.search":
+		if e.complexity.Query.Search == nil {
+			break
+		}
+
+		args, err := ec.field_Query_search_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.Search(childComplexity, args["filter"].(model.SearchFilter), args["first"].(*int), args["after"].(*string), args["last"].(*int), args["before"].(*string)), true
+
 	case "Query.test":
 		if e.complexity.Query.Test == nil {
 			break
@@ -935,6 +1006,76 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.RegisterPayload.User(childComplexity), true
+
+	case "SearchItemConnection.edges":
+		if e.complexity.SearchItemConnection.Edges == nil {
+			break
+		}
+
+		return e.complexity.SearchItemConnection.Edges(childComplexity), true
+
+	case "SearchItemConnection.pageInfo":
+		if e.complexity.SearchItemConnection.PageInfo == nil {
+			break
+		}
+
+		return e.complexity.SearchItemConnection.PageInfo(childComplexity), true
+
+	case "SearchItemConnection.totalCount":
+		if e.complexity.SearchItemConnection.TotalCount == nil {
+			break
+		}
+
+		return e.complexity.SearchItemConnection.TotalCount(childComplexity), true
+
+	case "SearchItemEdge.cursor":
+		if e.complexity.SearchItemEdge.Cursor == nil {
+			break
+		}
+
+		return e.complexity.SearchItemEdge.Cursor(childComplexity), true
+
+	case "SearchItemEdge.node":
+		if e.complexity.SearchItemEdge.Node == nil {
+			break
+		}
+
+		return e.complexity.SearchItemEdge.Node(childComplexity), true
+
+	case "StringConnection.edges":
+		if e.complexity.StringConnection.Edges == nil {
+			break
+		}
+
+		return e.complexity.StringConnection.Edges(childComplexity), true
+
+	case "StringConnection.pageInfo":
+		if e.complexity.StringConnection.PageInfo == nil {
+			break
+		}
+
+		return e.complexity.StringConnection.PageInfo(childComplexity), true
+
+	case "StringConnection.totalCount":
+		if e.complexity.StringConnection.TotalCount == nil {
+			break
+		}
+
+		return e.complexity.StringConnection.TotalCount(childComplexity), true
+
+	case "StringEdge.cursor":
+		if e.complexity.StringEdge.Cursor == nil {
+			break
+		}
+
+		return e.complexity.StringEdge.Cursor(childComplexity), true
+
+	case "StringEdge.node":
+		if e.complexity.StringEdge.Node == nil {
+			break
+		}
+
+		return e.complexity.StringEdge.Node(childComplexity), true
 
 	case "TopReleasesResult.albums":
 		if e.complexity.TopReleasesResult.Albums == nil {
@@ -1196,10 +1337,12 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	opCtx := graphql.GetOperationContext(ctx)
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
+		ec.unmarshalInputDateRangeInput,
 		ec.unmarshalInputLogin,
 		ec.unmarshalInputPlaybackInput,
 		ec.unmarshalInputRefreshTokenInput,
 		ec.unmarshalInputRegisterInput,
+		ec.unmarshalInputSearchFilter,
 	)
 	first := true
 
@@ -1409,6 +1552,35 @@ enum ContentType {
   ALBUM
   ARTIST
 }`, BuiltIn: false},
+	{Name: "../schema/pagination.graphqls", Input: `# Universal Pagination Types
+# Reusable across all queries that need pagination
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+# Generic connection for any node type
+# Use this for simple pagination with any type
+type StringConnection {
+  edges: [StringEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type StringEdge {
+  cursor: String!
+  node: String!
+}
+
+# Common arguments for pagination (for documentation)
+# first: Int - Get the first n items
+# after: String - Get items after this cursor
+# last: Int - Get the last n items
+# before: String - Get items before this cursor
+`, BuiltIn: false},
 	{Name: "../schema/playback.graphqls", Input: `type PlaybackInfo {
   hlsUrl: String!
   mp3Fallback: String
@@ -1460,6 +1632,43 @@ type Query {
 type Mutation {
     test: Boolean
 }`, BuiltIn: false},
+	{Name: "../schema/search.graphqls", Input: `input SearchFilter {
+  query: String
+  contentType: ContentType
+  genre: String
+  tags: [String!]
+  dateRange: DateRangeInput
+  explicit: Boolean
+}
+
+input DateRangeInput {
+  from: String
+  to: String
+}
+
+type SearchItemConnection {
+  edges: [SearchItemEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type SearchItemEdge {
+  cursor: String!
+  node: SearchItem!
+}
+
+union SearchItem = Track | PodcastEpisode | Playlist | PodcastSeries | Album | Artist
+
+extend type Query {
+  search(
+    filter: SearchFilter!
+    first: Int
+    after: String
+    last: Int
+    before: String
+  ): SearchItemConnection!
+}
+`, BuiltIn: false},
 	{Name: "../schema/song.graphqls", Input: `
 type Track {
   id: ID!
@@ -1795,6 +2004,126 @@ func (ec *executionContext) field_Query_playbackInfo_argsInput(
 	}
 
 	var zeroVal model.PlaybackInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_search_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_search_argsFilter(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["filter"] = arg0
+	arg1, err := ec.field_Query_search_argsFirst(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["first"] = arg1
+	arg2, err := ec.field_Query_search_argsAfter(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg2
+	arg3, err := ec.field_Query_search_argsLast(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["last"] = arg3
+	arg4, err := ec.field_Query_search_argsBefore(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["before"] = arg4
+	return args, nil
+}
+func (ec *executionContext) field_Query_search_argsFilter(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.SearchFilter, error) {
+	if _, ok := rawArgs["filter"]; !ok {
+		var zeroVal model.SearchFilter
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("filter"))
+	if tmp, ok := rawArgs["filter"]; ok {
+		return ec.unmarshalNSearchFilter2vvinampᚋgraphqlᚋmodelᚐSearchFilter(ctx, tmp)
+	}
+
+	var zeroVal model.SearchFilter
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_search_argsFirst(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["first"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("first"))
+	if tmp, ok := rawArgs["first"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_search_argsAfter(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["after"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("after"))
+	if tmp, ok := rawArgs["after"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_search_argsLast(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["last"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("last"))
+	if tmp, ok := rawArgs["last"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_search_argsBefore(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["before"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("before"))
+	if tmp, ok := rawArgs["before"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -4014,6 +4343,176 @@ func (ec *executionContext) fieldContext_Mutation_register(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _PageInfo_hasNextPage(ctx context.Context, field graphql.CollectedField, obj *model.PageInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PageInfo_hasNextPage(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HasNextPage, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PageInfo_hasNextPage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PageInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PageInfo_hasPreviousPage(ctx context.Context, field graphql.CollectedField, obj *model.PageInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PageInfo_hasPreviousPage(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HasPreviousPage, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PageInfo_hasPreviousPage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PageInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PageInfo_startCursor(ctx context.Context, field graphql.CollectedField, obj *model.PageInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PageInfo_startCursor(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.StartCursor, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PageInfo_startCursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PageInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PageInfo_endCursor(ctx context.Context, field graphql.CollectedField, obj *model.PageInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PageInfo_endCursor(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.EndCursor, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PageInfo_endCursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PageInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _PlaybackInfo_hlsUrl(ctx context.Context, field graphql.CollectedField, obj *model.PlaybackInfo) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_PlaybackInfo_hlsUrl(ctx, field)
 	if err != nil {
@@ -5918,6 +6417,69 @@ func (ec *executionContext) fieldContext_Query_playbackInfo(ctx context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_search(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_search(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().Search(rctx, fc.Args["filter"].(model.SearchFilter), fc.Args["first"].(*int), fc.Args["after"].(*string), fc.Args["last"].(*int), fc.Args["before"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.SearchItemConnection)
+	fc.Result = res
+	return ec.marshalNSearchItemConnection2ᚖvvinampᚋgraphqlᚋmodelᚐSearchItemConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_search(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "edges":
+				return ec.fieldContext_SearchItemConnection_edges(ctx, field)
+			case "pageInfo":
+				return ec.fieldContext_SearchItemConnection_pageInfo(ctx, field)
+			case "totalCount":
+				return ec.fieldContext_SearchItemConnection_totalCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SearchItemConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_search_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_me(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_me(ctx, field)
 	if err != nil {
@@ -6184,6 +6746,478 @@ func (ec *executionContext) fieldContext_RegisterPayload_user(_ context.Context,
 				return ec.fieldContext_User_followedArtists(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchItemConnection_edges(ctx context.Context, field graphql.CollectedField, obj *model.SearchItemConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchItemConnection_edges(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Edges, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.SearchItemEdge)
+	fc.Result = res
+	return ec.marshalNSearchItemEdge2ᚕᚖvvinampᚋgraphqlᚋmodelᚐSearchItemEdgeᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchItemConnection_edges(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchItemConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "cursor":
+				return ec.fieldContext_SearchItemEdge_cursor(ctx, field)
+			case "node":
+				return ec.fieldContext_SearchItemEdge_node(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SearchItemEdge", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchItemConnection_pageInfo(ctx context.Context, field graphql.CollectedField, obj *model.SearchItemConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchItemConnection_pageInfo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PageInfo, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PageInfo)
+	fc.Result = res
+	return ec.marshalNPageInfo2ᚖvvinampᚋgraphqlᚋmodelᚐPageInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchItemConnection_pageInfo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchItemConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hasNextPage":
+				return ec.fieldContext_PageInfo_hasNextPage(ctx, field)
+			case "hasPreviousPage":
+				return ec.fieldContext_PageInfo_hasPreviousPage(ctx, field)
+			case "startCursor":
+				return ec.fieldContext_PageInfo_startCursor(ctx, field)
+			case "endCursor":
+				return ec.fieldContext_PageInfo_endCursor(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PageInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchItemConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.SearchItemConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchItemConnection_totalCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchItemConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchItemConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchItemEdge_cursor(ctx context.Context, field graphql.CollectedField, obj *model.SearchItemEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchItemEdge_cursor(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Cursor, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchItemEdge_cursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchItemEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchItemEdge_node(ctx context.Context, field graphql.CollectedField, obj *model.SearchItemEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchItemEdge_node(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Node, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(model.SearchItem)
+	fc.Result = res
+	return ec.marshalNSearchItem2vvinampᚋgraphqlᚋmodelᚐSearchItem(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchItemEdge_node(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchItemEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type SearchItem does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StringConnection_edges(ctx context.Context, field graphql.CollectedField, obj *model.StringConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_StringConnection_edges(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Edges, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.StringEdge)
+	fc.Result = res
+	return ec.marshalNStringEdge2ᚕᚖvvinampᚋgraphqlᚋmodelᚐStringEdgeᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_StringConnection_edges(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StringConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "cursor":
+				return ec.fieldContext_StringEdge_cursor(ctx, field)
+			case "node":
+				return ec.fieldContext_StringEdge_node(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type StringEdge", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StringConnection_pageInfo(ctx context.Context, field graphql.CollectedField, obj *model.StringConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_StringConnection_pageInfo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PageInfo, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PageInfo)
+	fc.Result = res
+	return ec.marshalNPageInfo2ᚖvvinampᚋgraphqlᚋmodelᚐPageInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_StringConnection_pageInfo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StringConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hasNextPage":
+				return ec.fieldContext_PageInfo_hasNextPage(ctx, field)
+			case "hasPreviousPage":
+				return ec.fieldContext_PageInfo_hasPreviousPage(ctx, field)
+			case "startCursor":
+				return ec.fieldContext_PageInfo_startCursor(ctx, field)
+			case "endCursor":
+				return ec.fieldContext_PageInfo_endCursor(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PageInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StringConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.StringConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_StringConnection_totalCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_StringConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StringConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StringEdge_cursor(ctx context.Context, field graphql.CollectedField, obj *model.StringEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_StringEdge_cursor(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Cursor, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_StringEdge_cursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StringEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _StringEdge_node(ctx context.Context, field graphql.CollectedField, obj *model.StringEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_StringEdge_node(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Node, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_StringEdge_node(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "StringEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -9926,6 +10960,40 @@ func (ec *executionContext) fieldContext___Type_isOneOf(_ context.Context, field
 
 // region    **************************** input.gotpl *****************************
 
+func (ec *executionContext) unmarshalInputDateRangeInput(ctx context.Context, obj any) (model.DateRangeInput, error) {
+	var it model.DateRangeInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"from", "to"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "from":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("from"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.From = data
+		case "to":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("to"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.To = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLogin(ctx context.Context, obj any) (model.Login, error) {
 	var it model.Login
 	asMap := map[string]any{}
@@ -10083,15 +11151,128 @@ func (ec *executionContext) unmarshalInputRegisterInput(ctx context.Context, obj
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputSearchFilter(ctx context.Context, obj any) (model.SearchFilter, error) {
+	var it model.SearchFilter
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"query", "contentType", "genre", "tags", "dateRange", "explicit"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "query":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("query"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Query = data
+		case "contentType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contentType"))
+			data, err := ec.unmarshalOContentType2ᚖvvinampᚋgraphqlᚋmodelᚐContentType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContentType = data
+		case "genre":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("genre"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Genre = data
+		case "tags":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("tags"))
+			data, err := ec.unmarshalOString2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Tags = data
+		case "dateRange":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dateRange"))
+			data, err := ec.unmarshalODateRangeInput2ᚖvvinampᚋgraphqlᚋmodelᚐDateRangeInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.DateRange = data
+		case "explicit":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("explicit"))
+			data, err := ec.unmarshalOBoolean2ᚖbool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Explicit = data
+		}
+	}
+
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
+
+func (ec *executionContext) _SearchItem(ctx context.Context, sel ast.SelectionSet, obj model.SearchItem) graphql.Marshaler {
+	switch obj := (obj).(type) {
+	case nil:
+		return graphql.Null
+	case model.Track:
+		return ec._Track(ctx, sel, &obj)
+	case *model.Track:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._Track(ctx, sel, obj)
+	case model.PodcastSeries:
+		return ec._PodcastSeries(ctx, sel, &obj)
+	case *model.PodcastSeries:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._PodcastSeries(ctx, sel, obj)
+	case model.PodcastEpisode:
+		return ec._PodcastEpisode(ctx, sel, &obj)
+	case *model.PodcastEpisode:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._PodcastEpisode(ctx, sel, obj)
+	case model.Playlist:
+		return ec._Playlist(ctx, sel, &obj)
+	case *model.Playlist:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._Playlist(ctx, sel, obj)
+	case model.Artist:
+		return ec._Artist(ctx, sel, &obj)
+	case *model.Artist:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._Artist(ctx, sel, obj)
+	case model.Album:
+		return ec._Album(ctx, sel, &obj)
+	case *model.Album:
+		if obj == nil {
+			return graphql.Null
+		}
+		return ec._Album(ctx, sel, obj)
+	default:
+		panic(fmt.Errorf("unexpected type %T", obj))
+	}
+}
 
 // endregion ************************** interface.gotpl ***************************
 
 // region    **************************** object.gotpl ****************************
 
-var albumImplementors = []string{"Album"}
+var albumImplementors = []string{"Album", "SearchItem"}
 
 func (ec *executionContext) _Album(ctx context.Context, sel ast.SelectionSet, obj *model.Album) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, albumImplementors)
@@ -10216,7 +11397,7 @@ func (ec *executionContext) _Album(ctx context.Context, sel ast.SelectionSet, ob
 	return out
 }
 
-var artistImplementors = []string{"Artist"}
+var artistImplementors = []string{"Artist", "SearchItem"}
 
 func (ec *executionContext) _Artist(ctx context.Context, sel ast.SelectionSet, obj *model.Artist) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, artistImplementors)
@@ -10806,6 +11987,54 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 	return out
 }
 
+var pageInfoImplementors = []string{"PageInfo"}
+
+func (ec *executionContext) _PageInfo(ctx context.Context, sel ast.SelectionSet, obj *model.PageInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, pageInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PageInfo")
+		case "hasNextPage":
+			out.Values[i] = ec._PageInfo_hasNextPage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hasPreviousPage":
+			out.Values[i] = ec._PageInfo_hasPreviousPage(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startCursor":
+			out.Values[i] = ec._PageInfo_startCursor(ctx, field, obj)
+		case "endCursor":
+			out.Values[i] = ec._PageInfo_endCursor(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var playbackInfoImplementors = []string{"PlaybackInfo"}
 
 func (ec *executionContext) _PlaybackInfo(ctx context.Context, sel ast.SelectionSet, obj *model.PlaybackInfo) graphql.Marshaler {
@@ -10849,7 +12078,7 @@ func (ec *executionContext) _PlaybackInfo(ctx context.Context, sel ast.Selection
 	return out
 }
 
-var playlistImplementors = []string{"Playlist"}
+var playlistImplementors = []string{"Playlist", "SearchItem"}
 
 func (ec *executionContext) _Playlist(ctx context.Context, sel ast.SelectionSet, obj *model.Playlist) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, playlistImplementors)
@@ -11033,7 +12262,7 @@ func (ec *executionContext) _PlaylistTrack(ctx context.Context, sel ast.Selectio
 	return out
 }
 
-var podcastEpisodeImplementors = []string{"PodcastEpisode"}
+var podcastEpisodeImplementors = []string{"PodcastEpisode", "SearchItem"}
 
 func (ec *executionContext) _PodcastEpisode(ctx context.Context, sel ast.SelectionSet, obj *model.PodcastEpisode) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, podcastEpisodeImplementors)
@@ -11102,7 +12331,7 @@ func (ec *executionContext) _PodcastEpisode(ctx context.Context, sel ast.Selecti
 	return out
 }
 
-var podcastSeriesImplementors = []string{"PodcastSeries"}
+var podcastSeriesImplementors = []string{"PodcastSeries", "SearchItem"}
 
 func (ec *executionContext) _PodcastSeries(ctx context.Context, sel ast.SelectionSet, obj *model.PodcastSeries) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, podcastSeriesImplementors)
@@ -11326,6 +12555,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "search":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_search(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "me":
 			field := field
 
@@ -11392,6 +12643,192 @@ func (ec *executionContext) _RegisterPayload(ctx context.Context, sel ast.Select
 			out.Values[i] = graphql.MarshalString("RegisterPayload")
 		case "user":
 			out.Values[i] = ec._RegisterPayload_user(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var searchItemConnectionImplementors = []string{"SearchItemConnection"}
+
+func (ec *executionContext) _SearchItemConnection(ctx context.Context, sel ast.SelectionSet, obj *model.SearchItemConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, searchItemConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SearchItemConnection")
+		case "edges":
+			out.Values[i] = ec._SearchItemConnection_edges(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pageInfo":
+			out.Values[i] = ec._SearchItemConnection_pageInfo(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCount":
+			out.Values[i] = ec._SearchItemConnection_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var searchItemEdgeImplementors = []string{"SearchItemEdge"}
+
+func (ec *executionContext) _SearchItemEdge(ctx context.Context, sel ast.SelectionSet, obj *model.SearchItemEdge) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, searchItemEdgeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SearchItemEdge")
+		case "cursor":
+			out.Values[i] = ec._SearchItemEdge_cursor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "node":
+			out.Values[i] = ec._SearchItemEdge_node(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var stringConnectionImplementors = []string{"StringConnection"}
+
+func (ec *executionContext) _StringConnection(ctx context.Context, sel ast.SelectionSet, obj *model.StringConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, stringConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("StringConnection")
+		case "edges":
+			out.Values[i] = ec._StringConnection_edges(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pageInfo":
+			out.Values[i] = ec._StringConnection_pageInfo(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCount":
+			out.Values[i] = ec._StringConnection_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var stringEdgeImplementors = []string{"StringEdge"}
+
+func (ec *executionContext) _StringEdge(ctx context.Context, sel ast.SelectionSet, obj *model.StringEdge) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, stringEdgeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("StringEdge")
+		case "cursor":
+			out.Values[i] = ec._StringEdge_cursor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "node":
+			out.Values[i] = ec._StringEdge_node(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -11510,7 +12947,7 @@ func (ec *executionContext) _TopSongsResult(ctx context.Context, sel ast.Selecti
 	return out
 }
 
-var trackImplementors = []string{"Track"}
+var trackImplementors = []string{"Track", "SearchItem"}
 
 func (ec *executionContext) _Track(ctx context.Context, sel ast.SelectionSet, obj *model.Track) graphql.Marshaler {
 	fields := graphql.CollectFields(ec.OperationContext, sel, trackImplementors)
@@ -12565,6 +14002,16 @@ func (ec *executionContext) marshalNLoginPayload2ᚖvvinampᚋgraphqlᚋmodelᚐ
 	return ec._LoginPayload(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNPageInfo2ᚖvvinampᚋgraphqlᚋmodelᚐPageInfo(ctx context.Context, sel ast.SelectionSet, v *model.PageInfo) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PageInfo(ctx, sel, v)
+}
+
 func (ec *executionContext) marshalNPlaybackInfo2vvinampᚋgraphqlᚋmodelᚐPlaybackInfo(ctx context.Context, sel ast.SelectionSet, v model.PlaybackInfo) graphql.Marshaler {
 	return ec._PlaybackInfo(ctx, sel, &v)
 }
@@ -12761,6 +14208,89 @@ func (ec *executionContext) unmarshalNRegisterInput2vvinampᚋgraphqlᚋmodelᚐ
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
+func (ec *executionContext) unmarshalNSearchFilter2vvinampᚋgraphqlᚋmodelᚐSearchFilter(ctx context.Context, v any) (model.SearchFilter, error) {
+	res, err := ec.unmarshalInputSearchFilter(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNSearchItem2vvinampᚋgraphqlᚋmodelᚐSearchItem(ctx context.Context, sel ast.SelectionSet, v model.SearchItem) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SearchItem(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNSearchItemConnection2vvinampᚋgraphqlᚋmodelᚐSearchItemConnection(ctx context.Context, sel ast.SelectionSet, v model.SearchItemConnection) graphql.Marshaler {
+	return ec._SearchItemConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSearchItemConnection2ᚖvvinampᚋgraphqlᚋmodelᚐSearchItemConnection(ctx context.Context, sel ast.SelectionSet, v *model.SearchItemConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SearchItemConnection(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNSearchItemEdge2ᚕᚖvvinampᚋgraphqlᚋmodelᚐSearchItemEdgeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SearchItemEdge) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSearchItemEdge2ᚖvvinampᚋgraphqlᚋmodelᚐSearchItemEdge(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSearchItemEdge2ᚖvvinampᚋgraphqlᚋmodelᚐSearchItemEdge(ctx context.Context, sel ast.SelectionSet, v *model.SearchItemEdge) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SearchItemEdge(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -12805,6 +14335,60 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	}
 
 	return ret
+}
+
+func (ec *executionContext) marshalNStringEdge2ᚕᚖvvinampᚋgraphqlᚋmodelᚐStringEdgeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.StringEdge) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNStringEdge2ᚖvvinampᚋgraphqlᚋmodelᚐStringEdge(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNStringEdge2ᚖvvinampᚋgraphqlᚋmodelᚐStringEdge(ctx context.Context, sel ast.SelectionSet, v *model.StringEdge) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._StringEdge(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNTrack2ᚕᚖvvinampᚋgraphqlᚋmodelᚐTrackᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Track) graphql.Marshaler {
@@ -13280,6 +14864,22 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	return res
 }
 
+func (ec *executionContext) unmarshalOContentType2ᚖvvinampᚋgraphqlᚋmodelᚐContentType(ctx context.Context, v any) (*model.ContentType, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.ContentType)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOContentType2ᚖvvinampᚋgraphqlᚋmodelᚐContentType(ctx context.Context, sel ast.SelectionSet, v *model.ContentType) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
+}
+
 func (ec *executionContext) unmarshalODate2ᚖstring(ctx context.Context, v any) (*string, error) {
 	if v == nil {
 		return nil, nil
@@ -13296,6 +14896,14 @@ func (ec *executionContext) marshalODate2ᚖstring(ctx context.Context, sel ast.
 	_ = ctx
 	res := graphql.MarshalString(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalODateRangeInput2ᚖvvinampᚋgraphqlᚋmodelᚐDateRangeInput(ctx context.Context, v any) (*model.DateRangeInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputDateRangeInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalODateTimeISO2ᚖtimeᚐTime(ctx context.Context, v any) (*time.Time, error) {
@@ -13353,6 +14961,42 @@ func (ec *executionContext) marshalORegisterPayload2ᚖvvinampᚋgraphqlᚋmodel
 		return graphql.Null
 	}
 	return ec._RegisterPayload(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOString2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNString2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOString2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNString2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOString2ᚖstring(ctx context.Context, v any) (*string, error) {

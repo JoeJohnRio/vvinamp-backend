@@ -8,3 +8,5 @@ type Album struct {
 	CoverArt    *string `json:"coverArt,omitempty"`
 	Genre       *Genre  `json:"genre,omitempty"`
 }
+
+func (Album) IsSearchItem() {}

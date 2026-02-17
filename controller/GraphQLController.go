@@ -14,6 +14,7 @@ import (
 	"vvinamp/internal/pkg/session"
 	artistPackage "vvinamp/package/artist/service"
 	"vvinamp/package/history"
+	"vvinamp/package/search"
 	"vvinamp/package/song"
 	"vvinamp/package/streaming"
 	"vvinamp/package/user"
@@ -36,6 +37,7 @@ type GraphQLController struct {
 	history        history.Service
 	song           song.Service
 	artist         artistPackage.ArtistService
+	search         search.Service
 	streaming      *streaming.Service
 	logger         *zap.Logger
 }
@@ -50,6 +52,7 @@ type GraphQLControllerTarget struct {
 	User           user.Service
 	Song           song.Service
 	Artist         artistPackage.ArtistService
+	Search         search.Service
 	Streaming      *streaming.Service
 	Logger         *zap.Logger
 }
@@ -65,6 +68,7 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 			history:        target.History,
 			song:           target.Song,
 			artist:         target.Artist,
+			search:         target.Search,
 			streaming:      target.Streaming,
 			logger:         target.Logger,
 		},
@@ -186,6 +190,7 @@ func (m *GraphQLController) Middleware() gin.HandlerFunc {
 		ctx = context.WithValue(ctx, user.Key, m.user)
 		ctx = context.WithValue(ctx, history.Key, m.history)
 		ctx = context.WithValue(ctx, song.Key, m.song)
+		ctx = context.WithValue(ctx, search.Key, m.search)
 
 		// Pass the response writer for session management
 		if arw, ok := c.Writer.(*auth.AuthResponseWriter); ok {

@@ -1,0 +1,28 @@
+# Universal Pagination Types
+# Reusable across all queries that need pagination
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+# Generic connection for any node type
+# Use this for simple pagination with any type
+type StringConnection {
+  edges: [StringEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type StringEdge {
+  cursor: String!
+  node: String!
+}
+
+# Common arguments for pagination (for documentation)
+# first: Int - Get the first n items
+# after: String - Get items after this cursor
+# last: Int - Get the last n items
+# before: String - Get items before this cursor
