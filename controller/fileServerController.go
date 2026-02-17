@@ -35,7 +35,7 @@ func NewFileServerController(target FileServerControllerTarget) Result {
 	storagePath := target.StoragePath
 	if storagePath == "" {
 		// Default path if not configured
-		storagePath = "S:\\Project German\\Backend\\Storage\\hls"
+		storagePath = "S:\\Project German\\Backend\\Storage"
 	}
 
 	return Result{
@@ -51,16 +51,14 @@ func NewFileServerController(target FileServerControllerTarget) Result {
 // 2. Convert to lowercase
 // 3. Replace multiple spaces/underscores with a single "_"
 func sanitize(input string) string {
-	// Step 1: Replace any character not in [a-zA-Z0-9 space - _] with "_"
-	reg := regexp.MustCompile(`[^a-zA-Z0-9 -_]`)
+	// Step 1: Replace anything that is NOT a letter, number, or hyphen with "_"
+	// We removed " " (space) from the allowed list.
+	// We also moved "-" to the end to prevent range issues.
+	reg := regexp.MustCompile(`[^a-zA-Z0-9-]`)
 	sanitized := reg.ReplaceAllString(input, "_")
 
 	// Step 2: Convert to lowercase
 	sanitized = strings.ToLower(sanitized)
-
-	// Step 3: Replace multiple spaces/underscores with a single "_"
-	multipleSpacesReg := regexp.MustCompile(`[ _]+`)
-	sanitized = multipleSpacesReg.ReplaceAllString(sanitized, "_")
 
 	return sanitized
 }
@@ -161,7 +159,7 @@ func (f *FileServerController) getTrackAlbumAndArtistNamesByID(ctx context.Conte
 func (f *FileServerController) Register(r *gin.Engine) {
 	// Serve static files from the storage directory
 	// This will serve files at routes like /storage/images/, /storage/tracks/, etc.
-	r.Static("/hls", f.storagePath)
+	r.Static("/hls", filepath.Join(f.storagePath, "hls"))
 
 	// Media API endpoints
 	r.GET("/artist/:artistId/:fileName", f.ArtistMediaHandler)
@@ -292,69 +290,47 @@ func (f *FileServerController) AlbumMediaHandler(c *gin.Context) {
 
 // TrackMediaHandler handles requests for track media files
 func (f *FileServerController) TrackMediaHandler(c *gin.Context) {
-	trackIDStr := c.Param("trackId")
-	fileName := c.Param("fileName")
-
-	// Validate and parse the track ID
-	trackID, err := uuid.Parse(trackIDStr)
+	trackId, err := uuid.Parse(c.Param("trackId"))
 	if err != nil {
+		// CORRECT: Write error to response, then return nothing
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid track ID"})
-		return
+		return // Stop execution
 	}
 
-	// Clean the filename to prevent directory traversal
-	cleanFileName := filepath.Clean(fileName)
-
-	// Check if the cleaned filename still contains the original filename
-	if cleanFileName != fileName || strings.Contains(cleanFileName, "..") {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid file path"})
-		return
-	}
-
-	// Get track, album, and artist names from database
-	ctx := c.Request.Context()
-	_, albumTitle, artistName, err := f.getTrackAlbumAndArtistNamesByID(ctx, trackID)
+	fullPath, err := f.GetTrackPath(c.Request.Context(), trackId)
 	if err != nil {
+		// CORRECT: Write error to response, then return nothing
 		c.JSON(http.StatusNotFound, gin.H{"error": "Track not found"})
-		return
+		return // Stop execution
 	}
-
-	// Sanitize the names
-	sanitizedArtistName := sanitize(artistName)
-	sanitizedAlbumTitle := sanitize(albumTitle)
-
-	// Construct the file path
-	baseStoragePath := os.Getenv("BASE_STORAGE_PATH")
-	if baseStoragePath == "" {
-		baseStoragePath = "S:\\Project German\\Backend\\Storage" // Default path
-	}
-
-	filePath := filepath.Join(baseStoragePath, "artist", sanitizedArtistName, "album", sanitizedAlbumTitle, "tracks", cleanFileName)
 
 	// Log the constructed path for debugging
-	fmt.Printf("Constructed path for track media: %s\n", filePath)
-	fmt.Printf("Sanitized artist name: %s, Sanitized album title: %s\n", sanitizedArtistName, sanitizedAlbumTitle)
+	fmt.Print("Constructed path for track media: %s\n\n	", fullPath)
 
 	// Check if file exists
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
 		return
 	}
 
 	// Serve the file
-	c.File(filePath)
+	c.File(fullPath)
 }
 
-func (f *FileServerController) ConvertToHLS(ctx context.Context, mp3RelativePath, trackId string) (string, error) {
-	mp3Path := filepath.Join(f.storagePath, mp3RelativePath) // e.g. "mp3/track123.mp3"
+func (f *FileServerController) ConvertToHLS(ctx context.Context, sourcePath, trackId string) (string, error) {
+
+	if _, err := os.Stat(sourcePath); os.IsNotExist(err) {
+		return "", fmt.Errorf("source file does not exist: %s", sourcePath)
+	}
 
 	hlsDir := filepath.Join(f.storagePath, "hls", trackId)
+
 	if err := os.MkdirAll(hlsDir, 0755); err != nil {
 		return "", fmt.Errorf("mkdir %s: %w", hlsDir, err)
 	}
 
 	cmd := exec.CommandContext(ctx, "ffmpeg",
-		"-i", mp3Path,
+		"-i", sourcePath,
 		"-c:a", "aac", "-b:a", "128k",
 		"-f", "hls",
 		"-hls_time", "10",
@@ -378,4 +354,45 @@ func (f *FileServerController) HLSExists(trackId string) bool {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// GetTrackPath constructs the full filesystem path for a track MP3
+func (f *FileServerController) GetTrackPath(ctx context.Context, trackID uuid.UUID) (string, error) {
+	// 1. Reuse your existing DB lookup
+	trackTitle, albumTitle, artistName, err := f.getTrackAlbumAndArtistNamesByID(ctx, trackID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get track details: %w", err)
+	}
+
+	// 2. Sanitize names (ensure you use the same sanitization logic as when you saved the file!)
+	// Assuming you have a helper like makeSafeFilename from before
+	safeArtist := makeSafeFilename(artistName)
+	safeAlbum := makeSafeFilename(albumTitle)
+	safeTrack := makeSafeFilename(trackTitle)
+
+	// 3. Build the path: artist/artist_name/album/album_name/track/track_name.mp3
+	// Adjust "tracks" or whatever your root storage folder is
+	fullPath := filepath.Join(
+		f.storagePath, // e.g., /var/www/uploads
+		"artist", safeArtist,
+		"album", safeAlbum,
+		"track", safeTrack+".mp3",
+	)
+
+	return fullPath, nil
+}
+
+func makeSafeFilename(title string) string {
+	// Convert to lowercase
+	title = strings.ToLower(title)
+
+	// Replace spaces with underscores
+	title = strings.ReplaceAll(title, " ", "_")
+
+	// Optional: Remove special characters to avoid filesystem errors
+	// This regex keeps only letters, numbers, and underscores
+	reg := regexp.MustCompile("[^a-z0-9_]+")
+	title = reg.ReplaceAllString(title, "")
+
+	return title
 }

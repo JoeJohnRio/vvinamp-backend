@@ -262,15 +262,15 @@ app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
     const storageDir = path.join(__dirname, '..', '..', 'Storage');
     const artistDir = path.join(storageDir, 'artist', sanitizedArtist); // Added 'artist' layer
     const albumDir = path.join(artistDir, 'album', sanitizedAlbum);     // Added 'album' layer
-    const tracksDir = path.join(albumDir, 'tracks');
+    const trackDir = path.join(albumDir, 'track');
 
     // Recursive creation handles all parents
-    if (!fs.existsSync(tracksDir)) {
-      fs.mkdirSync(tracksDir, { recursive: true });
+    if (!fs.existsSync(trackDir)) {
+      fs.mkdirSync(trackDir, { recursive: true });
     }
 
     // --- 5. Move File to Final Destination ---
-    const newFilePath = path.join(tracksDir, finalFilename);
+    const newFilePath = path.join(trackDir, finalFilename);
     
     // SAFE FIX: Use 'file.path' (absolute path from multer) instead of manual assumption
     fs.renameSync(file.path, newFilePath);
@@ -377,11 +377,11 @@ app.put('/api/tracks/:id/file', upload.single('file'), async (req, res) => {
     const storageDir = path.join(__dirname, '..', '..', 'Storage');
     const artistDir = path.join(storageDir, 'artist', sanitizedArtistName);
     const albumDir = path.join(artistDir, 'album', sanitizedAlbumTitle);
-    const tracksDir = path.join(albumDir, 'tracks');
+    const trackDir = path.join(albumDir, 'track');
 
     // Create directories recursively (simpler one-line approach)
-    if (!fs.existsSync(tracksDir)) {
-      fs.mkdirSync(tracksDir, { recursive: true });
+    if (!fs.existsSync(trackDir)) {
+      fs.mkdirSync(trackDir, { recursive: true });
     }
 
     // 3. Construct the new filename with the correct extension
@@ -389,7 +389,7 @@ app.put('/api/tracks/:id/file', upload.single('file'), async (req, res) => {
     const fileExtension = path.extname(file.originalname || file.filename).toLowerCase();
     const newFileName = `${sanitizedTrackName}${fileExtension}`; // e.g., "billie_jean.mp3"
     
-    const newFilePath = path.join(tracksDir, newFileName);
+    const newFilePath = path.join(trackDir, newFileName);
 
     // Move the uploaded file from temp 'uploads' folder to final destination
     fs.renameSync(path.join(__dirname, 'uploads', file.filename), newFilePath);
@@ -508,13 +508,13 @@ app.put('/api/tracks/:id', async (req, res) => {
           const storageDir = path.join(__dirname, '..', '..', 'Storage');
           const artistDir = path.join(storageDir, sanitizedArtist);
           const albumDir = path.join(artistDir, sanitizedAlbum);
-          const tracksDir = path.join(albumDir, 'tracks');
+          const trackDir = path.join(albumDir, 'track');
           
           const oldFileName = path.parse(fileNameWithExt).name + fileExtension;
           const newFileName = title + fileExtension;
           
-          const oldFilePath = path.join(tracksDir, oldFileName);
-          const newFilePath = path.join(tracksDir, newFileName);
+          const oldFilePath = path.join(trackDir, oldFileName);
+          const newFilePath = path.join(trackDir, newFileName);
           
           // Rename the file if it exists
           if (fs.existsSync(oldFilePath)) {
