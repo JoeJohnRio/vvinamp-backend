@@ -110,24 +110,40 @@ func convertToSearchItems(result *search.SearchResult) []model.SearchItem {
 
 	for _, t := range result.Tracks {
 		items = append(items, &model.Track{
-			ID:           t.ID.String(),
-			Title:        t.Title,
-			Duration:     t.Duration,
-			StreamCount:  t.StreamCount,
-			AudioFileURL: t.AudioFileURL,
-			Explicit:     t.Explicit,
-			Lyrics:       func() *string { if t.Lyrics == "" { return nil }; return &t.Lyrics }(),
-			ReleaseDate:  t.ReleaseDate,
+			ID:            t.ID.String(),
+			Title:         t.Title,
+			Duration:      t.Duration,
+			StreamCount:   t.StreamCount,
+			AudioFileURL:  t.AudioFileURL,
+			AlbumCoverURL: t.AlbumCoverURL,
+			ArtistName:    t.ArtistName,
+			Explicit:      t.Explicit,
+			Lyrics:        func() *string { if t.Lyrics == "" { return nil }; return &t.Lyrics }(),
+			ReleaseDate:   t.ReleaseDate,
 		})
 	}
 
 	for _, a := range result.Albums {
-		items = append(items, &model.Album{
+		album := &model.Album{
 			ID:          a.ID.String(),
 			Title:       a.Title,
 			ReleaseDate: a.ReleaseDate,
 			CoverArt:    func() *string { if a.CoverArt == "" { return nil }; return &a.CoverArt }(),
-		})
+		}
+		
+		// Include artist data if available
+		if a.Artist != nil {
+			album.Artist = &model.Artist{
+				ID:               a.Artist.ID,
+				Name:             a.Artist.Name,
+				Bio:              a.Artist.Bio,
+				ProfileImage:     a.Artist.ProfileImage,
+				Verified:         a.Artist.Verified,
+				MonthlyListeners: int(a.Artist.MonthlyListeners),
+			}
+		}
+		
+		items = append(items, album)
 	}
 
 	for _, a := range result.Artists {

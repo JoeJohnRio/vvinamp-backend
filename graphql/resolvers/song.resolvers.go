@@ -12,7 +12,16 @@ import (
 
 // Artist is the resolver for the artist field.
 func (r *albumResolver) Artist(ctx context.Context, obj *model.Album) (*model.Artist, error) {
-	panic("not implemented")
+	// For search results, artist should already be populated
+	if obj.Artist != nil {
+		return obj.Artist, nil
+	}
+
+	// If not populated, this is not from search results
+	// Return nil or handle as needed for non-search album queries
+	// This would typically require fetching from database using album ID
+	// For now, return nil if artist is not set
+	return nil, nil
 }
 
 // Tracks is the resolver for the tracks field.

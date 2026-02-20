@@ -19,9 +19,22 @@ type SearchQuery struct {
 	Offset      int
 }
 
+// AlbumWithArtist extends dbModel.Album to include artist data for search results
+type AlbumWithArtist struct {
+	dbModel.Album
+	Artist *dbModel.Artist
+}
+
+// TrackWithDetails extends dbModel.Track to include album cover and artist name for search results
+type TrackWithDetails struct {
+	dbModel.Track
+	AlbumCoverURL string
+	ArtistName    string
+}
+
 type SearchResult struct {
-	Tracks          []*dbModel.Track
-	Albums          []*dbModel.Album
+	Tracks          []*TrackWithDetails
+	Albums          []*AlbumWithArtist
 	Artists         []*dbModel.Artist
 	Playlists       []*dbModel.Playlist
 	PodcastEpisodes []*dbModel.PodcastEpisode
