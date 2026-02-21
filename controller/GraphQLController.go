@@ -190,6 +190,7 @@ func (m *GraphQLController) Middleware() gin.HandlerFunc {
 		ctx = context.WithValue(ctx, user.Key, m.user)
 		ctx = context.WithValue(ctx, history.Key, m.history)
 		ctx = context.WithValue(ctx, song.Key, m.song)
+		ctx = context.WithValue(ctx, artistPackage.Key, m.artist)
 		ctx = context.WithValue(ctx, search.Key, m.search)
 
 		// Pass the response writer for session management

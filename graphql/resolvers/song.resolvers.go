@@ -8,6 +8,8 @@ import (
 	"context"
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/model"
+	"vvinamp/package/artist"
+	"vvinamp/package/song"
 )
 
 // Artist is the resolver for the artist field.
@@ -42,6 +44,78 @@ func (r *playlistResolver) Creator(ctx context.Context, obj *model.Playlist) (*m
 // Tracks is the resolver for the tracks field.
 func (r *playlistResolver) Tracks(ctx context.Context, obj *model.Playlist) ([]*model.PlaylistTrack, error) {
 	panic("not implemented")
+}
+
+// Album is the resolver for the album field.
+func (r *queryResolver) Album(ctx context.Context, id string) (*model.AlbumDetail, error) {
+	songSvc := song.ForContext(ctx)
+	artistSvc := artist.ForContext(ctx)
+
+	// Get album by ID
+	album, err := songSvc.GetAlbumByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Get tracks with details (including artist name and album cover)
+	tracksWithDetails, err := songSvc.GetTracksByAlbumIDWithDetails(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert tracks to GraphQL model
+	graphqlTracks := make([]*model.Track, len(tracksWithDetails))
+	totalDuration := 0
+	for i, t := range tracksWithDetails {
+		graphqlTracks[i] = &model.Track{
+			ID:            t.ID.String(),
+			Title:         t.Title,
+			Duration:      t.Duration,
+			StreamCount:   t.StreamCount,
+			AudioFileURL:  t.AudioFileURL,
+			AlbumCoverURL: t.AlbumCoverURL,
+			ArtistName:    t.ArtistName,
+			Explicit:      t.Explicit,
+			Lyrics: func() *string {
+				if t.Lyrics == "" {
+					return nil
+				}
+				return &t.Lyrics
+			}(),
+			ReleaseDate: t.ReleaseDate,
+		}
+		totalDuration += t.Duration
+	}
+
+	// Get artist name and image from album
+	artistName := ""
+	var artistImage *string
+	if album.ArtistID != [16]byte{} {
+		artist, err := artistSvc.GetArtistByID(ctx, album.ArtistID.String())
+		if err == nil && artist != nil {
+			artistName = artist.Name
+			if artist.ProfileImage != nil && *artist.ProfileImage != "" {
+				artistImage = artist.ProfileImage
+			}
+		}
+	}
+
+	return &model.AlbumDetail{
+		ID:          album.ID.String(),
+		Title:       album.Title,
+		ArtistName:  artistName,
+		ArtistImage: artistImage,
+		ReleaseDate: album.ReleaseDate,
+		CoverArt: func() *string {
+			if album.CoverArt == "" {
+				return nil
+			}
+			return &album.CoverArt
+		}(),
+		Tracks:        graphqlTracks,
+		TrackCount:    len(graphqlTracks),
+		TotalDuration: totalDuration,
+	}, nil
 }
 
 // Album returns generated.AlbumResolver implementation.

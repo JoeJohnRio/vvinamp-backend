@@ -13,6 +13,18 @@ type SearchItem interface {
 	IsSearchItem()
 }
 
+type AlbumDetail struct {
+	ID            string   `json:"id"`
+	Title         string   `json:"title"`
+	ArtistName    string   `json:"artistName"`
+	ArtistImage   *string  `json:"artistImage,omitempty"`
+	ReleaseDate   string   `json:"releaseDate"`
+	CoverArt      *string  `json:"coverArt,omitempty"`
+	Tracks        []*Track `json:"tracks"`
+	TrackCount    int      `json:"trackCount"`
+	TotalDuration int      `json:"totalDuration"`
+}
+
 type ArtistHeader struct {
 	Name                   string  `json:"name"`
 	MonthlyListeners       int     `json:"monthlyListeners"`

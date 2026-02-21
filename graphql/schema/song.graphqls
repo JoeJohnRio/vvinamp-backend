@@ -46,9 +46,25 @@ type Album {
   tracks: [Track!]!
 }
 
+type AlbumDetail {
+  id: ID!
+  title: String!
+  artistName: String!
+  artistImage: String
+  releaseDate: String!
+  coverArt: String
+  tracks: [Track!]!
+  trackCount: Int!
+  totalDuration: Int!
+}
+
 type Genre {
   id: ID!
   name: String!
   description: String
   albums: [Album!]!
+}
+
+extend type Query {
+  album(id: ID!): AlbumDetail
 }

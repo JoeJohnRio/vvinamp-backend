@@ -7,9 +7,16 @@ import (
 	"vvinamp/package/artist/repository"
 )
 
+type key string
+
+const (
+	Key key = "artist"
+)
+
 type ArtistService interface {
 	GetArtistHeaderByID(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, bool, error)
 	GetArtistScreenData(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, []*dto.TrackWithDetails, []*dbModel.Album, error)
+	GetArtistByID(ctx context.Context, artistID string) (*dbModel.Artist, error)
 }
 
 type artistService struct {
@@ -18,6 +25,10 @@ type artistService struct {
 
 func NewService(repo repository.ArtistRepository) ArtistService {
 	return &artistService{repo: repo}
+}
+
+func (s *artistService) GetArtistByID(ctx context.Context, artistID string) (*dbModel.Artist, error) {
+	return s.repo.GetArtistHeaderByID(ctx, artistID, nil)
 }
 
 func (s *artistService) GetArtistHeaderByID(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, bool, error) {
@@ -30,8 +41,6 @@ func (s *artistService) GetArtistHeaderByID(ctx context.Context, artistID string
 	if userID != nil {
 		isFollowed, err = s.repo.IsUserFollowingArtist(ctx, *userID, artistID)
 		if err != nil {
-			// Log the error but continue with isFollowed as false
-			// In a real application, you might want to handle this differently
 		}
 	}
 
@@ -39,25 +48,18 @@ func (s *artistService) GetArtistHeaderByID(ctx context.Context, artistID string
 }
 
 func (s *artistService) GetArtistScreenData(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, []*dto.TrackWithDetails, []*dbModel.Album, error) {
-	// Get artist profile - this is critical and if it fails, we return an error
 	artist, err := s.repo.GetArtistHeaderByID(ctx, artistID, userID)
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
-	// Get top songs (tracks) by stream count
-	// If this fails, we still continue with empty slice
 	topSongs, err := s.repo.GetTopSongsByArtist(ctx, artistID, userID)
 	if err != nil {
-		// Log the error if needed, but continue execution
 		topSongs = []*dto.TrackWithDetails{}
 	}
 
-	// Get top releases (albums) by popularity metric
-	// If this fails, we still continue with empty slice
 	topReleases, err := s.repo.GetTopReleasesByArtist(ctx, artistID, userID)
 	if err != nil {
-		// Log the error if needed, but continue execution
 		topReleases = []*dbModel.Album{}
 	}
 
