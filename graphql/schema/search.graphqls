@@ -5,6 +5,7 @@ input SearchFilter {
   tags: [String!]
   dateRange: DateRangeInput
   explicit: Boolean
+  limit: Int
 }
 
 input DateRangeInput {

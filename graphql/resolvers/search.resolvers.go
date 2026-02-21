@@ -19,6 +19,9 @@ func (r *queryResolver) Search(ctx context.Context, filter model.SearchFilter, f
 
 	// Default limit
 	limit := 20
+	if filter.Limit != nil {
+		limit = *filter.Limit
+	}
 	if first != nil {
 		limit = *first
 	}
@@ -118,8 +121,13 @@ func convertToSearchItems(result *search.SearchResult) []model.SearchItem {
 			AlbumCoverURL: t.AlbumCoverURL,
 			ArtistName:    t.ArtistName,
 			Explicit:      t.Explicit,
-			Lyrics:        func() *string { if t.Lyrics == "" { return nil }; return &t.Lyrics }(),
-			ReleaseDate:   t.ReleaseDate,
+			Lyrics: func() *string {
+				if t.Lyrics == "" {
+					return nil
+				}
+				return &t.Lyrics
+			}(),
+			ReleaseDate: t.ReleaseDate,
 		})
 	}
 
@@ -128,9 +136,14 @@ func convertToSearchItems(result *search.SearchResult) []model.SearchItem {
 			ID:          a.ID.String(),
 			Title:       a.Title,
 			ReleaseDate: a.ReleaseDate,
-			CoverArt:    func() *string { if a.CoverArt == "" { return nil }; return &a.CoverArt }(),
+			CoverArt: func() *string {
+				if a.CoverArt == "" {
+					return nil
+				}
+				return &a.CoverArt
+			}(),
 		}
-		
+
 		// Include artist data if available
 		if a.Artist != nil {
 			album.Artist = &model.Artist{
@@ -142,7 +155,7 @@ func convertToSearchItems(result *search.SearchResult) []model.SearchItem {
 				MonthlyListeners: int(a.Artist.MonthlyListeners),
 			}
 		}
-		
+
 		items = append(items, album)
 	}
 
@@ -192,7 +205,6 @@ func convertToSearchItems(result *search.SearchResult) []model.SearchItem {
 
 	return items
 }
-
 func formatTime(t *time.Time) *string {
 	if t == nil {
 		return nil
@@ -200,11 +212,9 @@ func formatTime(t *time.Time) *string {
 	s := t.Format(time.RFC3339)
 	return &s
 }
-
 func encodeCursor(offset int) string {
 	return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("cursor:%d", offset)))
 }
-
 func decodeCursor(cursor string) (int, error) {
 	decoded, err := base64.StdEncoding.DecodeString(cursor)
 	if err != nil {
@@ -214,3 +224,13 @@ func decodeCursor(cursor string) (int, error) {
 	_, err = fmt.Sscanf(string(decoded), "cursor:%d", &offset)
 	return offset, err
 }
+
+// !!! WARNING !!!
+// The code below was going to be deleted when updating resolvers. It has been copied here so you have
+// one last chance to move it out of harms way if you want. There are two reasons this happens:
+//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
+//    it when you're done.
+//  - You have helper methods in this file. Move them out to keep these resolver files clean.
+/*
+
+ */

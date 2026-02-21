@@ -1639,6 +1639,7 @@ type Mutation {
   tags: [String!]
   dateRange: DateRangeInput
   explicit: Boolean
+  limit: Int
 }
 
 input DateRangeInput {
@@ -11158,7 +11159,7 @@ func (ec *executionContext) unmarshalInputSearchFilter(ctx context.Context, obj 
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"query", "contentType", "genre", "tags", "dateRange", "explicit"}
+	fieldsInOrder := [...]string{"query", "contentType", "genre", "tags", "dateRange", "explicit", "limit"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -11207,6 +11208,13 @@ func (ec *executionContext) unmarshalInputSearchFilter(ctx context.Context, obj 
 				return it, err
 			}
 			it.Explicit = data
+		case "limit":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Limit = data
 		}
 	}
 

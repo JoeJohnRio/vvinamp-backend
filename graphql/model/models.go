@@ -155,6 +155,7 @@ type SearchFilter struct {
 	Tags        []string        `json:"tags,omitempty"`
 	DateRange   *DateRangeInput `json:"dateRange,omitempty"`
 	Explicit    *bool           `json:"explicit,omitempty"`
+	Limit       *int            `json:"limit,omitempty"`
 }
 
 type SearchItemConnection struct {
