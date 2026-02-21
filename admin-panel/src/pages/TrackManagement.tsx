@@ -63,10 +63,34 @@ const TrackManagement: React.FC = () => {
     }));
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const getAudioDuration = (file: File): Promise<number> => {
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      audio.preload = 'metadata';
+      
+      audio.onloadedmetadata = () => {
+        window.URL.revokeObjectURL(audio.src);
+        resolve(Math.floor(audio.duration));
+      };
+      
+      audio.onerror = () => {
+        console.error('Error loading audio metadata');
+        resolve(0);
+      };
+      
+      const objectUrl = URL.createObjectURL(file);
+      audio.src = objectUrl;
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
+
+      // Extract duration from the audio file
+      const duration = await getAudioDuration(file);
+      setFormData(prev => ({ ...prev, duration }));
 
       // Create a preview URL for the audio file
       const reader = new FileReader();
@@ -77,7 +101,7 @@ const TrackManagement: React.FC = () => {
     }
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -91,6 +115,10 @@ const TrackManagement: React.FC = () => {
       }
 
       setSelectedFile(file);
+
+      // Extract duration from the audio file
+      const duration = await getAudioDuration(file);
+      setFormData(prev => ({ ...prev, duration }));
 
       // Create a preview URL for the audio file
       const reader = new FileReader();
@@ -294,9 +322,15 @@ const TrackManagement: React.FC = () => {
                 id="duration"
                 name="duration"
                 value={formData.duration}
-                onChange={handleInputChange}
+                readOnly
                 min="0"
+                disabled={formData.duration === 0}
               />
+              {formData.duration > 0 && (
+                <span className="duration-display">
+                  {Math.floor(formData.duration / 60)}:{String(formData.duration % 60).padStart(2, '0')}
+                </span>
+              )}
             </div>
 
             <div className="form-group checkbox-group">

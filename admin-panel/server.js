@@ -5,6 +5,7 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { Pool } = require('pg');
+const mm = require('music-metadata');
 
 const app = express();
 const PORT = process.env.PORT || 8081;
@@ -275,9 +276,19 @@ app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
     // SAFE FIX: Use 'file.path' (absolute path from multer) instead of manual assumption
     fs.renameSync(file.path, newFilePath);
 
-    // --- 6. Insert into DB ---
-    const duration = Math.floor(Math.random() * 300) + 60; // Mock duration
+    // --- 6. Extract Duration from Audio File ---
+    let duration = null;
+    try {
+      const metadata = await mm.parseFile(newFilePath);
+      duration = Math.floor(metadata.format.duration || 0);
+      console.log(`Extracted duration from ${finalFilename}: ${duration} seconds`);
+    } catch (err) {
+      console.error(`Error extracting duration from ${finalFilename}:`, err.message);
+      // Fallback to a default duration if extraction fails
+      duration = Math.floor(Math.random() * 300) + 60;
+    }
 
+    // --- 7. Insert into DB ---
     const insertResult = await pool.query(
       `INSERT INTO tracks (title, duration, audio_file_url, album_id, explicit, lyrics)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -394,8 +405,17 @@ app.put('/api/tracks/:id/file', upload.single('file'), async (req, res) => {
     // Move the uploaded file from temp 'uploads' folder to final destination
     fs.renameSync(path.join(__dirname, 'uploads', file.filename), newFilePath);
 
-    // Calculate duration (random for now)
-    const duration = Math.floor(Math.random() * 300) + 60;
+    // Extract duration from the uploaded audio file
+    let duration = null;
+    try {
+      const metadata = await mm.parseFile(newFilePath);
+      duration = Math.floor(metadata.format.duration || 0);
+      console.log(`Extracted duration from ${newFileName}: ${duration} seconds`);
+    } catch (err) {
+      console.error(`Error extracting duration from ${newFileName}:`, err.message);
+      // Fallback to a default duration if extraction fails
+      duration = Math.floor(Math.random() * 300) + 60;
+    }
 
     // 4. Update the URL to match the new filename
     const idBasedUrl = `https://cirio.my.id/track/${id}/${sanitizedTrackName}${fileExtension}`;

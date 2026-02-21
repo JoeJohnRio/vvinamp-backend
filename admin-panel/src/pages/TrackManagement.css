@@ -214,3 +214,19 @@
   border-radius: 4px;
   width: 100%;
 }
+
+.duration-display {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 6px 12px;
+  background-color: #e7f3ff;
+  border-radius: 4px;
+  color: #0056b3;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+input[readonly] {
+  background-color: #f8f9fa;
+  cursor: not-allowed;
+}
