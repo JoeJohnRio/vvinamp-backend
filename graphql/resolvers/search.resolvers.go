@@ -6,9 +6,7 @@ package resolvers
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
-	"time"
 	"vvinamp/graphql/model"
 	"vvinamp/package/search"
 )
@@ -67,22 +65,15 @@ func (r *queryResolver) Search(ctx context.Context, filter model.SearchFilter, f
 	}
 
 	// Convert search results to GraphQL models
-	allItems := convertToSearchItems(result)
-	totalCount := len(allItems)
-
-	// Apply pagination on combined results
-	end := offset + limit
-	if end > totalCount {
-		end = totalCount
+	allItems := convertToSearchItems(result.Tracks, result.Albums, result.Artists, result.Playlists, result.PodcastEpisodes, result.PodcastSeries)
+	totalCount := result.TotalCount
+	if totalCount == 0 {
+		totalCount = len(allItems)
 	}
-	if offset > totalCount {
-		offset = totalCount
-	}
-	paginatedItems := allItems[offset:end]
 
 	// Build edges with cursors
-	edges := make([]*model.SearchItemEdge, len(paginatedItems))
-	for i, item := range paginatedItems {
+	edges := make([]*model.SearchItemEdge, len(allItems))
+	for i, item := range allItems {
 		edges[i] = &model.SearchItemEdge{
 			Cursor: encodeCursor(offset + i),
 			Node:   item,
@@ -91,7 +82,7 @@ func (r *queryResolver) Search(ctx context.Context, filter model.SearchFilter, f
 
 	// Build PageInfo
 	pageInfo := &model.PageInfo{
-		HasNextPage:     end < totalCount,
+		HasNextPage:     offset+len(allItems) < totalCount,
 		HasPreviousPage: offset > 0,
 	}
 	if len(edges) > 0 {
@@ -107,130 +98,3 @@ func (r *queryResolver) Search(ctx context.Context, filter model.SearchFilter, f
 		TotalCount: totalCount,
 	}, nil
 }
-
-func convertToSearchItems(result *search.SearchResult) []model.SearchItem {
-	var items []model.SearchItem
-
-	for _, t := range result.Tracks {
-		items = append(items, &model.Track{
-			ID:            t.ID.String(),
-			Title:         t.Title,
-			Duration:      t.Duration,
-			StreamCount:   t.StreamCount,
-			AudioFileURL:  t.AudioFileURL,
-			AlbumCoverURL: t.AlbumCoverURL,
-			ArtistName:    t.ArtistName,
-			Explicit:      t.Explicit,
-			Lyrics: func() *string {
-				if t.Lyrics == "" {
-					return nil
-				}
-				return &t.Lyrics
-			}(),
-			ReleaseDate: t.ReleaseDate,
-		})
-	}
-
-	for _, a := range result.Albums {
-		album := &model.Album{
-			ID:          a.ID.String(),
-			Title:       a.Title,
-			ReleaseDate: a.ReleaseDate,
-			CoverArt: func() *string {
-				if a.CoverArt == "" {
-					return nil
-				}
-				return &a.CoverArt
-			}(),
-		}
-
-		// Include artist data if available
-		if a.Artist != nil {
-			album.Artist = &model.Artist{
-				ID:               a.Artist.ID,
-				Name:             a.Artist.Name,
-				Bio:              a.Artist.Bio,
-				ProfileImage:     a.Artist.ProfileImage,
-				Verified:         a.Artist.Verified,
-				MonthlyListeners: int(a.Artist.MonthlyListeners),
-			}
-		}
-
-		items = append(items, album)
-	}
-
-	for _, a := range result.Artists {
-		items = append(items, &model.Artist{
-			ID:               a.ID,
-			Name:             a.Name,
-			Bio:              a.Bio,
-			ProfileImage:     a.ProfileImage,
-			Verified:         a.Verified,
-			MonthlyListeners: int(a.MonthlyListeners),
-		})
-	}
-
-	for _, p := range result.Playlists {
-		items = append(items, &model.Playlist{
-			ID:         p.ID,
-			Title:      p.Title,
-			IsPublic:   p.IsPublic,
-			CoverImage: p.CoverImage,
-		})
-	}
-
-	for _, e := range result.PodcastEpisodes {
-		items = append(items, &model.PodcastEpisode{
-			ID:            e.ID,
-			Title:         e.Title,
-			EpisodeNumber: e.EpisodeNumber,
-			SeasonNumber:  e.SeasonNumber,
-			Description:   e.Description,
-			ReleaseDate:   formatTime(e.ReleaseDate),
-			Duration:      e.Duration,
-			AudioFileURL:  e.AudioFileURL,
-			CoverArt:      e.CoverArt,
-		})
-	}
-
-	for _, s := range result.PodcastSeries {
-		items = append(items, &model.PodcastSeries{
-			ID:          s.ID,
-			Title:       s.Title,
-			Description: s.Description,
-			CoverArt:    s.CoverArt,
-			Publisher:   s.Publisher,
-		})
-	}
-
-	return items
-}
-func formatTime(t *time.Time) *string {
-	if t == nil {
-		return nil
-	}
-	s := t.Format(time.RFC3339)
-	return &s
-}
-func encodeCursor(offset int) string {
-	return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("cursor:%d", offset)))
-}
-func decodeCursor(cursor string) (int, error) {
-	decoded, err := base64.StdEncoding.DecodeString(cursor)
-	if err != nil {
-		return 0, err
-	}
-	var offset int
-	_, err = fmt.Sscanf(string(decoded), "cursor:%d", &offset)
-	return offset, err
-}
-
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-
- */

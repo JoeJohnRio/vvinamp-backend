@@ -13,6 +13,12 @@ type SearchItem interface {
 	IsSearchItem()
 }
 
+type AddSongToPlaylistInput struct {
+	PlaylistID string `json:"playlistId"`
+	TrackID    string `json:"trackId"`
+	Position   *int   `json:"position,omitempty"`
+}
+
 type AlbumDetail struct {
 	ID            string   `json:"id"`
 	Title         string   `json:"title"`
@@ -45,6 +51,13 @@ type AuthSession struct {
 	AccessToken  string `json:"accessToken"`
 	RefreshToken string `json:"refreshToken"`
 	ExpiresAt    string `json:"expiresAt"`
+}
+
+type CreatePlaylistInput struct {
+	Title       string  `json:"title"`
+	Description *string `json:"description,omitempty"`
+	IsPublic    *bool   `json:"isPublic,omitempty"`
+	BannerImage *string `json:"bannerImage,omitempty"`
 }
 
 type DateRangeInput struct {
@@ -93,17 +106,33 @@ type PlaybackInput struct {
 }
 
 type Playlist struct {
-	ID         string           `json:"id"`
-	Title      string           `json:"title"`
-	Creator    *User            `json:"creator"`
-	CreatedAt  string           `json:"createdAt"`
-	UpdatedAt  *string          `json:"updatedAt,omitempty"`
-	IsPublic   bool             `json:"isPublic"`
-	CoverImage *string          `json:"coverImage,omitempty"`
-	Tracks     []*PlaylistTrack `json:"tracks"`
+	ID            string           `json:"id"`
+	Title         string           `json:"title"`
+	Description   *string          `json:"description,omitempty"`
+	Creator       *User            `json:"creator"`
+	CreatedAt     string           `json:"createdAt"`
+	UpdatedAt     *string          `json:"updatedAt,omitempty"`
+	IsPublic      bool             `json:"isPublic"`
+	CoverImage    *string          `json:"coverImage,omitempty"`
+	BannerImage   *string          `json:"bannerImage,omitempty"`
+	Tracks        []*PlaylistTrack `json:"tracks"`
+	SavedCount    int              `json:"savedCount"`
+	TotalDuration int              `json:"totalDuration"`
+	IsSavedByMe   bool             `json:"isSavedByMe"`
 }
 
 func (Playlist) IsSearchItem() {}
+
+type PlaylistConnection struct {
+	Edges      []*PlaylistEdge `json:"edges"`
+	PageInfo   *PageInfo       `json:"pageInfo"`
+	TotalCount int             `json:"totalCount"`
+}
+
+type PlaylistEdge struct {
+	Cursor string    `json:"cursor"`
+	Node   *Playlist `json:"node"`
+}
 
 type PlaylistTrack struct {
 	Playlist *Playlist `json:"playlist"`
@@ -158,6 +187,15 @@ type RegisterInput struct {
 
 type RegisterPayload struct {
 	User *User `json:"user"`
+}
+
+type RemoveSongFromPlaylistInput struct {
+	PlaylistID string `json:"playlistId"`
+	TrackID    string `json:"trackId"`
+}
+
+type SavePlaylistInput struct {
+	PlaylistID string `json:"playlistId"`
 }
 
 type SearchFilter struct {
@@ -223,6 +261,17 @@ type TrackArtist struct {
 	Track  *Track  `json:"track"`
 	Artist *Artist `json:"artist"`
 	Role   *string `json:"role,omitempty"`
+}
+
+type UnsavePlaylistInput struct {
+	PlaylistID string `json:"playlistId"`
+}
+
+type UpdatePlaylistInput struct {
+	Title       *string `json:"title,omitempty"`
+	Description *string `json:"description,omitempty"`
+	IsPublic    *bool   `json:"isPublic,omitempty"`
+	BannerImage *string `json:"bannerImage,omitempty"`
 }
 
 type UserFollow struct {

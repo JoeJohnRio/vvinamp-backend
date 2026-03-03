@@ -36,16 +36,6 @@ func (r *genreResolver) Albums(ctx context.Context, obj *model.Genre) ([]*model.
 	panic("not implemented")
 }
 
-// Creator is the resolver for the creator field.
-func (r *playlistResolver) Creator(ctx context.Context, obj *model.Playlist) (*model.User, error) {
-	panic("not implemented")
-}
-
-// Tracks is the resolver for the tracks field.
-func (r *playlistResolver) Tracks(ctx context.Context, obj *model.Playlist) ([]*model.PlaylistTrack, error) {
-	panic("not implemented")
-}
-
 // Album is the resolver for the album field.
 func (r *queryResolver) Album(ctx context.Context, id string) (*model.AlbumDetail, error) {
 	songSvc := song.ForContext(ctx)
@@ -124,9 +114,5 @@ func (r *Resolver) Album() generated.AlbumResolver { return &albumResolver{r} }
 // Genre returns generated.GenreResolver implementation.
 func (r *Resolver) Genre() generated.GenreResolver { return &genreResolver{r} }
 
-// Playlist returns generated.PlaylistResolver implementation.
-func (r *Resolver) Playlist() generated.PlaylistResolver { return &playlistResolver{r} }
-
 type albumResolver struct{ *Resolver }
 type genreResolver struct{ *Resolver }
-type playlistResolver struct{ *Resolver }

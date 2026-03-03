@@ -3,6 +3,7 @@ package module
 import (
 	artist "vvinamp/package/artist/service"
 	history "vvinamp/package/history/service"
+	playlist "vvinamp/package/playlist/service"
 	search "vvinamp/package/search/service"
 	song "vvinamp/package/song/service"
 	user "vvinamp/package/user/service"
@@ -19,4 +20,5 @@ var ServiceModule = fx.Provide(
 	song.NewService,
 	search.NewService,
 	streamingService.NewService,
+	playlist.NewService,
 )

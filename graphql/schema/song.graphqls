@@ -18,24 +18,6 @@ type TrackArtist {
   role: String
 }
 
-type Playlist {
-  id: ID!
-  title: String!
-  creator: User!
-  createdAt: String!
-  updatedAt: String
-  isPublic: Boolean!
-  coverImage: String
-  tracks: [PlaylistTrack!]!
-}
-
-type PlaylistTrack {
-  playlist: Playlist!
-  track: Track!
-  position: Int!
-  addedAt: String!
-}
-
 type Album {
   id: ID!
   title: String!

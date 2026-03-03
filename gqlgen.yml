@@ -65,6 +65,12 @@ models:
         resolver: true
       tracks:
         resolver: true
+      savedCount:
+        resolver: true
+      totalDuration:
+        resolver: true
+      isSavedByMe:
+        resolver: true
   ListeningHistory:
     fields:
       user:

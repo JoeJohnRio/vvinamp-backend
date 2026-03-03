@@ -1,7 +1,10 @@
 package repository
 
 import (
+	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -10,10 +13,10 @@ import (
 	"vvinamp/package/user"
 	"vvinamp/package/utils/security"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgconn"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 	"gorm.io/gorm"
 )
 
@@ -53,7 +56,11 @@ func NewSQLRepository(target SQLRepositoryTarget) (user.Repository, error) {
 
 // DB method extract database client from context
 func (m *sqlRepository) DB(ctx context.Context) *gorm.DB {
-	return postgre.ForContext(ctx)
+	db := postgre.ForContext(ctx)
+	if db == nil {
+		m.logger.Error("Database connection is nil in context")
+	}
+	return db
 }
 
 // GetAll returns all the Users stored in the database.
@@ -65,11 +72,35 @@ func (m *sqlRepository) GetAll(ctx context.Context) ([]*model.User, error) {
 
 // GetByID returns one User which is matched by input ID from the database.
 func (m *sqlRepository) GetByID(ctx context.Context, id string) (*model.User, error) {
-	var user model.User
-	err := m.DB(ctx).First(&user, id).Error
+	db := m.DB(ctx)
+	if db == nil {
+		m.logger.Error("Database connection is nil")
+		return nil, fmt.Errorf("database connection not available")
+	}
+	
+	// Get the underlying pgx pool and use it directly
+	conn, err := db.DB()
 	if err != nil {
 		return nil, err
 	}
+	
+	sqlDB := conn.DB.(*sql.DB)
+	pgxPool, ok := sqlDB.Driver().(*pgxpool.Pool)
+	if !ok {
+		// Fallback to GORM query with text cast
+		var user model.User
+		err := db.WithContext(ctx).Table("users").Where("id::text = ?", id).First(&user).Error
+		return &user, err
+	}
+	
+	var user model.User
+	err = pgxPool.QueryRow(ctx, "SELECT id, username, email, password_hash, profile_picture, join_date, subscription_type, last_login FROM users WHERE id = $1", id).
+		Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.ProfilePicture, &user.JoinDate, &user.SubscriptionType, &user.LastLogin)
+	
+	if err != nil {
+		return nil, err
+	}
+	
 	return &user, nil
 }
 

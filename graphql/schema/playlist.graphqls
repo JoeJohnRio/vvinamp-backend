@@ -1,0 +1,90 @@
+type Playlist {
+  id: ID!
+  title: String!
+  description: String
+  creator: User!
+  createdAt: String!
+  updatedAt: String
+  isPublic: Boolean!
+  coverImage: String
+  bannerImage: String
+  tracks: [PlaylistTrack!]!
+  savedCount: Int!
+  totalDuration: Int!
+  isSavedByMe: Boolean!
+}
+
+type PlaylistTrack {
+  playlist: Playlist!
+  track: Track!
+  position: Int!
+  addedAt: String!
+}
+
+input CreatePlaylistInput {
+  title: String!
+  description: String
+  isPublic: Boolean = true
+  bannerImage: String
+}
+
+input UpdatePlaylistInput {
+  title: String
+  description: String
+  isPublic: Boolean
+  bannerImage: String
+}
+
+input AddSongToPlaylistInput {
+  playlistId: ID!
+  trackId: ID!
+  position: Int 
+}
+
+input RemoveSongFromPlaylistInput {
+  playlistId: ID!
+  trackId: ID!
+}
+
+input SavePlaylistInput {
+  playlistId: ID!
+}
+
+input UnsavePlaylistInput {
+  playlistId: ID!
+}
+
+extend type Query {
+  getPlaylist(id: ID!): Playlist
+  
+  getMyPlaylists(first: Int, after: String, last: Int, before: String): PlaylistConnection!
+  
+  getPlaylistsByUser(userId: ID!, first: Int, after: String, last: Int, before: String): PlaylistConnection!
+}
+
+extend type Mutation {
+  createPlaylist(input: CreatePlaylistInput!): Playlist!
+  
+  updatePlaylist(id: ID!, input: UpdatePlaylistInput!): Playlist!
+  
+  deletePlaylist(id: ID!): Boolean!
+  
+  addSongToPlaylist(input: AddSongToPlaylistInput!): Playlist!
+  
+  removeSongFromPlaylist(input: RemoveSongFromPlaylistInput!): Boolean!
+  
+  savePlaylist(input: SavePlaylistInput!): Playlist!
+  
+  unsavePlaylist(input: UnsavePlaylistInput!): Boolean!
+}
+
+type PlaylistConnection {
+  edges: [PlaylistEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type PlaylistEdge {
+  cursor: String!
+  node: Playlist!
+}

@@ -7,6 +7,7 @@ import (
 	songService "vvinamp/package/song"
 	artistService "vvinamp/package/artist/service"
 	streamingService "vvinamp/package/streaming"
+	playlistService "vvinamp/package/playlist"
 	"vvinamp/constant"
 	"vvinamp/internal/pkg/session"
 )
@@ -17,6 +18,7 @@ type Resolver struct {
 	HistoryService historyService.Service
 	SongService   songService.Service
 	StreamingService *streamingService.Service
+	PlaylistService playlistService.Service
 }
 
 func NewResolver(
@@ -25,6 +27,7 @@ func NewResolver(
 	historyService historyService.Service,
 	songService songService.Service,
 	streamingService *streamingService.Service,
+	playlistService playlistService.Service,
 ) *Resolver {
 	return &Resolver{
 		ArtistService:  artistService,
@@ -32,6 +35,7 @@ func NewResolver(
 		HistoryService: historyService,
 		SongService:    songService,
 		StreamingService: streamingService,
+		PlaylistService: playlistService,
 	}
 }
 

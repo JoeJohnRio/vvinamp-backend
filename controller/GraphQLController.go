@@ -14,6 +14,7 @@ import (
 	"vvinamp/internal/pkg/session"
 	artistPackage "vvinamp/package/artist/service"
 	"vvinamp/package/history"
+	"vvinamp/package/playlist"
 	"vvinamp/package/search"
 	"vvinamp/package/song"
 	"vvinamp/package/streaming"
@@ -39,6 +40,7 @@ type GraphQLController struct {
 	artist         artistPackage.ArtistService
 	search         search.Service
 	streaming      *streaming.Service
+	playlist       playlist.Service
 	logger         *zap.Logger
 }
 
@@ -54,6 +56,7 @@ type GraphQLControllerTarget struct {
 	Artist         artistPackage.ArtistService
 	Search         search.Service
 	Streaming      *streaming.Service
+	Playlist       playlist.Service
 	Logger         *zap.Logger
 }
 
@@ -70,16 +73,16 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 			artist:         target.Artist,
 			search:         target.Search,
 			streaming:      target.Streaming,
+			playlist:       target.Playlist,
 			logger:         target.Logger,
 		},
 	}
 }
 
 // GrqphQL is defining as the GraphQL handler
-// GrqphQL is defining as the GraphQL handler
 func (m *GraphQLController) GraphQL() gin.HandlerFunc {
 	// Create resolver with required services
-	resolver := resolvers.NewResolver(m.artist, m.user, m.history, m.song, m.streaming)
+	resolver := resolvers.NewResolver(m.artist, m.user, m.history, m.song, m.streaming, m.playlist)
 
 	// 1. Create a new Server instance using handler.New()
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))
@@ -122,55 +125,55 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 		// Conditional authentication middleware
 		func(c *gin.Context) {
 			// Read request body to determine if this is a public operation
-			bodyBytes := make([]byte, c.Request.ContentLength)
-			if c.Request.ContentLength > 0 && c.Request.Body != nil {
-				// Read the body
-				n, _ := c.Request.Body.Read(bodyBytes)
-				bodyStr := string(bodyBytes[:n])
+			bodyBytes, err := io.ReadAll(c.Request.Body)
+			if err != nil {
+				c.Next()
+				return
+			}
+			bodyStr := string(bodyBytes)
 
-				// Reset the body for further processing
-				c.Request.Body = io.NopCloser(bytes.NewBufferString(bodyStr))
+			// Reset the body for further processing
+			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-				// Check if this is a public operation (login, register, refreshToken, introspection, etc.)
-				isPublicOperation := strings.Contains(bodyStr, "login") ||
-					strings.Contains(bodyStr, "register") ||
-					strings.Contains(bodyStr, "refreshToken") ||
-					(strings.Contains(bodyStr, "__schema") && !strings.Contains(bodyStr, "me")) || // Allow schema introspection but not protected fields
-					(strings.Contains(bodyStr, "__type") && !strings.Contains(bodyStr, "me")) // Allow type introspection but not protected fields
+			// Check if this is a public operation (login, register, refreshToken, introspection, etc.)
+			isPublicOperation := strings.Contains(bodyStr, "login") ||
+				strings.Contains(bodyStr, "register") ||
+				strings.Contains(bodyStr, "refreshToken") ||
+				(strings.Contains(bodyStr, "__schema")) || // Allow schema introspection
+				(strings.Contains(bodyStr, "__type")) // Allow type introspection
 
-				// If this is NOT a public operation, validate session
-				if !isPublicOperation {
-					// Validate session for protected operations
-					ctx := c.Request.Context()
-					sessionMgr := session.NewSessionManager()
-					_, err := sessionMgr.ValidateSession(ctx)
-					if err != nil {
-						// Return HTTP 401 for unauthorized access
-						c.Header("WWW-Authenticate", "Bearer")
-						c.JSON(401, gin.H{
-							"errors": []gin.H{
-								{
-									"message": "Unauthorized: Invalid or expired session",
-									"extensions": gin.H{
-										"code": "UNAUTHORIZED",
-									},
+			// If this is NOT a public operation, validate session
+			if !isPublicOperation {
+				// Validate session for protected operations
+				ctx := c.Request.Context()
+				sessionMgr := session.NewSessionManager()
+				_, err := sessionMgr.ValidateSession(ctx)
+				if err != nil {
+					// Return HTTP 401 for unauthorized access
+					c.Header("WWW-Authenticate", "Bearer")
+					c.JSON(401, gin.H{
+						"errors": []gin.H{
+							{
+								"message": "Unauthorized: Invalid or expired session",
+								"extensions": gin.H{
+									"code": "UNAUTHORIZED",
 								},
 							},
-							"data": nil,
-						})
-						c.Abort()
-						return
-					} else {
-						// Session is valid, add flag to context
-						ctx = context.WithValue(ctx, "session_valid", true)
-						c.Request = c.Request.WithContext(ctx)
-					}
+						},
+						"data": nil,
+					})
+					c.Abort()
+					return
 				} else {
-					// For public operations, set session_valid to true to allow the resolvers to proceed
-					ctx := c.Request.Context()
+					// Session is valid, add flag to context
 					ctx = context.WithValue(ctx, "session_valid", true)
 					c.Request = c.Request.WithContext(ctx)
 				}
+			} else {
+				// For public operations, set session_valid to true to allow the resolvers to proceed
+				ctx := c.Request.Context()
+				ctx = context.WithValue(ctx, "session_valid", true)
+				c.Request = c.Request.WithContext(ctx)
 			}
 
 			c.Next()
@@ -192,6 +195,7 @@ func (m *GraphQLController) Middleware() gin.HandlerFunc {
 		ctx = context.WithValue(ctx, song.Key, m.song)
 		ctx = context.WithValue(ctx, artistPackage.Key, m.artist)
 		ctx = context.WithValue(ctx, search.Key, m.search)
+		ctx = context.WithValue(ctx, playlist.Key, m.playlist)
 
 		// Pass the response writer for session management
 		if arw, ok := c.Writer.(*auth.AuthResponseWriter); ok {
