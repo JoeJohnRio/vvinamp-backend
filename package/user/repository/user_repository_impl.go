@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"vvinamp/package/user"
 	"vvinamp/package/utils/security"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgconn"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
@@ -72,35 +70,15 @@ func (m *sqlRepository) GetAll(ctx context.Context) ([]*model.User, error) {
 
 // GetByID returns one User which is matched by input ID from the database.
 func (m *sqlRepository) GetByID(ctx context.Context, id string) (*model.User, error) {
+	var user model.User
 	db := m.DB(ctx)
 	if db == nil {
-		m.logger.Error("Database connection is nil")
 		return nil, fmt.Errorf("database connection not available")
 	}
-	
-	// Get the underlying pgx pool and use it directly
-	conn, err := db.DB()
+	err := db.WithContext(ctx).Where("id = ?", id).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
-	
-	sqlDB := conn.DB.(*sql.DB)
-	pgxPool, ok := sqlDB.Driver().(*pgxpool.Pool)
-	if !ok {
-		// Fallback to GORM query with text cast
-		var user model.User
-		err := db.WithContext(ctx).Table("users").Where("id::text = ?", id).First(&user).Error
-		return &user, err
-	}
-	
-	var user model.User
-	err = pgxPool.QueryRow(ctx, "SELECT id, username, email, password_hash, profile_picture, join_date, subscription_type, last_login FROM users WHERE id = $1", id).
-		Scan(&user.ID, &user.Username, &user.Email, &user.PasswordHash, &user.ProfilePicture, &user.JoinDate, &user.SubscriptionType, &user.LastLogin)
-	
-	if err != nil {
-		return nil, err
-	}
-	
 	return &user, nil
 }
 
@@ -190,5 +168,5 @@ func (m *sqlRepository) Delete(ctx context.Context) error {
 
 // DeleteByID will remove user by id from database
 func (m *sqlRepository) DeleteByID(ctx context.Context, id string) error {
-	return m.DB(ctx).Delete(ctx, model.User{ID: id}).Error
+	return m.DB(ctx).Where("id = ?", id).Delete(&model.User{}).Error
 }

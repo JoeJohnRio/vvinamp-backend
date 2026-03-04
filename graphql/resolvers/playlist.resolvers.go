@@ -13,6 +13,8 @@ import (
 	"vvinamp/graphql/model"
 	"vvinamp/internal/pkg/session"
 	dbModel "vvinamp/model"
+
+	"github.com/google/uuid"
 )
 
 // decodeCursorInt decodes a base64 cursor to an integer offset
@@ -42,8 +44,9 @@ func (r *mutationResolver) CreatePlaylist(ctx context.Context, input model.Creat
 
 	playlistSvc := r.PlaylistService
 
-	// Create playlist model
+	// Create playlist model with new UUID
 	playlist := &dbModel.Playlist{
+		ID:          uuid.New().String(),
 		Title:       input.Title,
 		Description: input.Description,
 		CreatorID:   userID,

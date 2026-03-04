@@ -22,7 +22,7 @@ import (
 func (r *listeningHistoryResolver) User(ctx context.Context, obj *graphqlModel.ListeningHistory) (*graphqlModel.User, error) {
 	// Return fake user data
 	return &graphqlModel.User{
-		ID:       "user-1234",
+		ID:       "00000000-0000-0000-0000-000000000001",
 		Username: "dummy-username",
 	}, nil
 }

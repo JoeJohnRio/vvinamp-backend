@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
@@ -22,8 +21,7 @@ type Target struct {
 }
 
 type Connection struct {
-	db       *gorm.DB
-	pgxPool  *pgxpool.Pool
+	db *gorm.DB
 }
 
 func New(t Target) (*Connection, error) {
@@ -31,26 +29,21 @@ func New(t Target) (*Connection, error) {
 		return nil, fmt.Errorf("postgre_url is empty")
 	}
 
-	// Create pgx pool directly
-	pgxPool, err := pgxpool.New(context.Background(), t.PostgresURL)
-	if err != nil {
-		return nil, fmt.Errorf("create pgx pool: %w", err)
-	}
-
-	// Test the connection
-	if err := pgxPool.Ping(context.Background()); err != nil {
-		return nil, fmt.Errorf("ping pgx pool: %w", err)
-	}
-
-	// Create GORM DB using the pgx pool
-	db, err := gorm.Open(postgres.New(postgres.Config{
-		Conn: pgxPool,
-	}), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(t.PostgresURL), &gorm.Config{
 		Logger: nil, // Disable GORM logger
 	})
 	if err != nil {
-		pgxPool.Close()
 		return nil, fmt.Errorf("open postgres: %w", err)
+	}
+
+	sqlDB, err := db.DB()
+	if err != nil {
+		return nil, fmt.Errorf("sql DB handle: %w", err)
+	}
+
+	// Fail fast if the DB is not reachable
+	if err := sqlDB.Ping(); err != nil {
+		return nil, fmt.Errorf("ping: %w", err)
 	}
 
 	t.Lc.Append(fx.Hook{
@@ -60,17 +53,11 @@ func New(t Target) (*Connection, error) {
 		},
 		OnStop: func(ctx context.Context) error {
 			t.Logger.Info("PostgreSQL disconnect")
-			pgxPool.Close()
-			return nil
+			return sqlDB.Close()
 		},
 	})
 
-	return &Connection{db: db, pgxPool: pgxPool}, nil
-}
-
-// GetPgxPool returns the underlying pgx pool for direct queries
-func (c *Connection) GetPgxPool() *pgxpool.Pool {
-	return c.pgxPool
+	return &Connection{db: db}, nil
 }
 
 // Return error if not initialized, so callers won't nil-deref.
