@@ -26,6 +26,7 @@ type Repository interface {
 	IsSavedByUser(ctx context.Context, userID, playlistID string) (bool, error)
 	GetSavedCount(ctx context.Context, playlistID string) (int64, error)
 	GetSavedPlaylistsByUserID(ctx context.Context, userID string, limit int, offset int) ([]*dbModel.Playlist, int64, error)
+	GetMyPlaylistFeed(ctx context.Context, userID string, limit int, offset int, sortOrder string) ([]*dbModel.Playlist, int64, error)
 
 	// Stats
 	GetTotalDuration(ctx context.Context, playlistID string) (int, error)

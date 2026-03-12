@@ -13,7 +13,6 @@ type Playlist struct {
 	UpdatedAt    *time.Time `json:"updatedAt" gorm:"column:updated_at;default:CURRENT_TIMESTAMP"`
 	IsPublic     bool       `json:"isPublic" gorm:"column:is_public;default:true"`
 	CoverImage   *string    `json:"coverImage" gorm:"column:cover_image"`
-	BannerImage  *string    `json:"bannerImage" gorm:"column:banner_image"`
 
 	// Relationships (not mapped in GORM, handled in queries)
 	// Creator *User `json:"-" gorm:"foreignKey:CreatorID;references:ID"`

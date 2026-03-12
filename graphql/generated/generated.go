@@ -157,7 +157,6 @@ type ComplexityRoot struct {
 	}
 
 	Playlist struct {
-		BannerImage   func(childComplexity int) int
 		CoverImage    func(childComplexity int) int
 		CreatedAt     func(childComplexity int) int
 		Creator       func(childComplexity int) int
@@ -217,6 +216,7 @@ type ComplexityRoot struct {
 		Album               func(childComplexity int, id string) int
 		GetArtistHeader     func(childComplexity int, id string) int
 		GetArtistScreenData func(childComplexity int, artistID string) int
+		GetMyPlaylistFeed   func(childComplexity int, first *int, after *string, last *int, before *string, sortOrder *model.PlaylistSortOrder) int
 		GetMyPlaylists      func(childComplexity int, first *int, after *string, last *int, before *string) int
 		GetPlaylist         func(childComplexity int, id string) int
 		GetPlaylistsByUser  func(childComplexity int, userID string, first *int, after *string, last *int, before *string) int
@@ -360,6 +360,7 @@ type QueryResolver interface {
 	GetPlaylist(ctx context.Context, id string) (*model.Playlist, error)
 	GetMyPlaylists(ctx context.Context, first *int, after *string, last *int, before *string) (*model.PlaylistConnection, error)
 	GetPlaylistsByUser(ctx context.Context, userID string, first *int, after *string, last *int, before *string) (*model.PlaylistConnection, error)
+	GetMyPlaylistFeed(ctx context.Context, first *int, after *string, last *int, before *string, sortOrder *model.PlaylistSortOrder) (*model.PlaylistConnection, error)
 	Search(ctx context.Context, filter model.SearchFilter, first *int, after *string, last *int, before *string) (*model.SearchItemConnection, error)
 	Album(ctx context.Context, id string) (*model.AlbumDetail, error)
 	Me(ctx context.Context) (*model.User, error)
@@ -904,13 +905,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.PlaybackInfo.Mp3Fallback(childComplexity), true
 
-	case "Playlist.bannerImage":
-		if e.complexity.Playlist.BannerImage == nil {
-			break
-		}
-
-		return e.complexity.Playlist.BannerImage(childComplexity), true
-
 	case "Playlist.coverImage":
 		if e.complexity.Playlist.CoverImage == nil {
 			break
@@ -1212,6 +1206,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.GetArtistScreenData(childComplexity, args["artistId"].(string)), true
+
+	case "Query.getMyPlaylistFeed":
+		if e.complexity.Query.GetMyPlaylistFeed == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getMyPlaylistFeed_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetMyPlaylistFeed(childComplexity, args["first"].(*int), args["after"].(*string), args["last"].(*int), args["before"].(*string), args["sortOrder"].(*model.PlaylistSortOrder)), true
 
 	case "Query.getMyPlaylists":
 		if e.complexity.Query.GetMyPlaylists == nil {
@@ -1918,8 +1924,7 @@ input PlaybackInput {
 extend type Query {
   playbackInfo(input: PlaybackInput!): PlaybackInfo!
 }`, BuiltIn: false},
-	{Name: "../schema/playlist.graphqls", Input: `# Playlist Type
-type Playlist {
+	{Name: "../schema/playlist.graphqls", Input: `type Playlist {
   id: ID!
   title: String!
   description: String
@@ -1928,7 +1933,6 @@ type Playlist {
   updatedAt: String
   isPublic: Boolean!
   coverImage: String
-  bannerImage: String
   tracks: [PlaylistTrack!]!
   savedCount: Int!
   totalDuration: Int!
@@ -1942,25 +1946,24 @@ type PlaylistTrack {
   addedAt: String!
 }
 
-# Input types for mutations
 input CreatePlaylistInput {
   title: String!
   description: String
   isPublic: Boolean = true
-  bannerImage: String
+  coverImage: String
 }
 
 input UpdatePlaylistInput {
   title: String
   description: String
   isPublic: Boolean
-  bannerImage: String
+  coverImage: String
 }
 
 input AddSongToPlaylistInput {
   playlistId: ID!
   trackId: ID!
-  position: Int  # If not provided, adds to the end
+  position: Int 
 }
 
 input RemoveSongFromPlaylistInput {
@@ -1976,43 +1979,39 @@ input UnsavePlaylistInput {
   playlistId: ID!
 }
 
-# Query extension
-extend type Query {
-  # Get a single playlist by ID
-  getPlaylist(id: ID!): Playlist
-  
-  # Get current user's playlists (paginated)
-  getMyPlaylists(first: Int, after: String, last: Int, before: String): PlaylistConnection!
-  
-  # Get playlists by a specific user (paginated)
-  getPlaylistsByUser(userId: ID!, first: Int, after: String, last: Int, before: String): PlaylistConnection!
+enum PlaylistSortOrder {
+  RECENTS
+  RECENTLY_ADDED
+  ALPHABETICAL
+  CREATOR
 }
 
-# Mutation extension
+extend type Query {
+  getPlaylist(id: ID!): Playlist
+
+  getMyPlaylists(first: Int, after: String, last: Int, before: String): PlaylistConnection!
+
+  getPlaylistsByUser(userId: ID!, first: Int, after: String, last: Int, before: String): PlaylistConnection!
+
+  getMyPlaylistFeed(first: Int, after: String, last: Int, before: String, sortOrder: PlaylistSortOrder = RECENTS): PlaylistConnection!
+}
+
 extend type Mutation {
-  # Create a new playlist
   createPlaylist(input: CreatePlaylistInput!): Playlist!
   
-  # Update an existing playlist (owner only)
   updatePlaylist(id: ID!, input: UpdatePlaylistInput!): Playlist!
   
-  # Delete a playlist (owner only)
   deletePlaylist(id: ID!): Boolean!
   
-  # Add a song to a playlist (owner only)
   addSongToPlaylist(input: AddSongToPlaylistInput!): Playlist!
   
-  # Remove a song from a playlist (owner only)
   removeSongFromPlaylist(input: RemoveSongFromPlaylistInput!): Boolean!
   
-  # Save/follow a playlist
   savePlaylist(input: SavePlaylistInput!): Playlist!
   
-  # Unsave/unfollow a playlist
   unsavePlaylist(input: UnsavePlaylistInput!): Boolean!
 }
 
-# Connection type for pagination
 type PlaylistConnection {
   edges: [PlaylistEdge!]!
   pageInfo: PageInfo!
@@ -2572,6 +2571,126 @@ func (ec *executionContext) field_Query_getArtistScreenData_argsArtistID(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getMyPlaylistFeed_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getMyPlaylistFeed_argsFirst(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["first"] = arg0
+	arg1, err := ec.field_Query_getMyPlaylistFeed_argsAfter(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg1
+	arg2, err := ec.field_Query_getMyPlaylistFeed_argsLast(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["last"] = arg2
+	arg3, err := ec.field_Query_getMyPlaylistFeed_argsBefore(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["before"] = arg3
+	arg4, err := ec.field_Query_getMyPlaylistFeed_argsSortOrder(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["sortOrder"] = arg4
+	return args, nil
+}
+func (ec *executionContext) field_Query_getMyPlaylistFeed_argsFirst(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["first"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("first"))
+	if tmp, ok := rawArgs["first"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getMyPlaylistFeed_argsAfter(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["after"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("after"))
+	if tmp, ok := rawArgs["after"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getMyPlaylistFeed_argsLast(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["last"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("last"))
+	if tmp, ok := rawArgs["last"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getMyPlaylistFeed_argsBefore(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["before"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("before"))
+	if tmp, ok := rawArgs["before"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getMyPlaylistFeed_argsSortOrder(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*model.PlaylistSortOrder, error) {
+	if _, ok := rawArgs["sortOrder"]; !ok {
+		var zeroVal *model.PlaylistSortOrder
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("sortOrder"))
+	if tmp, ok := rawArgs["sortOrder"]; ok {
+		return ec.unmarshalOPlaylistSortOrder2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistSortOrder(ctx, tmp)
+	}
+
+	var zeroVal *model.PlaylistSortOrder
 	return zeroVal, nil
 }
 
@@ -5730,8 +5849,6 @@ func (ec *executionContext) fieldContext_Mutation_createPlaylist(ctx context.Con
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "bannerImage":
-				return ec.fieldContext_Playlist_bannerImage(ctx, field)
 			case "tracks":
 				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
@@ -5813,8 +5930,6 @@ func (ec *executionContext) fieldContext_Mutation_updatePlaylist(ctx context.Con
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "bannerImage":
-				return ec.fieldContext_Playlist_bannerImage(ctx, field)
 			case "tracks":
 				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
@@ -5951,8 +6066,6 @@ func (ec *executionContext) fieldContext_Mutation_addSongToPlaylist(ctx context.
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "bannerImage":
-				return ec.fieldContext_Playlist_bannerImage(ctx, field)
 			case "tracks":
 				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
@@ -6089,8 +6202,6 @@ func (ec *executionContext) fieldContext_Mutation_savePlaylist(ctx context.Conte
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "bannerImage":
-				return ec.fieldContext_Playlist_bannerImage(ctx, field)
 			case "tracks":
 				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
@@ -6837,47 +6948,6 @@ func (ec *executionContext) fieldContext_Playlist_coverImage(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Playlist_bannerImage(ctx context.Context, field graphql.CollectedField, obj *model.Playlist) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Playlist_bannerImage(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.BannerImage, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		return graphql.Null
-	}
-	res := resTmp.(*string)
-	fc.Result = res
-	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Playlist_bannerImage(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Playlist",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Playlist_tracks(ctx context.Context, field graphql.CollectedField, obj *model.Playlist) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Playlist_tracks(ctx, field)
 	if err != nil {
@@ -7311,8 +7381,6 @@ func (ec *executionContext) fieldContext_PlaylistEdge_node(_ context.Context, fi
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "bannerImage":
-				return ec.fieldContext_Playlist_bannerImage(ctx, field)
 			case "tracks":
 				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
@@ -7383,8 +7451,6 @@ func (ec *executionContext) fieldContext_PlaylistTrack_playlist(_ context.Contex
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "bannerImage":
-				return ec.fieldContext_Playlist_bannerImage(ctx, field)
 			case "tracks":
 				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
@@ -8786,8 +8852,6 @@ func (ec *executionContext) fieldContext_Query_getPlaylist(ctx context.Context, 
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "bannerImage":
-				return ec.fieldContext_Playlist_bannerImage(ctx, field)
 			case "tracks":
 				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
@@ -8934,6 +8998,69 @@ func (ec *executionContext) fieldContext_Query_getPlaylistsByUser(ctx context.Co
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getPlaylistsByUser_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getMyPlaylistFeed(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getMyPlaylistFeed(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetMyPlaylistFeed(rctx, fc.Args["first"].(*int), fc.Args["after"].(*string), fc.Args["last"].(*int), fc.Args["before"].(*string), fc.Args["sortOrder"].(*model.PlaylistSortOrder))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PlaylistConnection)
+	fc.Result = res
+	return ec.marshalNPlaylistConnection2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getMyPlaylistFeed(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "edges":
+				return ec.fieldContext_PlaylistConnection_edges(ctx, field)
+			case "pageInfo":
+				return ec.fieldContext_PlaylistConnection_pageInfo(ctx, field)
+			case "totalCount":
+				return ec.fieldContext_PlaylistConnection_totalCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PlaylistConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getMyPlaylistFeed_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -11121,8 +11248,6 @@ func (ec *executionContext) fieldContext_User_playlists(_ context.Context, field
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "bannerImage":
-				return ec.fieldContext_Playlist_bannerImage(ctx, field)
 			case "tracks":
 				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
@@ -13617,7 +13742,7 @@ func (ec *executionContext) unmarshalInputCreatePlaylistInput(ctx context.Contex
 		asMap["isPublic"] = true
 	}
 
-	fieldsInOrder := [...]string{"title", "description", "isPublic", "bannerImage"}
+	fieldsInOrder := [...]string{"title", "description", "isPublic", "coverImage"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -13645,13 +13770,13 @@ func (ec *executionContext) unmarshalInputCreatePlaylistInput(ctx context.Contex
 				return it, err
 			}
 			it.IsPublic = data
-		case "bannerImage":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bannerImage"))
+		case "coverImage":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("coverImage"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.BannerImage = data
+			it.CoverImage = data
 		}
 	}
 
@@ -14013,7 +14138,7 @@ func (ec *executionContext) unmarshalInputUpdatePlaylistInput(ctx context.Contex
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"title", "description", "isPublic", "bannerImage"}
+	fieldsInOrder := [...]string{"title", "description", "isPublic", "coverImage"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -14041,13 +14166,13 @@ func (ec *executionContext) unmarshalInputUpdatePlaylistInput(ctx context.Contex
 				return it, err
 			}
 			it.IsPublic = data
-		case "bannerImage":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("bannerImage"))
+		case "coverImage":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("coverImage"))
 			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.BannerImage = data
+			it.CoverImage = data
 		}
 	}
 
@@ -15114,8 +15239,6 @@ func (ec *executionContext) _Playlist(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "coverImage":
 			out.Values[i] = ec._Playlist_coverImage(ctx, field, obj)
-		case "bannerImage":
-			out.Values[i] = ec._Playlist_bannerImage(ctx, field, obj)
 		case "tracks":
 			field := field
 
@@ -15774,6 +15897,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getPlaylistsByUser(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getMyPlaylistFeed":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getMyPlaylistFeed(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -18320,6 +18465,22 @@ func (ec *executionContext) marshalOPlaylist2ᚖvvinampᚋgraphqlᚋmodelᚐPlay
 		return graphql.Null
 	}
 	return ec._Playlist(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOPlaylistSortOrder2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistSortOrder(ctx context.Context, v any) (*model.PlaylistSortOrder, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.PlaylistSortOrder)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOPlaylistSortOrder2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistSortOrder(ctx context.Context, sel ast.SelectionSet, v *model.PlaylistSortOrder) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalORegisterPayload2ᚖvvinampᚋgraphqlᚋmodelᚐRegisterPayload(ctx context.Context, sel ast.SelectionSet, v *model.RegisterPayload) graphql.Marshaler {

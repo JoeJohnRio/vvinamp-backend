@@ -114,6 +114,61 @@ func (r *sqlRepository) GetSavedPlaylistsByUserID(ctx context.Context, userID st
 	return playlists, total, err
 }
 
+// GetMyPlaylistFeed retrieves both created and saved playlists for a user, sorted by the specified order
+func (r *sqlRepository) GetMyPlaylistFeed(ctx context.Context, userID string, limit int, offset int, sortOrder string) ([]*dbModel.Playlist, int64, error) {
+	var playlists []*dbModel.Playlist
+	var total int64
+
+	// Build order clause based on sort order
+	var orderClause string
+	switch sortOrder {
+	case "RECENTLY_ADDED":
+		// For created playlists: created_at, for saved: saved_at
+		// We use a unified approach with COALESCE
+		orderClause = "COALESCE(usp.saved_at, p.created_at) DESC"
+	case "ALPHABETICAL":
+		orderClause = "p.title ASC"
+	case "CREATOR":
+		orderClause = "u.display_name ASC"
+	case "RECENTS", "":
+		// For created playlists: updated_at, for saved: saved_at (most recent activity)
+		orderClause = "COALESCE(usp.saved_at, p.updated_at, p.created_at) DESC"
+	default:
+		orderClause = "COALESCE(usp.saved_at, p.updated_at, p.created_at) DESC"
+	}
+
+	// Get total count - union of created and saved playlists
+	countQuery := `
+		SELECT COUNT(DISTINCT p.id)
+		FROM playlists p
+		LEFT JOIN user_saved_playlists usp ON p.id = usp.playlist_id
+		LEFT JOIN users u ON p.creator_id = u.id
+		WHERE p.creator_id = ? OR usp.user_id = ?
+	`
+	if err := r.DB(ctx).Raw(countQuery, userID, userID).Scan(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Get paginated results with union of created and saved playlists
+	query := `
+		SELECT DISTINCT p.*, 
+			   COALESCE(usp.saved_at, p.updated_at, p.created_at) AS sort_time
+		FROM playlists p
+		LEFT JOIN user_saved_playlists usp ON p.id = usp.playlist_id AND usp.user_id = ?
+		LEFT JOIN users u ON p.creator_id = u.id
+		WHERE p.creator_id = ? OR usp.user_id = ?
+		ORDER BY ` + orderClause + `
+		LIMIT ? OFFSET ?
+	`
+
+	err := r.DB(ctx).Raw(query, userID, userID, userID, limit, offset).Scan(&playlists).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return playlists, total, err
+}
+
 // Create creates a new playlist
 func (r *sqlRepository) Create(ctx context.Context, playlist *dbModel.Playlist) (*dbModel.Playlist, error) {
 	now := time.Now().UTC()

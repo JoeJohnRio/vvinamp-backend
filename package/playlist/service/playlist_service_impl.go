@@ -61,6 +61,17 @@ func (s *service) GetMyPlaylists(ctx context.Context, userID string, limit int, 
 	return s.repo.GetByCreatorID(ctx, userID, limit, offset)
 }
 
+// GetMyPlaylistFeed retrieves both created and saved playlists for a user with sorting
+func (s *service) GetMyPlaylistFeed(ctx context.Context, userID string, limit int, offset int, sortOrder string) ([]*dbModel.Playlist, int64, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	return s.repo.GetMyPlaylistFeed(ctx, userID, limit, offset, sortOrder)
+}
+
 // CreatePlaylist creates a new playlist
 func (s *service) CreatePlaylist(ctx context.Context, playlist *dbModel.Playlist) (*dbModel.Playlist, error) {
 	return s.repo.Create(ctx, playlist)

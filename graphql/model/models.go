@@ -57,7 +57,7 @@ type CreatePlaylistInput struct {
 	Title       string  `json:"title"`
 	Description *string `json:"description,omitempty"`
 	IsPublic    *bool   `json:"isPublic,omitempty"`
-	BannerImage *string `json:"bannerImage,omitempty"`
+	CoverImage  *string `json:"coverImage,omitempty"`
 }
 
 type DateRangeInput struct {
@@ -114,7 +114,6 @@ type Playlist struct {
 	UpdatedAt     *string          `json:"updatedAt,omitempty"`
 	IsPublic      bool             `json:"isPublic"`
 	CoverImage    *string          `json:"coverImage,omitempty"`
-	BannerImage   *string          `json:"bannerImage,omitempty"`
 	Tracks        []*PlaylistTrack `json:"tracks"`
 	SavedCount    int              `json:"savedCount"`
 	TotalDuration int              `json:"totalDuration"`
@@ -271,7 +270,7 @@ type UpdatePlaylistInput struct {
 	Title       *string `json:"title,omitempty"`
 	Description *string `json:"description,omitempty"`
 	IsPublic    *bool   `json:"isPublic,omitempty"`
-	BannerImage *string `json:"bannerImage,omitempty"`
+	CoverImage  *string `json:"coverImage,omitempty"`
 }
 
 type UserFollow struct {
@@ -343,6 +342,65 @@ func (e *ContentType) UnmarshalJSON(b []byte) error {
 }
 
 func (e ContentType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type PlaylistSortOrder string
+
+const (
+	PlaylistSortOrderRecents       PlaylistSortOrder = "RECENTS"
+	PlaylistSortOrderRecentlyAdded PlaylistSortOrder = "RECENTLY_ADDED"
+	PlaylistSortOrderAlphabetical  PlaylistSortOrder = "ALPHABETICAL"
+	PlaylistSortOrderCreator       PlaylistSortOrder = "CREATOR"
+)
+
+var AllPlaylistSortOrder = []PlaylistSortOrder{
+	PlaylistSortOrderRecents,
+	PlaylistSortOrderRecentlyAdded,
+	PlaylistSortOrderAlphabetical,
+	PlaylistSortOrderCreator,
+}
+
+func (e PlaylistSortOrder) IsValid() bool {
+	switch e {
+	case PlaylistSortOrderRecents, PlaylistSortOrderRecentlyAdded, PlaylistSortOrderAlphabetical, PlaylistSortOrderCreator:
+		return true
+	}
+	return false
+}
+
+func (e PlaylistSortOrder) String() string {
+	return string(e)
+}
+
+func (e *PlaylistSortOrder) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PlaylistSortOrder(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PlaylistSortOrder", str)
+	}
+	return nil
+}
+
+func (e PlaylistSortOrder) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PlaylistSortOrder) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PlaylistSortOrder) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -17,6 +17,7 @@ type Service interface {
 	GetPlaylistByID(ctx context.Context, id string) (*dbModel.Playlist, error)
 	GetPlaylistsByCreatorID(ctx context.Context, creatorID string, limit int, offset int) ([]*dbModel.Playlist, int64, error)
 	GetMyPlaylists(ctx context.Context, userID string, limit int, offset int) ([]*dbModel.Playlist, int64, error)
+	GetMyPlaylistFeed(ctx context.Context, userID string, limit int, offset int, sortOrder string) ([]*dbModel.Playlist, int64, error)
 	CreatePlaylist(ctx context.Context, playlist *dbModel.Playlist) (*dbModel.Playlist, error)
 	UpdatePlaylist(ctx context.Context, playlist *dbModel.Playlist) (*dbModel.Playlist, error)
 	DeletePlaylist(ctx context.Context, id string) error
