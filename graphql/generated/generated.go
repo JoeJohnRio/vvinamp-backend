@@ -167,7 +167,6 @@ type ComplexityRoot struct {
 		SavedCount    func(childComplexity int) int
 		Title         func(childComplexity int) int
 		TotalDuration func(childComplexity int) int
-		Tracks        func(childComplexity int) int
 		UpdatedAt     func(childComplexity int) int
 	}
 
@@ -187,6 +186,17 @@ type ComplexityRoot struct {
 		Playlist func(childComplexity int) int
 		Position func(childComplexity int) int
 		Track    func(childComplexity int) int
+	}
+
+	PlaylistTrackConnection struct {
+		Edges      func(childComplexity int) int
+		PageInfo   func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+	}
+
+	PlaylistTrackEdge struct {
+		Cursor func(childComplexity int) int
+		Node   func(childComplexity int) int
 	}
 
 	PodcastEpisode struct {
@@ -219,6 +229,7 @@ type ComplexityRoot struct {
 		GetMyPlaylistFeed   func(childComplexity int, first *int, after *string, last *int, before *string, sortOrder *model.PlaylistSortOrder) int
 		GetMyPlaylists      func(childComplexity int, first *int, after *string, last *int, before *string) int
 		GetPlaylist         func(childComplexity int, id string) int
+		GetPlaylistTracks   func(childComplexity int, playlistID string, first *int, after *string, last *int, before *string) int
 		GetPlaylistsByUser  func(childComplexity int, userID string, first *int, after *string, last *int, before *string) int
 		ListRecentHistory   func(childComplexity int, limit int) int
 		Login               func(childComplexity int, email string, password string) int
@@ -344,7 +355,6 @@ type MutationResolver interface {
 type PlaylistResolver interface {
 	Creator(ctx context.Context, obj *model.Playlist) (*model.User, error)
 
-	Tracks(ctx context.Context, obj *model.Playlist) ([]*model.PlaylistTrack, error)
 	SavedCount(ctx context.Context, obj *model.Playlist) (int, error)
 	TotalDuration(ctx context.Context, obj *model.Playlist) (int, error)
 	IsSavedByMe(ctx context.Context, obj *model.Playlist) (bool, error)
@@ -358,6 +368,7 @@ type QueryResolver interface {
 	ListRecentHistory(ctx context.Context, limit int) ([]*model.ListeningHistory, error)
 	PlaybackInfo(ctx context.Context, input model.PlaybackInput) (*model.PlaybackInfo, error)
 	GetPlaylist(ctx context.Context, id string) (*model.Playlist, error)
+	GetPlaylistTracks(ctx context.Context, playlistID string, first *int, after *string, last *int, before *string) (*model.PlaylistTrackConnection, error)
 	GetMyPlaylists(ctx context.Context, first *int, after *string, last *int, before *string) (*model.PlaylistConnection, error)
 	GetPlaylistsByUser(ctx context.Context, userID string, first *int, after *string, last *int, before *string) (*model.PlaylistConnection, error)
 	GetMyPlaylistFeed(ctx context.Context, first *int, after *string, last *int, before *string, sortOrder *model.PlaylistSortOrder) (*model.PlaylistConnection, error)
@@ -975,13 +986,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Playlist.TotalDuration(childComplexity), true
 
-	case "Playlist.tracks":
-		if e.complexity.Playlist.Tracks == nil {
-			break
-		}
-
-		return e.complexity.Playlist.Tracks(childComplexity), true
-
 	case "Playlist.updatedAt":
 		if e.complexity.Playlist.UpdatedAt == nil {
 			break
@@ -1051,6 +1055,41 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.PlaylistTrack.Track(childComplexity), true
+
+	case "PlaylistTrackConnection.edges":
+		if e.complexity.PlaylistTrackConnection.Edges == nil {
+			break
+		}
+
+		return e.complexity.PlaylistTrackConnection.Edges(childComplexity), true
+
+	case "PlaylistTrackConnection.pageInfo":
+		if e.complexity.PlaylistTrackConnection.PageInfo == nil {
+			break
+		}
+
+		return e.complexity.PlaylistTrackConnection.PageInfo(childComplexity), true
+
+	case "PlaylistTrackConnection.totalCount":
+		if e.complexity.PlaylistTrackConnection.TotalCount == nil {
+			break
+		}
+
+		return e.complexity.PlaylistTrackConnection.TotalCount(childComplexity), true
+
+	case "PlaylistTrackEdge.cursor":
+		if e.complexity.PlaylistTrackEdge.Cursor == nil {
+			break
+		}
+
+		return e.complexity.PlaylistTrackEdge.Cursor(childComplexity), true
+
+	case "PlaylistTrackEdge.node":
+		if e.complexity.PlaylistTrackEdge.Node == nil {
+			break
+		}
+
+		return e.complexity.PlaylistTrackEdge.Node(childComplexity), true
 
 	case "PodcastEpisode.audioFileUrl":
 		if e.complexity.PodcastEpisode.AudioFileURL == nil {
@@ -1242,6 +1281,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.GetPlaylist(childComplexity, args["id"].(string)), true
+
+	case "Query.getPlaylistTracks":
+		if e.complexity.Query.GetPlaylistTracks == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getPlaylistTracks_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetPlaylistTracks(childComplexity, args["playlistId"].(string), args["first"].(*int), args["after"].(*string), args["last"].(*int), args["before"].(*string)), true
 
 	case "Query.getPlaylistsByUser":
 		if e.complexity.Query.GetPlaylistsByUser == nil {
@@ -1933,7 +1984,6 @@ extend type Query {
   updatedAt: String
   isPublic: Boolean!
   coverImage: String
-  tracks: [PlaylistTrack!]!
   savedCount: Int!
   totalDuration: Int!
   isSavedByMe: Boolean!
@@ -1944,6 +1994,17 @@ type PlaylistTrack {
   track: Track!
   position: Int!
   addedAt: String!
+}
+
+type PlaylistTrackConnection {
+  edges: [PlaylistTrackEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type PlaylistTrackEdge {
+  cursor: String!
+  node: PlaylistTrack!
 }
 
 input CreatePlaylistInput {
@@ -1988,6 +2049,8 @@ enum PlaylistSortOrder {
 
 extend type Query {
   getPlaylist(id: ID!): Playlist
+
+  getPlaylistTracks(playlistId: ID!, first: Int, after: String, last: Int, before: String): PlaylistTrackConnection!
 
   getMyPlaylists(first: Int, after: String, last: Int, before: String): PlaylistConnection!
 
@@ -2774,6 +2837,126 @@ func (ec *executionContext) field_Query_getMyPlaylists_argsLast(
 }
 
 func (ec *executionContext) field_Query_getMyPlaylists_argsBefore(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["before"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("before"))
+	if tmp, ok := rawArgs["before"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getPlaylistTracks_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getPlaylistTracks_argsPlaylistID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["playlistId"] = arg0
+	arg1, err := ec.field_Query_getPlaylistTracks_argsFirst(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["first"] = arg1
+	arg2, err := ec.field_Query_getPlaylistTracks_argsAfter(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg2
+	arg3, err := ec.field_Query_getPlaylistTracks_argsLast(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["last"] = arg3
+	arg4, err := ec.field_Query_getPlaylistTracks_argsBefore(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["before"] = arg4
+	return args, nil
+}
+func (ec *executionContext) field_Query_getPlaylistTracks_argsPlaylistID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["playlistId"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("playlistId"))
+	if tmp, ok := rawArgs["playlistId"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getPlaylistTracks_argsFirst(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["first"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("first"))
+	if tmp, ok := rawArgs["first"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getPlaylistTracks_argsAfter(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["after"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("after"))
+	if tmp, ok := rawArgs["after"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getPlaylistTracks_argsLast(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["last"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("last"))
+	if tmp, ok := rawArgs["last"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getPlaylistTracks_argsBefore(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*string, error) {
@@ -5849,8 +6032,6 @@ func (ec *executionContext) fieldContext_Mutation_createPlaylist(ctx context.Con
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "tracks":
-				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -5930,8 +6111,6 @@ func (ec *executionContext) fieldContext_Mutation_updatePlaylist(ctx context.Con
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "tracks":
-				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -6066,8 +6245,6 @@ func (ec *executionContext) fieldContext_Mutation_addSongToPlaylist(ctx context.
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "tracks":
-				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -6202,8 +6379,6 @@ func (ec *executionContext) fieldContext_Mutation_savePlaylist(ctx context.Conte
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "tracks":
-				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -6948,60 +7123,6 @@ func (ec *executionContext) fieldContext_Playlist_coverImage(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Playlist_tracks(ctx context.Context, field graphql.CollectedField, obj *model.Playlist) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Playlist_tracks(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Playlist().Tracks(rctx, obj)
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.([]*model.PlaylistTrack)
-	fc.Result = res
-	return ec.marshalNPlaylistTrack2ᚕᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrackᚄ(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_Playlist_tracks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "Playlist",
-		Field:      field,
-		IsMethod:   true,
-		IsResolver: true,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "playlist":
-				return ec.fieldContext_PlaylistTrack_playlist(ctx, field)
-			case "track":
-				return ec.fieldContext_PlaylistTrack_track(ctx, field)
-			case "position":
-				return ec.fieldContext_PlaylistTrack_position(ctx, field)
-			case "addedAt":
-				return ec.fieldContext_PlaylistTrack_addedAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type PlaylistTrack", field.Name)
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _Playlist_savedCount(ctx context.Context, field graphql.CollectedField, obj *model.Playlist) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Playlist_savedCount(ctx, field)
 	if err != nil {
@@ -7381,8 +7502,6 @@ func (ec *executionContext) fieldContext_PlaylistEdge_node(_ context.Context, fi
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "tracks":
-				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -7451,8 +7570,6 @@ func (ec *executionContext) fieldContext_PlaylistTrack_playlist(_ context.Contex
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "tracks":
-				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -7615,6 +7732,252 @@ func (ec *executionContext) fieldContext_PlaylistTrack_addedAt(_ context.Context
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlaylistTrackConnection_edges(ctx context.Context, field graphql.CollectedField, obj *model.PlaylistTrackConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PlaylistTrackConnection_edges(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Edges, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.PlaylistTrackEdge)
+	fc.Result = res
+	return ec.marshalNPlaylistTrackEdge2ᚕᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrackEdgeᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PlaylistTrackConnection_edges(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlaylistTrackConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "cursor":
+				return ec.fieldContext_PlaylistTrackEdge_cursor(ctx, field)
+			case "node":
+				return ec.fieldContext_PlaylistTrackEdge_node(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PlaylistTrackEdge", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlaylistTrackConnection_pageInfo(ctx context.Context, field graphql.CollectedField, obj *model.PlaylistTrackConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PlaylistTrackConnection_pageInfo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PageInfo, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PageInfo)
+	fc.Result = res
+	return ec.marshalNPageInfo2ᚖvvinampᚋgraphqlᚋmodelᚐPageInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PlaylistTrackConnection_pageInfo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlaylistTrackConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hasNextPage":
+				return ec.fieldContext_PageInfo_hasNextPage(ctx, field)
+			case "hasPreviousPage":
+				return ec.fieldContext_PageInfo_hasPreviousPage(ctx, field)
+			case "startCursor":
+				return ec.fieldContext_PageInfo_startCursor(ctx, field)
+			case "endCursor":
+				return ec.fieldContext_PageInfo_endCursor(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PageInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlaylistTrackConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.PlaylistTrackConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PlaylistTrackConnection_totalCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PlaylistTrackConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlaylistTrackConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlaylistTrackEdge_cursor(ctx context.Context, field graphql.CollectedField, obj *model.PlaylistTrackEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PlaylistTrackEdge_cursor(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Cursor, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PlaylistTrackEdge_cursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlaylistTrackEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlaylistTrackEdge_node(ctx context.Context, field graphql.CollectedField, obj *model.PlaylistTrackEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PlaylistTrackEdge_node(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Node, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PlaylistTrack)
+	fc.Result = res
+	return ec.marshalNPlaylistTrack2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrack(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PlaylistTrackEdge_node(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlaylistTrackEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "playlist":
+				return ec.fieldContext_PlaylistTrack_playlist(ctx, field)
+			case "track":
+				return ec.fieldContext_PlaylistTrack_track(ctx, field)
+			case "position":
+				return ec.fieldContext_PlaylistTrack_position(ctx, field)
+			case "addedAt":
+				return ec.fieldContext_PlaylistTrack_addedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PlaylistTrack", field.Name)
 		},
 	}
 	return fc, nil
@@ -8852,8 +9215,6 @@ func (ec *executionContext) fieldContext_Query_getPlaylist(ctx context.Context, 
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "tracks":
-				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -8872,6 +9233,69 @@ func (ec *executionContext) fieldContext_Query_getPlaylist(ctx context.Context, 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_getPlaylist_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getPlaylistTracks(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getPlaylistTracks(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetPlaylistTracks(rctx, fc.Args["playlistId"].(string), fc.Args["first"].(*int), fc.Args["after"].(*string), fc.Args["last"].(*int), fc.Args["before"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PlaylistTrackConnection)
+	fc.Result = res
+	return ec.marshalNPlaylistTrackConnection2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrackConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getPlaylistTracks(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "edges":
+				return ec.fieldContext_PlaylistTrackConnection_edges(ctx, field)
+			case "pageInfo":
+				return ec.fieldContext_PlaylistTrackConnection_pageInfo(ctx, field)
+			case "totalCount":
+				return ec.fieldContext_PlaylistTrackConnection_totalCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PlaylistTrackConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getPlaylistTracks_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -11248,8 +11672,6 @@ func (ec *executionContext) fieldContext_User_playlists(_ context.Context, field
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
-			case "tracks":
-				return ec.fieldContext_Playlist_tracks(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -15239,42 +15661,6 @@ func (ec *executionContext) _Playlist(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "coverImage":
 			out.Values[i] = ec._Playlist_coverImage(ctx, field, obj)
-		case "tracks":
-			field := field
-
-			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
-				defer func() {
-					if r := recover(); r != nil {
-						ec.Error(ctx, ec.Recover(ctx, r))
-					}
-				}()
-				res = ec._Playlist_tracks(ctx, field, obj)
-				if res == graphql.Null {
-					atomic.AddUint32(&fs.Invalids, 1)
-				}
-				return res
-			}
-
-			if field.Deferrable != nil {
-				dfs, ok := deferred[field.Deferrable.Label]
-				di := 0
-				if ok {
-					dfs.AddField(field)
-					di = len(dfs.Values) - 1
-				} else {
-					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
-					deferred[field.Deferrable.Label] = dfs
-				}
-				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
-					return innerFunc(ctx, dfs)
-				})
-
-				// don't run the out.Concurrently() call below
-				out.Values[i] = graphql.Null
-				continue
-			}
-
-			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "savedCount":
 			field := field
 
@@ -15527,6 +15913,99 @@ func (ec *executionContext) _PlaylistTrack(ctx context.Context, sel ast.Selectio
 			}
 		case "addedAt":
 			out.Values[i] = ec._PlaylistTrack_addedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var playlistTrackConnectionImplementors = []string{"PlaylistTrackConnection"}
+
+func (ec *executionContext) _PlaylistTrackConnection(ctx context.Context, sel ast.SelectionSet, obj *model.PlaylistTrackConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, playlistTrackConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PlaylistTrackConnection")
+		case "edges":
+			out.Values[i] = ec._PlaylistTrackConnection_edges(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pageInfo":
+			out.Values[i] = ec._PlaylistTrackConnection_pageInfo(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCount":
+			out.Values[i] = ec._PlaylistTrackConnection_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var playlistTrackEdgeImplementors = []string{"PlaylistTrackEdge"}
+
+func (ec *executionContext) _PlaylistTrackEdge(ctx context.Context, sel ast.SelectionSet, obj *model.PlaylistTrackEdge) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, playlistTrackEdgeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PlaylistTrackEdge")
+		case "cursor":
+			out.Values[i] = ec._PlaylistTrackEdge_cursor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "node":
+			out.Values[i] = ec._PlaylistTrackEdge_node(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -15856,6 +16335,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_getPlaylist(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getPlaylistTracks":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getPlaylistTracks(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
 				return res
 			}
 
@@ -17562,7 +18063,31 @@ func (ec *executionContext) marshalNPlaylistEdge2ᚖvvinampᚋgraphqlᚋmodelᚐ
 	return ec._PlaylistEdge(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNPlaylistTrack2ᚕᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrackᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PlaylistTrack) graphql.Marshaler {
+func (ec *executionContext) marshalNPlaylistTrack2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrack(ctx context.Context, sel ast.SelectionSet, v *model.PlaylistTrack) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PlaylistTrack(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPlaylistTrackConnection2vvinampᚋgraphqlᚋmodelᚐPlaylistTrackConnection(ctx context.Context, sel ast.SelectionSet, v model.PlaylistTrackConnection) graphql.Marshaler {
+	return ec._PlaylistTrackConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPlaylistTrackConnection2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrackConnection(ctx context.Context, sel ast.SelectionSet, v *model.PlaylistTrackConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PlaylistTrackConnection(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNPlaylistTrackEdge2ᚕᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrackEdgeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PlaylistTrackEdge) graphql.Marshaler {
 	ret := make(graphql.Array, len(v))
 	var wg sync.WaitGroup
 	isLen1 := len(v) == 1
@@ -17586,7 +18111,7 @@ func (ec *executionContext) marshalNPlaylistTrack2ᚕᚖvvinampᚋgraphqlᚋmode
 			if !isLen1 {
 				defer wg.Done()
 			}
-			ret[i] = ec.marshalNPlaylistTrack2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrack(ctx, sel, v[i])
+			ret[i] = ec.marshalNPlaylistTrackEdge2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrackEdge(ctx, sel, v[i])
 		}
 		if isLen1 {
 			f(i)
@@ -17606,14 +18131,14 @@ func (ec *executionContext) marshalNPlaylistTrack2ᚕᚖvvinampᚋgraphqlᚋmode
 	return ret
 }
 
-func (ec *executionContext) marshalNPlaylistTrack2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrack(ctx context.Context, sel ast.SelectionSet, v *model.PlaylistTrack) graphql.Marshaler {
+func (ec *executionContext) marshalNPlaylistTrackEdge2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylistTrackEdge(ctx context.Context, sel ast.SelectionSet, v *model.PlaylistTrackEdge) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
 		}
 		return graphql.Null
 	}
-	return ec._PlaylistTrack(ctx, sel, v)
+	return ec._PlaylistTrackEdge(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNPodcastEpisode2ᚕᚖvvinampᚋgraphqlᚋmodelᚐPodcastEpisodeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.PodcastEpisode) graphql.Marshaler {

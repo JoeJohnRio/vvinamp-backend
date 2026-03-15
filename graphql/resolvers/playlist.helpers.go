@@ -192,3 +192,115 @@ func getMyPlaylistFeed(ctx context.Context, resolver *Resolver, userID string, f
 		TotalCount: int(total),
 	}, nil
 }
+
+// getPlaylistTracks is a helper function to get playlist tracks with pagination
+func getPlaylistTracks(ctx context.Context, resolver *Resolver, playlistID string, first *int, after *string, last *int, before *string, songSvc interface {
+	GetSingleTrack(ctx context.Context, id string) (*dbModel.Track, error)
+	GetAlbumByID(ctx context.Context, id string) (*dbModel.Album, error)
+}) (*model.PlaylistTrackConnection, error) {
+	playlistSvc := resolver.PlaylistService
+
+	// Default limit
+	limit := 20
+	if first != nil {
+		limit = *first
+	}
+	if last != nil {
+		limit = *last
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 50 {
+		limit = 50
+	}
+
+	// Handle cursor-based pagination
+	offset := 0
+	if after != nil {
+		cursorOffset, err := decodeCursorInt(*after)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cursor: %w", err)
+		}
+		offset = cursorOffset + 1
+	}
+
+	// Get playlist songs
+	playlistTracks, err := playlistSvc.GetPlaylistSongs(ctx, playlistID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get playlist tracks: %w", err)
+	}
+
+	// Apply pagination manually (since service returns all tracks)
+	total := len(playlistTracks)
+	if offset >= total {
+		playlistTracks = []*dbModel.PlaylistTrack{}
+	} else {
+		end := offset + limit
+		if end > total {
+			end = total
+		}
+		playlistTracks = playlistTracks[offset:end]
+	}
+
+	// Convert to GraphQL model with track details
+	edges := make([]*model.PlaylistTrackEdge, len(playlistTracks))
+	for i, pt := range playlistTracks {
+		// Get track details
+		track, err := songSvc.GetSingleTrack(ctx, pt.TrackID)
+		if err != nil {
+			// Skip tracks that don't exist
+			continue
+		}
+
+		// Get album cover
+		album, err := songSvc.GetAlbumByID(ctx, track.AlbumID.String())
+		albumCoverURL := ""
+		if err == nil {
+			albumCoverURL = album.CoverArt
+		}
+
+		// Get artist name (simplified - in production you'd fetch from track_artist table)
+		artistName := "Unknown Artist"
+
+		graphqlTrack := &model.PlaylistTrack{
+			Track: &model.Track{
+				ID:            track.ID.String(),
+				Title:         track.Title,
+				Duration:      track.Duration,
+				StreamCount:   track.StreamCount,
+				AudioFileURL:  track.AudioFileURL,
+				AlbumCoverURL: albumCoverURL,
+				ArtistName:    artistName,
+				Explicit:      track.Explicit,
+				Lyrics:        &track.Lyrics,
+				ReleaseDate:   track.ReleaseDate,
+			},
+			Position: pt.Position,
+			AddedAt:  pt.AddedAt.Format(time.RFC3339),
+		}
+
+		edges[i] = &model.PlaylistTrackEdge{
+			Cursor: encodeCursorInt(offset + i),
+			Node:   graphqlTrack,
+		}
+	}
+
+	// Build PageInfo
+	pageInfo := &model.PageInfo{
+		HasNextPage:     offset+len(edges) < total,
+		HasPreviousPage: offset > 0,
+	}
+	if len(edges) > 0 {
+		startCursor := edges[0].Cursor
+		endCursor := edges[len(edges)-1].Cursor
+		pageInfo.StartCursor = &startCursor
+		pageInfo.EndCursor = &endCursor
+	}
+
+	return &model.PlaylistTrackConnection{
+		Edges:      edges,
+		PageInfo:   pageInfo,
+		TotalCount: total,
+	}, nil
+}

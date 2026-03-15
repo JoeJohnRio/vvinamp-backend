@@ -106,18 +106,17 @@ type PlaybackInput struct {
 }
 
 type Playlist struct {
-	ID            string           `json:"id"`
-	Title         string           `json:"title"`
-	Description   *string          `json:"description,omitempty"`
-	Creator       *User            `json:"creator"`
-	CreatedAt     string           `json:"createdAt"`
-	UpdatedAt     *string          `json:"updatedAt,omitempty"`
-	IsPublic      bool             `json:"isPublic"`
-	CoverImage    *string          `json:"coverImage,omitempty"`
-	Tracks        []*PlaylistTrack `json:"tracks"`
-	SavedCount    int              `json:"savedCount"`
-	TotalDuration int              `json:"totalDuration"`
-	IsSavedByMe   bool             `json:"isSavedByMe"`
+	ID            string  `json:"id"`
+	Title         string  `json:"title"`
+	Description   *string `json:"description,omitempty"`
+	Creator       *User   `json:"creator"`
+	CreatedAt     string  `json:"createdAt"`
+	UpdatedAt     *string `json:"updatedAt,omitempty"`
+	IsPublic      bool    `json:"isPublic"`
+	CoverImage    *string `json:"coverImage,omitempty"`
+	SavedCount    int     `json:"savedCount"`
+	TotalDuration int     `json:"totalDuration"`
+	IsSavedByMe   bool    `json:"isSavedByMe"`
 }
 
 func (Playlist) IsSearchItem() {}
@@ -138,6 +137,17 @@ type PlaylistTrack struct {
 	Track    *Track    `json:"track"`
 	Position int       `json:"position"`
 	AddedAt  string    `json:"addedAt"`
+}
+
+type PlaylistTrackConnection struct {
+	Edges      []*PlaylistTrackEdge `json:"edges"`
+	PageInfo   *PageInfo            `json:"pageInfo"`
+	TotalCount int                  `json:"totalCount"`
+}
+
+type PlaylistTrackEdge struct {
+	Cursor string         `json:"cursor"`
+	Node   *PlaylistTrack `json:"node"`
 }
 
 type PodcastEpisode struct {

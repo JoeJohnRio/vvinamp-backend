@@ -7,7 +7,6 @@ package resolvers
 import (
 	"context"
 	"fmt"
-	"time"
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/model"
 	"vvinamp/internal/pkg/session"
@@ -255,59 +254,6 @@ func (r *playlistResolver) Creator(ctx context.Context, obj *model.Playlist) (*m
 	return creator, nil
 }
 
-// Tracks is the resolver for the tracks field.
-func (r *playlistResolver) Tracks(ctx context.Context, obj *model.Playlist) ([]*model.PlaylistTrack, error) {
-	playlistSvc := r.PlaylistService
-	songSvc := r.SongService
-
-	// Get playlist songs
-	playlistTracks, err := playlistSvc.GetPlaylistSongs(ctx, obj.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get playlist tracks: %w", err)
-	}
-
-	// Convert to GraphQL model with track details
-	result := make([]*model.PlaylistTrack, len(playlistTracks))
-	for i, pt := range playlistTracks {
-		// Get track details
-		track, err := songSvc.GetSingleTrack(ctx, pt.TrackID)
-		if err != nil {
-			// Skip tracks that don't exist
-			continue
-		}
-
-		// Get album cover
-		album, err := songSvc.GetAlbumByID(ctx, track.AlbumID.String())
-		albumCoverURL := ""
-		if err == nil {
-			albumCoverURL = album.CoverArt
-		}
-
-		// Get artist name (simplified - in production you'd fetch from track_artist table)
-		artistName := "Unknown Artist"
-
-		result[i] = &model.PlaylistTrack{
-			Playlist: obj,
-			Track: &model.Track{
-				ID:            track.ID.String(),
-				Title:         track.Title,
-				Duration:      track.Duration,
-				StreamCount:   track.StreamCount,
-				AudioFileURL:  track.AudioFileURL,
-				AlbumCoverURL: albumCoverURL,
-				ArtistName:    artistName,
-				Explicit:      track.Explicit,
-				Lyrics:        &track.Lyrics,
-				ReleaseDate:   track.ReleaseDate,
-			},
-			Position: pt.Position,
-			AddedAt:  pt.AddedAt.Format(time.RFC3339),
-		}
-	}
-
-	return result, nil
-}
-
 // SavedCount is the resolver for the savedCount field.
 func (r *playlistResolver) SavedCount(ctx context.Context, obj *model.Playlist) (int, error) {
 	playlistSvc := r.PlaylistService
@@ -371,6 +317,34 @@ func (r *queryResolver) GetPlaylist(ctx context.Context, id string) (*model.Play
 	}
 
 	return convertPlaylistToGraphQL(ctx, r.Resolver, playlist)
+}
+
+// GetPlaylistTracks is the resolver for the getPlaylistTracks field.
+func (r *queryResolver) GetPlaylistTracks(ctx context.Context, playlistID string, first *int, after *string, last *int, before *string) (*model.PlaylistTrackConnection, error) {
+	playlistSvc := r.PlaylistService
+	songSvc := r.SongService
+
+	// Get playlist to check access
+	playlist, err := playlistSvc.GetPlaylistByID(ctx, playlistID)
+	if err != nil {
+		return nil, fmt.Errorf("playlist not found: %w", err)
+	}
+
+	// Check if playlist is public or owned by current user
+	if !playlist.IsPublic {
+		sessionHelper := session.NewGraphQLSessionHelper()
+		userID, err := sessionHelper.RequireSessionForResolver(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("unauthorized: this playlist is private")
+		}
+
+		isOwner, err := playlistSvc.IsPlaylistOwner(ctx, playlistID, userID)
+		if err != nil || !isOwner {
+			return nil, fmt.Errorf("unauthorized: you don't have access to this playlist")
+		}
+	}
+
+	return getPlaylistTracks(ctx, r.Resolver, playlistID, first, after, last, before, songSvc)
 }
 
 // GetMyPlaylists is the resolver for the getMyPlaylists field.

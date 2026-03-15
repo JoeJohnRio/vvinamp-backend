@@ -7,7 +7,6 @@ type Playlist {
   updatedAt: String
   isPublic: Boolean!
   coverImage: String
-  tracks: [PlaylistTrack!]!
   savedCount: Int!
   totalDuration: Int!
   isSavedByMe: Boolean!
@@ -18,6 +17,17 @@ type PlaylistTrack {
   track: Track!
   position: Int!
   addedAt: String!
+}
+
+type PlaylistTrackConnection {
+  edges: [PlaylistTrackEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type PlaylistTrackEdge {
+  cursor: String!
+  node: PlaylistTrack!
 }
 
 input CreatePlaylistInput {
@@ -62,6 +72,8 @@ enum PlaylistSortOrder {
 
 extend type Query {
   getPlaylist(id: ID!): Playlist
+
+  getPlaylistTracks(playlistId: ID!, first: Int, after: String, last: Int, before: String): PlaylistTrackConnection!
 
   getMyPlaylists(first: Int, after: String, last: Int, before: String): PlaylistConnection!
 
