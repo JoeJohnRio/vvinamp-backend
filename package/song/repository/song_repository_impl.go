@@ -59,6 +59,46 @@ func (m *sqlRepository) GetTracksByAlbumIDWithDetails(ctx context.Context, album
 	return tracks, err
 }
 
+// GetTracksByGenres implements song.Repository.
+func (m *sqlRepository) GetTracksByGenres(ctx context.Context, genreIds []string, limit int, excludeIds []string) ([]*dto.TrackWithDetails, error) {
+	var tracks []*dto.TrackWithDetails
+
+	query := m.DB(ctx).
+		Table("tracks").
+		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name").
+		Joins("JOIN albums ON tracks.album_id = albums.id").
+		Joins("JOIN artists ON albums.artist_id = artists.id")
+
+	if len(genreIds) > 0 {
+		query = query.Where("albums.genre_id IN ?", genreIds)
+	}
+
+	if len(excludeIds) > 0 {
+		query = query.Where("tracks.id NOT IN ?", excludeIds)
+	}
+
+	err := query.Limit(limit).Scan(&tracks).Error
+	return tracks, err
+}
+
+// GetRandomTracks implements song.Repository.
+func (m *sqlRepository) GetRandomTracks(ctx context.Context, limit int, excludeIds []string) ([]*dto.TrackWithDetails, error) {
+	var tracks []*dto.TrackWithDetails
+
+	query := m.DB(ctx).
+		Table("tracks").
+		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name").
+		Joins("JOIN albums ON tracks.album_id = albums.id").
+		Joins("JOIN artists ON albums.artist_id = artists.id")
+
+	if len(excludeIds) > 0 {
+		query = query.Where("tracks.id NOT IN ?", excludeIds)
+	}
+
+	err := query.Order("RANDOM()").Limit(limit).Scan(&tracks).Error
+	return tracks, err
+}
+
 type SQLRepositoryTarget struct {
 	fx.In
 	Connection *postgre.Connection

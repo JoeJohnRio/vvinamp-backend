@@ -108,6 +108,68 @@ func (r *queryResolver) Album(ctx context.Context, id string) (*model.AlbumDetai
 	}, nil
 }
 
+// RecommendedTracks is the resolver for the recommendedTracks field.
+func (r *queryResolver) RecommendedTracks(ctx context.Context, limit int) ([]*model.Track, error) {
+	songSvc := song.ForContext(ctx)
+	tracks, err := songSvc.GetRecommendedTracks(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	graphqlTracks := make([]*model.Track, len(tracks))
+	for i, t := range tracks {
+		graphqlTracks[i] = &model.Track{
+			ID:            t.ID.String(),
+			Title:         t.Title,
+			Duration:      t.Duration,
+			StreamCount:   t.StreamCount,
+			AudioFileURL:  t.AudioFileURL,
+			AlbumCoverURL: t.AlbumCoverURL,
+			ArtistName:    t.ArtistName,
+			Explicit:      t.Explicit,
+			Lyrics: func() *string {
+				if t.Lyrics == "" {
+					return nil
+				}
+				return &t.Lyrics
+			}(),
+			ReleaseDate: t.ReleaseDate,
+		}
+	}
+	return graphqlTracks, nil
+}
+
+// RandomTracks is the resolver for the randomTracks field.
+func (r *queryResolver) RandomTracks(ctx context.Context, limit int, excludeIds []string) ([]*model.Track, error) {
+	songSvc := song.ForContext(ctx)
+	tracks, err := songSvc.GetRandomTracks(ctx, limit, excludeIds)
+	if err != nil {
+		return nil, err
+	}
+
+	graphqlTracks := make([]*model.Track, len(tracks))
+	for i, t := range tracks {
+		graphqlTracks[i] = &model.Track{
+			ID:            t.ID.String(),
+			Title:         t.Title,
+			Duration:      t.Duration,
+			StreamCount:   t.StreamCount,
+			AudioFileURL:  t.AudioFileURL,
+			AlbumCoverURL: t.AlbumCoverURL,
+			ArtistName:    t.ArtistName,
+			Explicit:      t.Explicit,
+			Lyrics: func() *string {
+				if t.Lyrics == "" {
+					return nil
+				}
+				return &t.Lyrics
+			}(),
+			ReleaseDate: t.ReleaseDate,
+		}
+	}
+	return graphqlTracks, nil
+}
+
 // Album returns generated.AlbumResolver implementation.
 func (r *Resolver) Album() generated.AlbumResolver { return &albumResolver{r} }
 

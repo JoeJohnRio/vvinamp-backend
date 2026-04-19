@@ -49,4 +49,6 @@ type Genre {
 
 extend type Query {
   album(id: ID!): AlbumDetail
+  recommendedTracks(limit: Int!): [Track!]!
+  randomTracks(limit: Int!, excludeIds: [ID!]): [Track!]!
 }

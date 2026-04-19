@@ -236,6 +236,8 @@ type ComplexityRoot struct {
 		Logout              func(childComplexity int) int
 		Me                  func(childComplexity int) int
 		PlaybackInfo        func(childComplexity int, input model.PlaybackInput) int
+		RandomTracks        func(childComplexity int, limit int, excludeIds []string) int
+		RecommendedTracks   func(childComplexity int, limit int) int
 		Search              func(childComplexity int, filter model.SearchFilter, first *int, after *string, last *int, before *string) int
 		Test                func(childComplexity int) int
 	}
@@ -374,6 +376,8 @@ type QueryResolver interface {
 	GetMyPlaylistFeed(ctx context.Context, first *int, after *string, last *int, before *string, sortOrder *model.PlaylistSortOrder) (*model.PlaylistConnection, error)
 	Search(ctx context.Context, filter model.SearchFilter, first *int, after *string, last *int, before *string) (*model.SearchItemConnection, error)
 	Album(ctx context.Context, id string) (*model.AlbumDetail, error)
+	RecommendedTracks(ctx context.Context, limit int) ([]*model.Track, error)
+	RandomTracks(ctx context.Context, limit int, excludeIds []string) ([]*model.Track, error)
 	Me(ctx context.Context) (*model.User, error)
 }
 type UserResolver interface {
@@ -1356,6 +1360,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.PlaybackInfo(childComplexity, args["input"].(model.PlaybackInput)), true
 
+	case "Query.randomTracks":
+		if e.complexity.Query.RandomTracks == nil {
+			break
+		}
+
+		args, err := ec.field_Query_randomTracks_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.RandomTracks(childComplexity, args["limit"].(int), args["excludeIds"].([]string)), true
+
+	case "Query.recommendedTracks":
+		if e.complexity.Query.RecommendedTracks == nil {
+			break
+		}
+
+		args, err := ec.field_Query_recommendedTracks_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.RecommendedTracks(childComplexity, args["limit"].(int)), true
+
 	case "Query.search":
 		if e.complexity.Query.Search == nil {
 			break
@@ -2212,6 +2240,8 @@ type Genre {
 
 extend type Query {
   album(id: ID!): AlbumDetail
+  recommendedTracks(limit: Int!): [Track!]!
+  randomTracks(limit: Int!, excludeIds: [ID!]): [Track!]!
 }`, BuiltIn: false},
 	{Name: "../schema/user.graphqls", Input: `type User {
   id: ID!
@@ -3226,6 +3256,85 @@ func (ec *executionContext) field_Query_playbackInfo_argsInput(
 	}
 
 	var zeroVal model.PlaybackInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_randomTracks_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_randomTracks_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	arg1, err := ec.field_Query_randomTracks_argsExcludeIds(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["excludeIds"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Query_randomTracks_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalNInt2int(ctx, tmp)
+	}
+
+	var zeroVal int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_randomTracks_argsExcludeIds(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]string, error) {
+	if _, ok := rawArgs["excludeIds"]; !ok {
+		var zeroVal []string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("excludeIds"))
+	if tmp, ok := rawArgs["excludeIds"]; ok {
+		return ec.unmarshalOID2ᚕstringᚄ(ctx, tmp)
+	}
+
+	var zeroVal []string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_recommendedTracks_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_recommendedTracks_argsLimit(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["limit"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_recommendedTracks_argsLimit(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (int, error) {
+	if _, ok := rawArgs["limit"]; !ok {
+		var zeroVal int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
+		return ec.unmarshalNInt2int(ctx, tmp)
+	}
+
+	var zeroVal int
 	return zeroVal, nil
 }
 
@@ -9620,6 +9729,160 @@ func (ec *executionContext) fieldContext_Query_album(ctx context.Context, field 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_album_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_recommendedTracks(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_recommendedTracks(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().RecommendedTracks(rctx, fc.Args["limit"].(int))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Track)
+	fc.Result = res
+	return ec.marshalNTrack2ᚕᚖvvinampᚋgraphqlᚋmodelᚐTrackᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_recommendedTracks(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Track_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Track_title(ctx, field)
+			case "duration":
+				return ec.fieldContext_Track_duration(ctx, field)
+			case "streamCount":
+				return ec.fieldContext_Track_streamCount(ctx, field)
+			case "audioFileUrl":
+				return ec.fieldContext_Track_audioFileUrl(ctx, field)
+			case "albumCoverUrl":
+				return ec.fieldContext_Track_albumCoverUrl(ctx, field)
+			case "artistName":
+				return ec.fieldContext_Track_artistName(ctx, field)
+			case "explicit":
+				return ec.fieldContext_Track_explicit(ctx, field)
+			case "lyrics":
+				return ec.fieldContext_Track_lyrics(ctx, field)
+			case "releaseDate":
+				return ec.fieldContext_Track_releaseDate(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_recommendedTracks_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_randomTracks(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_randomTracks(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().RandomTracks(rctx, fc.Args["limit"].(int), fc.Args["excludeIds"].([]string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.Track)
+	fc.Result = res
+	return ec.marshalNTrack2ᚕᚖvvinampᚋgraphqlᚋmodelᚐTrackᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_randomTracks(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Track_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Track_title(ctx, field)
+			case "duration":
+				return ec.fieldContext_Track_duration(ctx, field)
+			case "streamCount":
+				return ec.fieldContext_Track_streamCount(ctx, field)
+			case "audioFileUrl":
+				return ec.fieldContext_Track_audioFileUrl(ctx, field)
+			case "albumCoverUrl":
+				return ec.fieldContext_Track_albumCoverUrl(ctx, field)
+			case "artistName":
+				return ec.fieldContext_Track_artistName(ctx, field)
+			case "explicit":
+				return ec.fieldContext_Track_explicit(ctx, field)
+			case "lyrics":
+				return ec.fieldContext_Track_lyrics(ctx, field)
+			case "releaseDate":
+				return ec.fieldContext_Track_releaseDate(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_randomTracks_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -16473,6 +16736,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "recommendedTracks":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_recommendedTracks(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "randomTracks":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_randomTracks(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "me":
 			field := field
 
@@ -18958,6 +19265,42 @@ func (ec *executionContext) marshalOGenre2ᚖvvinampᚋgraphqlᚋmodelᚐGenre(c
 		return graphql.Null
 	}
 	return ec._Genre(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {

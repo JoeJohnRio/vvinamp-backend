@@ -3,10 +3,15 @@ package streaming
 import (
 	"context"
 	"fmt"
+	"time"
+	"vvinamp/constant"
+	"vvinamp/database/postgre"
+	"vvinamp/model"
 	"vvinamp/package/song"
 
 	"github.com/google/uuid"
 	"go.uber.org/fx"
+	"gorm.io/gorm"
 )
 
 // HLSConverter interface defines the methods needed for HLS conversion
@@ -55,6 +60,34 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string) (*Play
 			return nil, fmt.Errorf("hls convert: %w", err)
 		}
 	}
+
+	// --- AUTO-RECORD HISTORY & UPDATE COUNTER ---
+	userId, _ := ctx.Value(constant.Session).(string)
+	if userId != "" {
+		db := postgre.ForContext(ctx)
+
+		// 1. Remove old history entry for this song (to move it to the top)
+		db.Where("user_id = ? AND content_id = ? AND content_type = ?", userId, sourcePath, "TRACK").
+			Delete(&model.ListeningHistory{})
+
+		// 2. Create new history entry
+		historyEntry := model.ListeningHistory{
+			UserID:      userId,
+			ContentID:   sourcePath,
+			ContentType: "TRACK",
+			PlayedAt:    time.Now(),
+		}
+		if err := db.Create(&historyEntry).Error; err != nil {
+			fmt.Printf("failed to record history: %v\n", err)
+		}
+
+		// 3. Increment the Track's stream count
+		db.Model(&model.Track{}).
+			Where("id = ?", sourcePath).
+			Update("stream_count", gorm.Expr("stream_count + ?", 1))
+	}
+	// -------------------------------------------
+	// ---------------------------
 
 	// Note: The actual base URL should come from configuration
 	// For now, returning just the path part which will be combined with the server's base URL
