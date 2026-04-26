@@ -253,15 +253,20 @@ func getPlaylistTracks(ctx context.Context, resolver *Resolver, playlistID strin
 			continue
 		}
 
-		// Get album cover
+		// Get album cover and artist
 		album, err := songSvc.GetAlbumByID(ctx, track.AlbumID.String())
 		albumCoverURL := ""
-		if err == nil {
-			albumCoverURL = album.CoverArt
-		}
-
-		// Get artist name (simplified - in production you'd fetch from track_artist table)
 		artistName := "Unknown Artist"
+
+		if err == nil && album != nil {
+			albumCoverURL = album.CoverArt
+			
+			// Get artist name from album's artist ID
+			artist, artistErr := resolver.ArtistService.GetArtistByID(ctx, album.ArtistID.String())
+			if artistErr == nil && artist != nil {
+				artistName = artist.Name
+			}
+		}
 
 		graphqlTrack := &model.PlaylistTrack{
 			Track: &model.Track{

@@ -254,6 +254,47 @@ func (r *playlistResolver) Creator(ctx context.Context, obj *model.Playlist) (*m
 	return creator, nil
 }
 
+// AlbumCovers is the resolver for the albumCovers field.
+func (r *playlistResolver) AlbumCovers(ctx context.Context, obj *model.Playlist) ([]string, error) {
+	// If cover image is explicitly set, return empty list
+	if obj.CoverImage != nil && *obj.CoverImage != "" {
+		return []string{}, nil
+	}
+
+	// Fetch playlist songs to get album covers
+	playlistTracks, err := r.PlaylistService.GetPlaylistSongs(ctx, obj.ID)
+	if err != nil || len(playlistTracks) == 0 {
+		return []string{}, nil
+	}
+
+	var albumCovers []string
+	
+	for _, pt := range playlistTracks {
+		track, err := r.SongService.GetSingleTrack(ctx, pt.TrackID)
+		if err != nil || track == nil {
+			continue
+		}
+		
+		album, err := r.SongService.GetAlbumByID(ctx, track.AlbumID.String())
+		if err != nil || album == nil || album.CoverArt == "" {
+			continue
+		}
+		
+		albumCovers = append(albumCovers, album.CoverArt)
+		
+		if len(albumCovers) == 4 {
+			break
+		}
+	}
+
+	if len(albumCovers) > 0 && len(albumCovers) < 4 {
+		// If less than 4 covers available, just use the first one
+		return []string{albumCovers[0]}, nil
+	}
+
+	return albumCovers, nil
+}
+
 // SavedCount is the resolver for the savedCount field.
 func (r *playlistResolver) SavedCount(ctx context.Context, obj *model.Playlist) (int, error) {
 	playlistSvc := r.PlaylistService

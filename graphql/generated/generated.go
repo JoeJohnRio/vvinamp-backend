@@ -157,6 +157,7 @@ type ComplexityRoot struct {
 	}
 
 	Playlist struct {
+		AlbumCovers   func(childComplexity int) int
 		CoverImage    func(childComplexity int) int
 		CreatedAt     func(childComplexity int) int
 		Creator       func(childComplexity int) int
@@ -357,6 +358,7 @@ type MutationResolver interface {
 type PlaylistResolver interface {
 	Creator(ctx context.Context, obj *model.Playlist) (*model.User, error)
 
+	AlbumCovers(ctx context.Context, obj *model.Playlist) ([]string, error)
 	SavedCount(ctx context.Context, obj *model.Playlist) (int, error)
 	TotalDuration(ctx context.Context, obj *model.Playlist) (int, error)
 	IsSavedByMe(ctx context.Context, obj *model.Playlist) (bool, error)
@@ -919,6 +921,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.PlaybackInfo.Mp3Fallback(childComplexity), true
+
+	case "Playlist.albumCovers":
+		if e.complexity.Playlist.AlbumCovers == nil {
+			break
+		}
+
+		return e.complexity.Playlist.AlbumCovers(childComplexity), true
 
 	case "Playlist.coverImage":
 		if e.complexity.Playlist.CoverImage == nil {
@@ -2012,6 +2021,7 @@ extend type Query {
   updatedAt: String
   isPublic: Boolean!
   coverImage: String
+  albumCovers: [String!]
   savedCount: Int!
   totalDuration: Int!
   isSavedByMe: Boolean!
@@ -6141,6 +6151,8 @@ func (ec *executionContext) fieldContext_Mutation_createPlaylist(ctx context.Con
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
+			case "albumCovers":
+				return ec.fieldContext_Playlist_albumCovers(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -6220,6 +6232,8 @@ func (ec *executionContext) fieldContext_Mutation_updatePlaylist(ctx context.Con
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
+			case "albumCovers":
+				return ec.fieldContext_Playlist_albumCovers(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -6354,6 +6368,8 @@ func (ec *executionContext) fieldContext_Mutation_addSongToPlaylist(ctx context.
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
+			case "albumCovers":
+				return ec.fieldContext_Playlist_albumCovers(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -6488,6 +6504,8 @@ func (ec *executionContext) fieldContext_Mutation_savePlaylist(ctx context.Conte
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
+			case "albumCovers":
+				return ec.fieldContext_Playlist_albumCovers(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -7232,6 +7250,47 @@ func (ec *executionContext) fieldContext_Playlist_coverImage(_ context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Playlist_albumCovers(ctx context.Context, field graphql.CollectedField, obj *model.Playlist) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Playlist_albumCovers(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Playlist().AlbumCovers(rctx, obj)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalOString2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Playlist_albumCovers(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Playlist",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Playlist_savedCount(ctx context.Context, field graphql.CollectedField, obj *model.Playlist) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Playlist_savedCount(ctx, field)
 	if err != nil {
@@ -7611,6 +7670,8 @@ func (ec *executionContext) fieldContext_PlaylistEdge_node(_ context.Context, fi
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
+			case "albumCovers":
+				return ec.fieldContext_Playlist_albumCovers(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -7679,6 +7740,8 @@ func (ec *executionContext) fieldContext_PlaylistTrack_playlist(_ context.Contex
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
+			case "albumCovers":
+				return ec.fieldContext_Playlist_albumCovers(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -9324,6 +9387,8 @@ func (ec *executionContext) fieldContext_Query_getPlaylist(ctx context.Context, 
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
+			case "albumCovers":
+				return ec.fieldContext_Playlist_albumCovers(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -11935,6 +12000,8 @@ func (ec *executionContext) fieldContext_User_playlists(_ context.Context, field
 				return ec.fieldContext_Playlist_isPublic(ctx, field)
 			case "coverImage":
 				return ec.fieldContext_Playlist_coverImage(ctx, field)
+			case "albumCovers":
+				return ec.fieldContext_Playlist_albumCovers(ctx, field)
 			case "savedCount":
 				return ec.fieldContext_Playlist_savedCount(ctx, field)
 			case "totalDuration":
@@ -15924,6 +15991,39 @@ func (ec *executionContext) _Playlist(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "coverImage":
 			out.Values[i] = ec._Playlist_coverImage(ctx, field, obj)
+		case "albumCovers":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Playlist_albumCovers(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "savedCount":
 			field := field
 

@@ -106,17 +106,18 @@ type PlaybackInput struct {
 }
 
 type Playlist struct {
-	ID            string  `json:"id"`
-	Title         string  `json:"title"`
-	Description   *string `json:"description,omitempty"`
-	Creator       *User   `json:"creator"`
-	CreatedAt     string  `json:"createdAt"`
-	UpdatedAt     *string `json:"updatedAt,omitempty"`
-	IsPublic      bool    `json:"isPublic"`
-	CoverImage    *string `json:"coverImage,omitempty"`
-	SavedCount    int     `json:"savedCount"`
-	TotalDuration int     `json:"totalDuration"`
-	IsSavedByMe   bool    `json:"isSavedByMe"`
+	ID            string   `json:"id"`
+	Title         string   `json:"title"`
+	Description   *string  `json:"description,omitempty"`
+	Creator       *User    `json:"creator"`
+	CreatedAt     string   `json:"createdAt"`
+	UpdatedAt     *string  `json:"updatedAt,omitempty"`
+	IsPublic      bool     `json:"isPublic"`
+	CoverImage    *string  `json:"coverImage,omitempty"`
+	AlbumCovers   []string `json:"albumCovers,omitempty"`
+	SavedCount    int      `json:"savedCount"`
+	TotalDuration int      `json:"totalDuration"`
+	IsSavedByMe   bool     `json:"isSavedByMe"`
 }
 
 func (Playlist) IsSearchItem() {}

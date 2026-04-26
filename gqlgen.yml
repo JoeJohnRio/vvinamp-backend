@@ -71,6 +71,8 @@ models:
         resolver: true
       isSavedByMe:
         resolver: true
+      albumCovers:
+        resolver: true
   ListeningHistory:
     fields:
       user:
