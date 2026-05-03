@@ -66,14 +66,15 @@ type DateRangeInput struct {
 }
 
 type ListeningHistory struct {
-	ID           string      `json:"id"`
-	ContentID    string      `json:"contentId"`
-	User         *User       `json:"user"`
-	PlayedAt     string      `json:"playedAt"`
-	Progress     *int        `json:"progress,omitempty"`
-	ContentType  ContentType `json:"contentType"`
-	ContentName  string      `json:"contentName"`
-	ContentImage *string     `json:"contentImage,omitempty"`
+	ID              string      `json:"id"`
+	ContentID       string      `json:"contentId"`
+	User            *User       `json:"user"`
+	PlayedAt        string      `json:"playedAt"`
+	Progress        *int        `json:"progress,omitempty"`
+	ContentType     ContentType `json:"contentType"`
+	ContentName     string      `json:"contentName"`
+	ContentSubtitle *string     `json:"contentSubtitle,omitempty"`
+	ContentImage    *string     `json:"contentImage,omitempty"`
 }
 
 type Login struct {
@@ -102,7 +103,9 @@ type PlaybackInfo struct {
 }
 
 type PlaybackInput struct {
-	TrackID string `json:"trackId"`
+	TrackID     string       `json:"trackId"`
+	ContentType *ContentType `json:"contentType,omitempty"`
+	ContentID   *string      `json:"contentId,omitempty"`
 }
 
 type Playlist struct {

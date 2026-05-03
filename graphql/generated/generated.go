@@ -116,14 +116,15 @@ type ComplexityRoot struct {
 	}
 
 	ListeningHistory struct {
-		ContentID    func(childComplexity int) int
-		ContentImage func(childComplexity int) int
-		ContentName  func(childComplexity int) int
-		ContentType  func(childComplexity int) int
-		ID           func(childComplexity int) int
-		PlayedAt     func(childComplexity int) int
-		Progress     func(childComplexity int) int
-		User         func(childComplexity int) int
+		ContentID       func(childComplexity int) int
+		ContentImage    func(childComplexity int) int
+		ContentName     func(childComplexity int) int
+		ContentSubtitle func(childComplexity int) int
+		ContentType     func(childComplexity int) int
+		ID              func(childComplexity int) int
+		PlayedAt        func(childComplexity int) int
+		Progress        func(childComplexity int) int
+		User            func(childComplexity int) int
 	}
 
 	LoginPayload struct {
@@ -715,6 +716,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ListeningHistory.ContentName(childComplexity), true
+
+	case "ListeningHistory.contentSubtitle":
+		if e.complexity.ListeningHistory.ContentSubtitle == nil {
+			break
+		}
+
+		return e.complexity.ListeningHistory.ContentSubtitle(childComplexity), true
 
 	case "ListeningHistory.contentType":
 		if e.complexity.ListeningHistory.ContentType == nil {
@@ -1955,6 +1963,7 @@ extend type Mutation {
   progress: Int
   contentType: ContentType!
   contentName: String!
+  contentSubtitle: String
   contentImage: String
 }
 
@@ -2007,6 +2016,8 @@ type StringEdge {
 
 input PlaybackInput {
   trackId: ID!
+  contentType: ContentType
+  contentId: ID
 }
 
 extend type Query {
@@ -5847,6 +5858,47 @@ func (ec *executionContext) fieldContext_ListeningHistory_contentName(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _ListeningHistory_contentSubtitle(ctx context.Context, field graphql.CollectedField, obj *model.ListeningHistory) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ListeningHistory_contentSubtitle(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ContentSubtitle, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ListeningHistory_contentSubtitle(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ListeningHistory",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _ListeningHistory_contentImage(ctx context.Context, field graphql.CollectedField, obj *model.ListeningHistory) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_ListeningHistory_contentImage(ctx, field)
 	if err != nil {
@@ -9252,6 +9304,8 @@ func (ec *executionContext) fieldContext_Query_listRecentHistory(ctx context.Con
 				return ec.fieldContext_ListeningHistory_contentType(ctx, field)
 			case "contentName":
 				return ec.fieldContext_ListeningHistory_contentName(ctx, field)
+			case "contentSubtitle":
+				return ec.fieldContext_ListeningHistory_contentSubtitle(ctx, field)
 			case "contentImage":
 				return ec.fieldContext_ListeningHistory_contentImage(ctx, field)
 			}
@@ -12068,6 +12122,8 @@ func (ec *executionContext) fieldContext_User_listeningHistory(_ context.Context
 				return ec.fieldContext_ListeningHistory_contentType(ctx, field)
 			case "contentName":
 				return ec.fieldContext_ListeningHistory_contentName(ctx, field)
+			case "contentSubtitle":
+				return ec.fieldContext_ListeningHistory_contentSubtitle(ctx, field)
 			case "contentImage":
 				return ec.fieldContext_ListeningHistory_contentImage(ctx, field)
 			}
@@ -14610,7 +14666,7 @@ func (ec *executionContext) unmarshalInputPlaybackInput(ctx context.Context, obj
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"trackId"}
+	fieldsInOrder := [...]string{"trackId", "contentType", "contentId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -14624,6 +14680,20 @@ func (ec *executionContext) unmarshalInputPlaybackInput(ctx context.Context, obj
 				return it, err
 			}
 			it.TrackID = data
+		case "contentType":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contentType"))
+			data, err := ec.unmarshalOContentType2ᚖvvinampᚋgraphqlᚋmodelᚐContentType(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContentType = data
+		case "contentId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("contentId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ContentID = data
 		}
 	}
 
@@ -15657,6 +15727,8 @@ func (ec *executionContext) _ListeningHistory(ctx context.Context, sel ast.Selec
 			if out.Values[i] == graphql.Null {
 				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "contentSubtitle":
+			out.Values[i] = ec._ListeningHistory_contentSubtitle(ctx, field, obj)
 		case "contentImage":
 			out.Values[i] = ec._ListeningHistory_contentImage(ctx, field, obj)
 		default:
@@ -19401,6 +19473,24 @@ func (ec *executionContext) marshalOID2ᚕstringᚄ(ctx context.Context, sel ast
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalID(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalID(*v)
+	return res
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {

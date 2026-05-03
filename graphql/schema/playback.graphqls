@@ -6,6 +6,8 @@ type PlaybackInfo {
 
 input PlaybackInput {
   trackId: ID!
+  contentType: ContentType
+  contentId: ID
 }
 
 extend type Query {

@@ -15,7 +15,6 @@ import (
 	graphqlModel "vvinamp/graphql/model"
 	dbModel "vvinamp/model"
 	"vvinamp/package/history"
-	"vvinamp/package/song"
 )
 
 // User is the resolver for the user field.
@@ -73,16 +72,18 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 
 		// Get content name based on content type
 		var contentName string
+		var contentSubtitle *string
 		var contentImage *string
 		switch contentType {
 		case graphqlModel.ContentTypeTrack:
-			songSvc := song.ForContext(ctx)
+			songSvc := r.SongService
 			data, err := songSvc.GetSingleTrack(ctx, raw.ContentID)
 			if err != nil {
 				log.Printf("Error fetching track for content name/image: %v", err)
 				contentName = "Unknown Track"
 				empty := ""
 				contentImage = &empty
+				contentSubtitle = &empty
 			} else {
 				contentName = data.Title
 				album, err := songSvc.GetAlbumByID(ctx, data.AlbumID.String())
@@ -90,23 +91,38 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 					log.Printf("Error fetching album for content image: %v", err)
 					empty := ""
 					contentImage = &empty
+					contentSubtitle = &empty
 				} else {
 					contentImage = &album.CoverArt
+					artist, artistErr := r.ArtistService.GetArtistByID(ctx, album.ArtistID.String())
+					if artistErr == nil && artist != nil {
+						contentSubtitle = &artist.Name
+					} else {
+						empty := "Unknown Artist"
+						contentSubtitle = &empty
+					}
 				}
 			}
 		case graphqlModel.ContentTypePodcastEpisode:
 			// For podcasts, fetch podcast episode info
 			var podcastEpisode dbModel.PodcastEpisode
 			db := postgre.ForContext(ctx)
-			result := db.Where("id = ?", raw.ContentID).First(&podcastEpisode)
+			result := db.Where("id = ?", raw.ContentID).Preload("Series").First(&podcastEpisode)
 			if result.Error != nil {
 				log.Printf("Error fetching podcast episode: %v", result.Error)
 				contentName = "Unknown Podcast Episode"
 				empty := ""
 				contentImage = &empty
+				contentSubtitle = &empty
 			} else {
 				contentName = podcastEpisode.Title
 				contentImage = podcastEpisode.CoverArt
+				if podcastEpisode.Series != nil {
+					contentSubtitle = &podcastEpisode.Series.Title
+				} else {
+					empty := ""
+					contentSubtitle = &empty
+				}
 			}
 		case graphqlModel.ContentTypePlaylist:
 			// For playlists, fetch playlist info
@@ -118,9 +134,18 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 				contentName = "Unknown Playlist"
 				empty := ""
 				contentImage = &empty
+				contentSubtitle = &empty
 			} else {
 				contentName = playlist.Title
 				contentImage = playlist.CoverImage
+				
+				creator, err := r.UserService.GetByID(ctx, playlist.CreatorID)
+				if err == nil && creator != nil {
+					contentSubtitle = &creator.Username
+				} else {
+					empty := ""
+					contentSubtitle = &empty
+				}
 			}
 		case graphqlModel.ContentTypePodcastSeries:
 			// For podcast series, fetch series info
@@ -132,9 +157,11 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 				contentName = "Unknown Podcast Series"
 				empty := ""
 				contentImage = &empty
+				contentSubtitle = &empty
 			} else {
 				contentName = podcastSeries.Title
 				contentImage = podcastSeries.CoverArt
+				contentSubtitle = podcastSeries.Publisher
 			}
 		case graphqlModel.ContentTypeArtist:
 			// For artists, fetch artist info
@@ -146,23 +173,28 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 				contentName = "Unknown Artist"
 				empty := ""
 				contentImage = &empty
+				contentSubtitle = &empty
 			} else {
 				contentName = artist.Name
 				contentImage = artist.ProfileImage
+				empty := "Artist"
+				contentSubtitle = &empty
 			}
 		default:
 			// For other content types, return empty string
 			empty := ""
 			contentName = "Unknown Content"
 			contentImage = &empty
+			contentSubtitle = &empty
 		}
 
 		apiHistory := &graphqlModel.ListeningHistory{
-			ID:           raw.ID,
-			ContentID:    raw.ContentID,
-			ContentType:  contentType,
-			ContentName:  contentName,
-			ContentImage: contentImage,
+			ID:              raw.ID,
+			ContentID:       raw.ContentID,
+			ContentType:     contentType,
+			ContentName:     contentName,
+			ContentSubtitle: contentSubtitle,
+			ContentImage:    contentImage,
 			// PlayedAt:    raw.PlayedAt,
 			// Progress:    raw.Progress,
 			// resolve user or relationships as required

@@ -15,8 +15,16 @@ func (r *queryResolver) PlaybackInfo(ctx context.Context, input model.PlaybackIn
 	// Get the streaming service from the resolver
 	streamingService := r.StreamingService
 
+	var contentType, contentId string
+	if input.ContentType != nil {
+		contentType = string(*input.ContentType)
+	}
+	if input.ContentID != nil {
+		contentId = *input.ContentID
+	}
+
 	// Use the streaming service to get playback info
-	result, err := streamingService.GetPlaybackInfo(ctx, input.TrackID)
+	result, err := streamingService.GetPlaybackInfo(ctx, input.TrackID, contentType, contentId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get playback info: %w", err)
 	}

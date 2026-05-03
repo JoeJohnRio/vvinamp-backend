@@ -41,7 +41,7 @@ func NewService(target ServiceTarget) *Service {
 }
 
 // GetPlaybackInfo returns the HLS URL for a given track
-func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string) (*PlaybackInfoResult, error) {
+func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, contentType string, contentId string) (*PlaybackInfoResult, error) {
 
 	trackIdUuid, err := uuid.Parse(sourcePath)
 	if err != nil {
@@ -66,15 +66,25 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string) (*Play
 	if userId != "" {
 		db := postgre.ForContext(ctx)
 
-		// 1. Remove old history entry for this song (to move it to the top)
-		db.Where("user_id = ? AND content_id = ? AND content_type = ?", userId, sourcePath, "TRACK").
+		actualContentType := "TRACK"
+		if contentType != "" {
+			actualContentType = contentType
+		}
+		
+		actualContentId := sourcePath
+		if contentId != "" {
+			actualContentId = contentId
+		}
+
+		// 1. Remove old history entry for this content (to move it to the top)
+		db.Where("user_id = ? AND content_id = ? AND content_type = ?", userId, actualContentId, actualContentType).
 			Delete(&model.ListeningHistory{})
 
 		// 2. Create new history entry
 		historyEntry := model.ListeningHistory{
 			UserID:      userId,
-			ContentID:   sourcePath,
-			ContentType: "TRACK",
+			ContentID:   actualContentId,
+			ContentType: actualContentType,
 			PlayedAt:    time.Now(),
 		}
 		if err := db.Create(&historyEntry).Error; err != nil {

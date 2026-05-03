@@ -268,22 +268,26 @@ func (r *playlistResolver) AlbumCovers(ctx context.Context, obj *model.Playlist)
 	}
 
 	var albumCovers []string
-	
+	seenCovers := make(map[string]bool)
+
 	for _, pt := range playlistTracks {
 		track, err := r.SongService.GetSingleTrack(ctx, pt.TrackID)
 		if err != nil || track == nil {
 			continue
 		}
-		
+
 		album, err := r.SongService.GetAlbumByID(ctx, track.AlbumID.String())
 		if err != nil || album == nil || album.CoverArt == "" {
 			continue
 		}
-		
-		albumCovers = append(albumCovers, album.CoverArt)
-		
-		if len(albumCovers) == 4 {
-			break
+
+		if !seenCovers[album.CoverArt] {
+			seenCovers[album.CoverArt] = true
+			albumCovers = append(albumCovers, album.CoverArt)
+
+			if len(albumCovers) == 4 {
+				break
+			}
 		}
 	}
 
