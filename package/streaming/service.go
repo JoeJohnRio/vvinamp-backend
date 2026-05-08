@@ -6,10 +6,12 @@ import (
 	"time"
 	"vvinamp/constant"
 	"vvinamp/database/postgre"
+	redisDb "vvinamp/database/redis"
 	"vvinamp/model"
 	"vvinamp/package/song"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/fx"
 	"gorm.io/gorm"
 )
@@ -25,18 +27,22 @@ type HLSConverter interface {
 type Service struct {
 	Repo           song.Repository
 	FileController HLSConverter
+	Redis          *redis.Client
 }
 
 // ServiceTarget is parameter object for getting all Service's dependencies
 type ServiceTarget struct {
 	fx.In
 	FileController HLSConverter `name:"hlsConverter"`
+	RedisConn      *redisDb.Connection
 }
 
 // NewService creates a new streaming service
 func NewService(target ServiceTarget) *Service {
+	redisClient, _ := target.RedisConn.Client()
 	return &Service{
 		FileController: target.FileController,
+		Redis:          redisClient,
 	}
 }
 
@@ -70,7 +76,7 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, conten
 		if contentType != "" {
 			actualContentType = contentType
 		}
-		
+
 		actualContentId := sourcePath
 		if contentId != "" {
 			actualContentId = contentId

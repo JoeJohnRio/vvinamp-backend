@@ -10,6 +10,18 @@ input PlaybackInput {
   contentId: ID
 }
 
+type PlayerQueue {
+  currentTrackId: ID
+  upcomingTrackIds: [ID!]!
+}
+
 extend type Query {
   playbackInfo(input: PlaybackInput!): PlaybackInfo!
+  playerQueue: PlayerQueue!
+}
+
+extend type Mutation {
+  addToQueue(trackIds: [ID!]!): PlayerQueue!
+  clearQueue: PlayerQueue!
+  skipToNext: PlayerQueue!
 }

@@ -5,6 +5,7 @@ import (
 	"vvinamp/controller"
 	"vvinamp/controller/auth"
 	"vvinamp/database/postgre"
+	"vvinamp/database/redis"
 	"vvinamp/logging"
 	"vvinamp/package/streaming"
 	"vvinamp/server"
@@ -24,6 +25,7 @@ var Module = fx.Options(
 		logging.New,
 		server.New,
 		postgre.New,
+		redis.New,
 		controller.NewGraphQLController,
 		controller.NewHomeController,
 

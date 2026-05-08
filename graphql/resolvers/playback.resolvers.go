@@ -7,8 +7,36 @@ package resolvers
 import (
 	"context"
 	"fmt"
+	"vvinamp/constant"
 	"vvinamp/graphql/model"
 )
+
+// AddToQueue is the resolver for the addToQueue field.
+func (r *mutationResolver) AddToQueue(ctx context.Context, trackIds []string) (*model.PlayerQueue, error) {
+	userId, _ := ctx.Value(constant.Session).(string)
+	if userId == "" {
+		return nil, fmt.Errorf("unauthorized")
+	}
+	return r.StreamingService.AddToQueue(ctx, userId, trackIds)
+}
+
+// ClearQueue is the resolver for the clearQueue field.
+func (r *mutationResolver) ClearQueue(ctx context.Context) (*model.PlayerQueue, error) {
+	userId, _ := ctx.Value(constant.Session).(string)
+	if userId == "" {
+		return nil, fmt.Errorf("unauthorized")
+	}
+	return r.StreamingService.ClearQueue(ctx, userId)
+}
+
+// SkipToNext is the resolver for the skipToNext field.
+func (r *mutationResolver) SkipToNext(ctx context.Context) (*model.PlayerQueue, error) {
+	userId, _ := ctx.Value(constant.Session).(string)
+	if userId == "" {
+		return nil, fmt.Errorf("unauthorized")
+	}
+	return r.StreamingService.SkipToNext(ctx, userId)
+}
 
 // PlaybackInfo is the resolver for the playbackInfo field.
 func (r *queryResolver) PlaybackInfo(ctx context.Context, input model.PlaybackInput) (*model.PlaybackInfo, error) {
@@ -45,4 +73,13 @@ func (r *queryResolver) PlaybackInfo(ctx context.Context, input model.PlaybackIn
 	}
 
 	return playbackInfo, nil
+}
+
+// PlayerQueue is the resolver for the playerQueue field.
+func (r *queryResolver) PlayerQueue(ctx context.Context) (*model.PlayerQueue, error) {
+	userId, _ := ctx.Value(constant.Session).(string)
+	if userId == "" {
+		return nil, fmt.Errorf("unauthorized")
+	}
+	return r.StreamingService.GetPlayerQueue(ctx, userId)
 }

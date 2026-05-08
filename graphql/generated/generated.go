@@ -133,12 +133,15 @@ type ComplexityRoot struct {
 
 	Mutation struct {
 		AddSongToPlaylist      func(childComplexity int, input model.AddSongToPlaylistInput) int
+		AddToQueue             func(childComplexity int, trackIds []string) int
+		ClearQueue             func(childComplexity int) int
 		CreatePlaylist         func(childComplexity int, input model.CreatePlaylistInput) int
 		DeletePlaylist         func(childComplexity int, id string) int
 		RefreshToken           func(childComplexity int, refreshToken string) int
 		Register               func(childComplexity int, input model.RegisterInput) int
 		RemoveSongFromPlaylist func(childComplexity int, input model.RemoveSongFromPlaylistInput) int
 		SavePlaylist           func(childComplexity int, input model.SavePlaylistInput) int
+		SkipToNext             func(childComplexity int) int
 		Test                   func(childComplexity int) int
 		UnsavePlaylist         func(childComplexity int, input model.UnsavePlaylistInput) int
 		UpdatePlaylist         func(childComplexity int, id string, input model.UpdatePlaylistInput) int
@@ -155,6 +158,11 @@ type ComplexityRoot struct {
 		DurationMs  func(childComplexity int) int
 		HlsURL      func(childComplexity int) int
 		Mp3Fallback func(childComplexity int) int
+	}
+
+	PlayerQueue struct {
+		CurrentTrackID   func(childComplexity int) int
+		UpcomingTrackIds func(childComplexity int) int
 	}
 
 	Playlist struct {
@@ -238,6 +246,7 @@ type ComplexityRoot struct {
 		Logout              func(childComplexity int) int
 		Me                  func(childComplexity int) int
 		PlaybackInfo        func(childComplexity int, input model.PlaybackInput) int
+		PlayerQueue         func(childComplexity int) int
 		RandomTracks        func(childComplexity int, limit int, excludeIds []string) int
 		RecommendedTracks   func(childComplexity int, limit int) int
 		Search              func(childComplexity int, filter model.SearchFilter, first *int, after *string, last *int, before *string) int
@@ -348,6 +357,9 @@ type MutationResolver interface {
 	Test(ctx context.Context) (*bool, error)
 	RefreshToken(ctx context.Context, refreshToken string) (*model.LoginPayload, error)
 	Register(ctx context.Context, input model.RegisterInput) (*model.RegisterPayload, error)
+	AddToQueue(ctx context.Context, trackIds []string) (*model.PlayerQueue, error)
+	ClearQueue(ctx context.Context) (*model.PlayerQueue, error)
+	SkipToNext(ctx context.Context) (*model.PlayerQueue, error)
 	CreatePlaylist(ctx context.Context, input model.CreatePlaylistInput) (*model.Playlist, error)
 	UpdatePlaylist(ctx context.Context, id string, input model.UpdatePlaylistInput) (*model.Playlist, error)
 	DeletePlaylist(ctx context.Context, id string) (bool, error)
@@ -372,6 +384,7 @@ type QueryResolver interface {
 	Logout(ctx context.Context) (bool, error)
 	ListRecentHistory(ctx context.Context, limit int) ([]*model.ListeningHistory, error)
 	PlaybackInfo(ctx context.Context, input model.PlaybackInput) (*model.PlaybackInfo, error)
+	PlayerQueue(ctx context.Context) (*model.PlayerQueue, error)
 	GetPlaylist(ctx context.Context, id string) (*model.Playlist, error)
 	GetPlaylistTracks(ctx context.Context, playlistID string, first *int, after *string, last *int, before *string) (*model.PlaylistTrackConnection, error)
 	GetMyPlaylists(ctx context.Context, first *int, after *string, last *int, before *string) (*model.PlaylistConnection, error)
@@ -778,6 +791,25 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.AddSongToPlaylist(childComplexity, args["input"].(model.AddSongToPlaylistInput)), true
 
+	case "Mutation.addToQueue":
+		if e.complexity.Mutation.AddToQueue == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addToQueue_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddToQueue(childComplexity, args["trackIds"].([]string)), true
+
+	case "Mutation.clearQueue":
+		if e.complexity.Mutation.ClearQueue == nil {
+			break
+		}
+
+		return e.complexity.Mutation.ClearQueue(childComplexity), true
+
 	case "Mutation.createPlaylist":
 		if e.complexity.Mutation.CreatePlaylist == nil {
 			break
@@ -849,6 +881,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SavePlaylist(childComplexity, args["input"].(model.SavePlaylistInput)), true
+
+	case "Mutation.skipToNext":
+		if e.complexity.Mutation.SkipToNext == nil {
+			break
+		}
+
+		return e.complexity.Mutation.SkipToNext(childComplexity), true
 
 	case "Mutation.test":
 		if e.complexity.Mutation.Test == nil {
@@ -929,6 +968,20 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.PlaybackInfo.Mp3Fallback(childComplexity), true
+
+	case "PlayerQueue.currentTrackId":
+		if e.complexity.PlayerQueue.CurrentTrackID == nil {
+			break
+		}
+
+		return e.complexity.PlayerQueue.CurrentTrackID(childComplexity), true
+
+	case "PlayerQueue.upcomingTrackIds":
+		if e.complexity.PlayerQueue.UpcomingTrackIds == nil {
+			break
+		}
+
+		return e.complexity.PlayerQueue.UpcomingTrackIds(childComplexity), true
 
 	case "Playlist.albumCovers":
 		if e.complexity.Playlist.AlbumCovers == nil {
@@ -1376,6 +1429,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.PlaybackInfo(childComplexity, args["input"].(model.PlaybackInput)), true
+
+	case "Query.playerQueue":
+		if e.complexity.Query.PlayerQueue == nil {
+			break
+		}
+
+		return e.complexity.Query.PlayerQueue(childComplexity), true
 
 	case "Query.randomTracks":
 		if e.complexity.Query.RandomTracks == nil {
@@ -2020,8 +2080,20 @@ input PlaybackInput {
   contentId: ID
 }
 
+type PlayerQueue {
+  currentTrackId: ID
+  upcomingTrackIds: [ID!]!
+}
+
 extend type Query {
   playbackInfo(input: PlaybackInput!): PlaybackInfo!
+  playerQueue: PlayerQueue!
+}
+
+extend type Mutation {
+  addToQueue(trackIds: [ID!]!): PlayerQueue!
+  clearQueue: PlayerQueue!
+  skipToNext: PlayerQueue!
 }`, BuiltIn: false},
 	{Name: "../schema/playlist.graphqls", Input: `type Playlist {
   id: ID!
@@ -2326,6 +2398,34 @@ func (ec *executionContext) field_Mutation_addSongToPlaylist_argsInput(
 	}
 
 	var zeroVal model.AddSongToPlaylistInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_addToQueue_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_addToQueue_argsTrackIds(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["trackIds"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_addToQueue_argsTrackIds(
+	ctx context.Context,
+	rawArgs map[string]any,
+) ([]string, error) {
+	if _, ok := rawArgs["trackIds"]; !ok {
+		var zeroVal []string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("trackIds"))
+	if tmp, ok := rawArgs["trackIds"]; ok {
+		return ec.unmarshalNID2ᚕstringᚄ(ctx, tmp)
+	}
+
+	var zeroVal []string
 	return zeroVal, nil
 }
 
@@ -6148,6 +6248,167 @@ func (ec *executionContext) fieldContext_Mutation_register(ctx context.Context, 
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_addToQueue(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_addToQueue(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddToQueue(rctx, fc.Args["trackIds"].([]string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PlayerQueue)
+	fc.Result = res
+	return ec.marshalNPlayerQueue2ᚖvvinampᚋgraphqlᚋmodelᚐPlayerQueue(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_addToQueue(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "currentTrackId":
+				return ec.fieldContext_PlayerQueue_currentTrackId(ctx, field)
+			case "upcomingTrackIds":
+				return ec.fieldContext_PlayerQueue_upcomingTrackIds(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PlayerQueue", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addToQueue_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_clearQueue(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_clearQueue(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().ClearQueue(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PlayerQueue)
+	fc.Result = res
+	return ec.marshalNPlayerQueue2ᚖvvinampᚋgraphqlᚋmodelᚐPlayerQueue(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_clearQueue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "currentTrackId":
+				return ec.fieldContext_PlayerQueue_currentTrackId(ctx, field)
+			case "upcomingTrackIds":
+				return ec.fieldContext_PlayerQueue_upcomingTrackIds(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PlayerQueue", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_skipToNext(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_skipToNext(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SkipToNext(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PlayerQueue)
+	fc.Result = res
+	return ec.marshalNPlayerQueue2ᚖvvinampᚋgraphqlᚋmodelᚐPlayerQueue(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_skipToNext(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "currentTrackId":
+				return ec.fieldContext_PlayerQueue_currentTrackId(ctx, field)
+			case "upcomingTrackIds":
+				return ec.fieldContext_PlayerQueue_upcomingTrackIds(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PlayerQueue", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_createPlaylist(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_createPlaylist(ctx, field)
 	if err != nil {
@@ -6928,6 +7189,91 @@ func (ec *executionContext) fieldContext_PlaybackInfo_durationMs(_ context.Conte
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlayerQueue_currentTrackId(ctx context.Context, field graphql.CollectedField, obj *model.PlayerQueue) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PlayerQueue_currentTrackId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CurrentTrackID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOID2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PlayerQueue_currentTrackId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlayerQueue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PlayerQueue_upcomingTrackIds(ctx context.Context, field graphql.CollectedField, obj *model.PlayerQueue) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PlayerQueue_upcomingTrackIds(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpcomingTrackIds, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]string)
+	fc.Result = res
+	return ec.marshalNID2ᚕstringᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PlayerQueue_upcomingTrackIds(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlayerQueue",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -9385,6 +9731,56 @@ func (ec *executionContext) fieldContext_Query_playbackInfo(ctx context.Context,
 	if fc.Args, err = ec.field_Query_playbackInfo_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_playerQueue(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_playerQueue(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().PlayerQueue(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PlayerQueue)
+	fc.Result = res
+	return ec.marshalNPlayerQueue2ᚖvvinampᚋgraphqlᚋmodelᚐPlayerQueue(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_playerQueue(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "currentTrackId":
+				return ec.fieldContext_PlayerQueue_currentTrackId(ctx, field)
+			case "upcomingTrackIds":
+				return ec.fieldContext_PlayerQueue_upcomingTrackIds(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PlayerQueue", field.Name)
+		},
 	}
 	return fc, nil
 }
@@ -15827,6 +16223,27 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_register(ctx, field)
 			})
+		case "addToQueue":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addToQueue(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "clearQueue":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_clearQueue(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "skipToNext":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_skipToNext(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createPlaylist":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_createPlaylist(ctx, field)
@@ -15967,6 +16384,47 @@ func (ec *executionContext) _PlaybackInfo(ctx context.Context, sel ast.Selection
 			out.Values[i] = ec._PlaybackInfo_mp3Fallback(ctx, field, obj)
 		case "durationMs":
 			out.Values[i] = ec._PlaybackInfo_durationMs(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var playerQueueImplementors = []string{"PlayerQueue"}
+
+func (ec *executionContext) _PlayerQueue(ctx context.Context, sel ast.SelectionSet, obj *model.PlayerQueue) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, playerQueueImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PlayerQueue")
+		case "currentTrackId":
+			out.Values[i] = ec._PlayerQueue_currentTrackId(ctx, field, obj)
+		case "upcomingTrackIds":
+			out.Values[i] = ec._PlayerQueue_upcomingTrackIds(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16748,6 +17206,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_playbackInfo(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "playerQueue":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_playerQueue(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -18265,6 +18745,36 @@ func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.Selec
 	return res
 }
 
+func (ec *executionContext) unmarshalNID2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	var vSlice []any
+	vSlice = graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalNID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalNInt2int(ctx context.Context, v any) (int, error) {
 	res, err := graphql.UnmarshalInt(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -18414,6 +18924,20 @@ func (ec *executionContext) marshalNPlaybackInfo2ᚖvvinampᚋgraphqlᚋmodelᚐ
 func (ec *executionContext) unmarshalNPlaybackInput2vvinampᚋgraphqlᚋmodelᚐPlaybackInput(ctx context.Context, v any) (model.PlaybackInput, error) {
 	res, err := ec.unmarshalInputPlaybackInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNPlayerQueue2vvinampᚋgraphqlᚋmodelᚐPlayerQueue(ctx context.Context, sel ast.SelectionSet, v model.PlayerQueue) graphql.Marshaler {
+	return ec._PlayerQueue(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNPlayerQueue2ᚖvvinampᚋgraphqlᚋmodelᚐPlayerQueue(ctx context.Context, sel ast.SelectionSet, v *model.PlayerQueue) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._PlayerQueue(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalNPlaylist2vvinampᚋgraphqlᚋmodelᚐPlaylist(ctx context.Context, sel ast.SelectionSet, v model.Playlist) graphql.Marshaler {

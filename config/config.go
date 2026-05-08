@@ -35,6 +35,8 @@ type Result struct {
 	TokenPassword string `name:"token_password"`
 	// MongoDB
 	PostgreUrl string `name:"postgre_url"`
+	// Redis
+	RedisUrl string `name:"redis_url"`
 }
 
 // New return all constants using in Project such as Dialogflow's ProjectID, Line's ChannelID
@@ -54,6 +56,7 @@ func New() (Result, error) {
 		StoragePath:    os.Getenv("STORAGE_PATH"),
 		TokenPassword:  os.Getenv("TOKEN_PASSWORD"),
 		PostgreUrl:     os.Getenv("POSTGRE_URL"),
+		RedisUrl:       os.Getenv("REDIS_URL"),
 	}, nil
 }
 

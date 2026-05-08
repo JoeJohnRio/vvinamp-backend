@@ -138,7 +138,7 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 			} else {
 				contentName = playlist.Title
 				contentImage = playlist.CoverImage
-				
+
 				creator, err := r.UserService.GetByID(ctx, playlist.CreatorID)
 				if err == nil && creator != nil {
 					contentSubtitle = &creator.Username

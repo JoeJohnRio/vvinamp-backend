@@ -108,6 +108,11 @@ type PlaybackInput struct {
 	ContentID   *string      `json:"contentId,omitempty"`
 }
 
+type PlayerQueue struct {
+	CurrentTrackID   *string  `json:"currentTrackId,omitempty"`
+	UpcomingTrackIds []string `json:"upcomingTrackIds"`
+}
+
 type Playlist struct {
 	ID            string   `json:"id"`
 	Title         string   `json:"title"`
