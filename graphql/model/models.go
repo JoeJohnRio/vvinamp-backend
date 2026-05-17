@@ -96,6 +96,12 @@ type PageInfo struct {
 	EndCursor       *string `json:"endCursor,omitempty"`
 }
 
+type PlaybackContextInput struct {
+	Type     ContextType `json:"type"`
+	ID       *string     `json:"id,omitempty"`
+	TrackIds []string    `json:"trackIds,omitempty"`
+}
+
 type PlaybackInfo struct {
 	HlsURL      string  `json:"hlsUrl"`
 	Mp3Fallback *string `json:"mp3Fallback,omitempty"`
@@ -108,9 +114,15 @@ type PlaybackInput struct {
 	ContentID   *string      `json:"contentId,omitempty"`
 }
 
+type PlaybackState struct {
+	Queue        *PlayerQueue  `json:"queue"`
+	PlaybackInfo *PlaybackInfo `json:"playbackInfo"`
+}
+
 type PlayerQueue struct {
-	CurrentTrackID   *string  `json:"currentTrackId,omitempty"`
-	UpcomingTrackIds []string `json:"upcomingTrackIds"`
+	CurrentTrack  *TrackMinimal   `json:"currentTrack,omitempty"`
+	PreviousTrack []*TrackMinimal `json:"previousTrack"`
+	UpcomingTrack []*TrackMinimal `json:"upcomingTrack"`
 }
 
 type Playlist struct {
@@ -281,6 +293,13 @@ type TrackArtist struct {
 	Role   *string `json:"role,omitempty"`
 }
 
+type TrackMinimal struct {
+	TrackID       string  `json:"trackId"`
+	Title         *string `json:"title,omitempty"`
+	Artist        *string `json:"artist,omitempty"`
+	CoverImageURL *string `json:"coverImageUrl,omitempty"`
+}
+
 type UnsavePlaylistInput struct {
 	PlaylistID string `json:"playlistId"`
 }
@@ -361,6 +380,65 @@ func (e *ContentType) UnmarshalJSON(b []byte) error {
 }
 
 func (e ContentType) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type ContextType string
+
+const (
+	ContextTypePlaylist      ContextType = "PLAYLIST"
+	ContextTypeAlbum         ContextType = "ALBUM"
+	ContextTypeArtist        ContextType = "ARTIST"
+	ContextTypeSearchResults ContextType = "SEARCH_RESULTS"
+)
+
+var AllContextType = []ContextType{
+	ContextTypePlaylist,
+	ContextTypeAlbum,
+	ContextTypeArtist,
+	ContextTypeSearchResults,
+}
+
+func (e ContextType) IsValid() bool {
+	switch e {
+	case ContextTypePlaylist, ContextTypeAlbum, ContextTypeArtist, ContextTypeSearchResults:
+		return true
+	}
+	return false
+}
+
+func (e ContextType) String() string {
+	return string(e)
+}
+
+func (e *ContextType) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ContextType(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ContextType", str)
+	}
+	return nil
+}
+
+func (e ContextType) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ContextType) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ContextType) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

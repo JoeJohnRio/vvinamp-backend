@@ -28,11 +28,11 @@ func NewService(repo repository.ArtistRepository) ArtistService {
 }
 
 func (s *artistService) GetArtistByID(ctx context.Context, artistID string) (*dbModel.Artist, error) {
-	return s.repo.GetArtistHeaderByID(ctx, artistID, nil)
+	return s.repo.GetArtistByID(ctx, artistID, nil)
 }
 
 func (s *artistService) GetArtistHeaderByID(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, bool, error) {
-	artist, err := s.repo.GetArtistHeaderByID(ctx, artistID, userID)
+	artist, err := s.repo.GetArtistByID(ctx, artistID, userID)
 	if err != nil {
 		return nil, false, err
 	}
@@ -48,7 +48,7 @@ func (s *artistService) GetArtistHeaderByID(ctx context.Context, artistID string
 }
 
 func (s *artistService) GetArtistScreenData(ctx context.Context, artistID string, userID *string) (*dbModel.Artist, []*dto.TrackWithDetails, []*dbModel.Album, error) {
-	artist, err := s.repo.GetArtistHeaderByID(ctx, artistID, userID)
+	artist, err := s.repo.GetArtistByID(ctx, artistID, userID)
 	if err != nil {
 		return nil, nil, nil, err
 	}

@@ -1,7 +1,20 @@
 type PlaybackInfo {
   hlsUrl: String!
   mp3Fallback: String
-  durationMs: Int  # For progress bars too
+  durationMs: Int  
+}
+
+enum ContextType {
+  PLAYLIST
+  ALBUM
+  ARTIST
+  SEARCH_RESULTS 
+}
+
+input PlaybackContextInput {
+  type: ContextType!
+  id: ID           
+  trackIds: [ID!]  
 }
 
 input PlaybackInput {
@@ -10,9 +23,22 @@ input PlaybackInput {
   contentId: ID
 }
 
+type TrackMinimal {
+  trackId: ID!
+  title: String
+  artist: String
+  coverImageUrl: String
+}
+
 type PlayerQueue {
-  currentTrackId: ID
-  upcomingTrackIds: [ID!]!
+  currentTrack: TrackMinimal
+  previousTrack: [TrackMinimal]!
+  upcomingTrack: [TrackMinimal]!
+}
+
+type PlaybackState {
+  queue: PlayerQueue!        
+  playbackInfo: PlaybackInfo! 
 }
 
 extend type Query {
@@ -21,6 +47,7 @@ extend type Query {
 }
 
 extend type Mutation {
+  playContext(context: PlaybackContextInput!, offsetTrackId: ID!): PlaybackState!
   addToQueue(trackIds: [ID!]!): PlayerQueue!
   clearQueue: PlayerQueue!
   skipToNext: PlayerQueue!

@@ -83,6 +83,11 @@ const TrackManagement: React.FC = () => {
     });
   };
 
+  const getFileBaseName = (filePath: string) => {
+    const parts = filePath.split(/[/\\]+/);
+    return parts[parts.length - 1] || filePath;
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -308,7 +313,7 @@ const TrackManagement: React.FC = () => {
                   <div className="form-group">
                     <label>Current File</label>
                     <div className="current-file-info">
-                      <p>{editingTrack.fileName ? editingTrack.fileName.split('/').pop() : 'No file available'}</p>
+                      <p>{editingTrack.fileName ? getFileBaseName(editingTrack.fileName) : 'No file available'}</p>
                     </div>
                   </div>
                 )}
@@ -382,7 +387,7 @@ const TrackManagement: React.FC = () => {
               <p><strong>Album:</strong> {track.album}</p>
               <p><strong>Duration:</strong> {Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, '0')}</p>
               <p><strong>Explicit:</strong> {track.explicit ? 'Yes' : 'No'}</p>
-              {track.fileName && <p><strong>File:</strong> {track.fileName.split('/').pop()}</p>}
+              {track.fileName && <p><strong>File:</strong> {getFileBaseName(track.fileName)}</p>}
             </div>
             <div className="card-footer">
               <small>Uploaded: {track.uploadDate ? new Date(track.uploadDate).toLocaleDateString() : 'N/A'}</small>

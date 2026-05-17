@@ -34,8 +34,10 @@ type FileServerController struct {
 func NewFileServerController(target FileServerControllerTarget) Result {
 	storagePath := target.StoragePath
 	if storagePath == "" {
-		// Default path if not configured
-		storagePath = "S:\\Project German\\Backend\\Storage"
+		storagePath = os.Getenv("STORAGE_PATH")
+	}
+	if storagePath == "" {
+		storagePath = os.Getenv("BASE_STORAGE_PATH")
 	}
 
 	return Result{
@@ -44,6 +46,22 @@ func NewFileServerController(target FileServerControllerTarget) Result {
 			db:          target.DB,
 		},
 	}
+}
+
+func (f *FileServerController) getBaseStoragePath() string {
+	if f.storagePath != "" {
+		return f.storagePath
+	}
+
+	if p := os.Getenv("STORAGE_PATH"); p != "" {
+		return p
+	}
+
+	if p := os.Getenv("BASE_STORAGE_PATH"); p != "" {
+		return p
+	}
+
+	return filepath.Join(".", "Storage")
 }
 
 // sanitize applies the same rules as the JavaScript version:
@@ -212,11 +230,7 @@ func (f *FileServerController) ArtistMediaHandler(c *gin.Context) {
 	sanitizedArtistName := sanitize(artistName)
 
 	// Construct the file path
-	baseStoragePath := os.Getenv("BASE_STORAGE_PATH")
-	if baseStoragePath == "" {
-		baseStoragePath = "S:\\Project German\\Backend\\Storage" // Default path
-	}
-
+	baseStoragePath := f.getBaseStoragePath()
 	filePath := filepath.Join(baseStoragePath, "artist", sanitizedArtistName, cleanFileName)
 
 	// Log the constructed path for debugging
@@ -267,11 +281,7 @@ func (f *FileServerController) AlbumMediaHandler(c *gin.Context) {
 	sanitizedAlbumTitle := sanitize(albumTitle)
 
 	// Construct the file path
-	baseStoragePath := os.Getenv("BASE_STORAGE_PATH")
-	if baseStoragePath == "" {
-		baseStoragePath = "S:\\Project German\\Backend\\Storage" // Default path
-	}
-
+	baseStoragePath := f.getBaseStoragePath()
 	filePath := filepath.Join(baseStoragePath, "artist", sanitizedArtistName, "album", sanitizedAlbumTitle, cleanFileName)
 
 	// Log the constructed path for debugging
@@ -305,7 +315,7 @@ func (f *FileServerController) TrackMediaHandler(c *gin.Context) {
 	}
 
 	// Log the constructed path for debugging
-	fmt.Print("Constructed path for track media: %s\n\n	", fullPath)
+	fmt.Printf("Constructed path for track media: %s\n", fullPath)
 
 	// Check if file exists
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
@@ -329,7 +339,16 @@ func (f *FileServerController) ConvertToHLS(ctx context.Context, sourcePath, tra
 		return "", fmt.Errorf("mkdir %s: %w", hlsDir, err)
 	}
 
-	cmd := exec.CommandContext(ctx, "ffmpeg",
+	ffmpegCmd := os.Getenv("FFMPEG_PATH")
+	if ffmpegCmd == "" {
+		ffmpegCmd = "ffmpeg"
+	}
+
+	if _, err := exec.LookPath(ffmpegCmd); err != nil {
+		return "", fmt.Errorf("ffmpeg executable not found: %w; install ffmpeg or set FFMPEG_PATH to its executable", err)
+	}
+
+	cmd := exec.CommandContext(ctx, ffmpegCmd,
 		"-i", sourcePath,
 		"-c:a", "aac", "-b:a", "128k",
 		"-f", "hls",
@@ -373,7 +392,7 @@ func (f *FileServerController) GetTrackPath(ctx context.Context, trackID uuid.UU
 	// 3. Build the path: artist/artist_name/album/album_name/track/track_name.mp3
 	// Adjust "tracks" or whatever your root storage folder is
 	fullPath := filepath.Join(
-		f.storagePath, // e.g., /var/www/uploads
+		f.getBaseStoragePath(),
 		"artist", safeArtist,
 		"album", safeAlbum,
 		"track", safeTrack+".mp3",

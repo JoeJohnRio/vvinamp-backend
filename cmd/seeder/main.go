@@ -12,6 +12,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
+	dbModel "vvinamp/model"
 	"vvinamp/seeder"
 )
 
@@ -106,6 +107,8 @@ func initializeDatabase() *gorm.DB {
 		}
 
 		log.Println("Database connection established successfully using POSTGRE_URL")
+		runAutoMigrations(db)
+
 		return db
 	}
 
@@ -128,6 +131,7 @@ func initializeDatabase() *gorm.DB {
 						if err == nil {
 							if sqlDB.Ping() == nil {
 								log.Println("Database connection established successfully using extracted POSTGRE_URL from .env")
+								runAutoMigrations(db)
 								return db
 							}
 						}
@@ -140,7 +144,7 @@ func initializeDatabase() *gorm.DB {
 	// Fallback to individual environment variables
 	host := getEnvOrDefault("DB_HOST", "localhost")
 	port := getEnvOrDefault("DB_PORT", "5432")
-	user := getEnvOrDefault("DB_USER", "postgres")
+	user := getEnvOrDefault("DB_USER", "vvinampadmin")
 	password := getEnvOrDefault("DB_PASS", "password")
 	dbname := getEnvOrDefault("DB_NAME", "vvinamp")
 	sslMode := getEnvOrDefault("DB_SSL_MODE", "disable") // Allow SSL mode to be configured
@@ -166,7 +170,24 @@ func initializeDatabase() *gorm.DB {
 	}
 
 	log.Println("Database connection established successfully")
+	runAutoMigrations(db)
 	return db
+}
+
+func runAutoMigrations(db *gorm.DB) {
+	log.Println("Running auto-migrations to create tables...")
+	if err := db.AutoMigrate(
+		&dbModel.Artist{},
+		&dbModel.Album{},
+		&dbModel.Track{},
+		&dbModel.TrackArtist{},
+		&dbModel.ListeningHistory{},
+		&dbModel.Playlist{},
+		&dbModel.PodcastEpisode{},
+		&dbModel.PodcastSeries{},
+	); err != nil {
+		log.Fatalf("Failed to migrate database: %v", err)
+	}
 }
 
 // getEnvOrDefault gets an environment variable or returns a default value

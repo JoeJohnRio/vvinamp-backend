@@ -13,7 +13,7 @@ import (
 )
 
 type ArtistRepository interface {
-	GetArtistHeaderByID(ctx context.Context, id string, userID *string) (*dbModel.Artist, error)
+	GetArtistByID(ctx context.Context, id string, userID *string) (*dbModel.Artist, error)
 	IsUserFollowingArtist(ctx context.Context, userID, artistID string) (bool, error)
 	GetTopSongsByArtist(ctx context.Context, artistID string, userID *string) ([]*dto.TrackWithDetails, error)
 	GetTopReleasesByArtist(ctx context.Context, artistID string, userID *string) ([]*dbModel.Album, error)
@@ -52,7 +52,7 @@ func (m *sqlRepository) DB(ctx context.Context) *gorm.DB {
 	return postgre.ForContext(ctx)
 }
 
-func (r *sqlRepository) GetArtistHeaderByID(ctx context.Context, id string, userID *string) (*dbModel.Artist, error) {
+func (r *sqlRepository) GetArtistByID(ctx context.Context, id string, userID *string) (*dbModel.Artist, error) {
 	var artist dbModel.Artist
 
 	if err := r.DB(ctx).Where("id = ?", id).First(&artist).Error; err != nil {

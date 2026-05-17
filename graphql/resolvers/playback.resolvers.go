@@ -11,13 +11,24 @@ import (
 	"vvinamp/graphql/model"
 )
 
+// PlayContext is the resolver for the playContext field.
+func (r *mutationResolver) PlayContext(ctx context.Context, context model.PlaybackContextInput, offsetTrackID string) (*model.PlaybackState, error) {
+	panic(fmt.Errorf("not implemented: PlayContext - playContext"))
+}
+
 // AddToQueue is the resolver for the addToQueue field.
 func (r *mutationResolver) AddToQueue(ctx context.Context, trackIds []string) (*model.PlayerQueue, error) {
+	// Note: ensure you are passing userId properly
 	userId, _ := ctx.Value(constant.Session).(string)
 	if userId == "" {
 		return nil, fmt.Errorf("unauthorized")
 	}
-	return r.StreamingService.AddToQueue(ctx, userId, trackIds)
+	queue, err := r.StreamingService.AddToQueue(ctx, userId, trackIds)
+	if err != nil {
+		// Return the real error here so it shows up in your GraphQL response
+		return nil, fmt.Errorf("failed to add to queue: %v", err)
+	}
+	return queue, nil
 }
 
 // ClearQueue is the resolver for the clearQueue field.

@@ -9,6 +9,6 @@ type Album struct {
 	// Artist      Artist `gorm:"foreignKey:ArtistID;references:ID"`
 	ReleaseDate string
 	CoverArt    string
-	GenreID     uuid.UUID
+	GenreID     *uuid.UUID `gorm:"type:uuid"`
 	// Genre       Genre `gorm:"foreignKey:GenreID;references:ID"`
 }

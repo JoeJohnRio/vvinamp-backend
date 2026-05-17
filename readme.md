@@ -16,6 +16,9 @@ go run -mod=mod github.com/99designs/gqlgen generate
 //run cloudflare
 cloudflared tunnel run cirio-laptop
 
+//run redis
+docker run -d --name my-redis -p 6379:6379 redis:latest
+
 //run seeder
 go run cmd/seeder/main.go reset-and-seed-music
 

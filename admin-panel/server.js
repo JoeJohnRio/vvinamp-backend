@@ -9,6 +9,7 @@ const mm = require('music-metadata');
 
 const app = express();
 const PORT = process.env.PORT || 8081;
+const STORAGE_DIR = process.env.STORAGE_PATH || process.env.BASE_STORAGE_PATH || path.join(__dirname, '..', '..', 'Storage');
 
 // Clear problematic environment variables that might interfere
 delete process.env.PGHOST;
@@ -105,6 +106,27 @@ async function initializeDatabase() {
         release_date DATE
       )
     `);
+
+    // Migrate legacy text column types to UUID/date where needed
+    const legacyColumns = await pool.query(`
+      SELECT table_name, column_name, data_type, udt_name
+      FROM information_schema.columns
+      WHERE table_name IN ('albums', 'tracks')
+        AND column_name IN ('artist_id', 'album_id', 'release_date');
+    `);
+
+    for (const row of legacyColumns.rows) {
+      if (row.table_name === 'albums' && row.column_name === 'artist_id' && row.data_type === 'text') {
+        await pool.query(`ALTER TABLE albums ALTER COLUMN artist_id TYPE UUID USING artist_id::uuid;`);
+      }
+      if (row.table_name === 'tracks' && row.column_name === 'album_id' && row.data_type === 'text') {
+        await pool.query(`ALTER TABLE tracks ALTER COLUMN album_id TYPE UUID USING album_id::uuid;`);
+      }
+      if (row.data_type === 'text' && row.column_name === 'release_date') {
+        await pool.query(`UPDATE ${row.table_name} SET release_date = NULL WHERE release_date = '';`);
+        await pool.query(`ALTER TABLE ${row.table_name} ALTER COLUMN release_date TYPE DATE USING NULLIF(release_date, '')::date;`);
+      }
+    }
     
     // Insert sample data if tables are empty
     const artistResult = await pool.query('SELECT COUNT(*) FROM artists');
@@ -260,7 +282,7 @@ app.post('/api/tracks/upload', upload.single('file'), async (req, res) => {
     const sanitizedAlbum = sanitizeName(album_title || 'unknown_album');
 
     // Path Structure: Storage/artist/{Artist}/album/{Album}/tracks/
-    const storageDir = path.join(__dirname, '..', '..', 'Storage');
+    const storageDir = STORAGE_DIR;
     const artistDir = path.join(storageDir, 'artist', sanitizedArtist); // Added 'artist' layer
     const albumDir = path.join(artistDir, 'album', sanitizedAlbum);     // Added 'album' layer
     const trackDir = path.join(albumDir, 'track');
@@ -385,7 +407,7 @@ app.put('/api/tracks/:id/file', upload.single('file'), async (req, res) => {
     const sanitizedAlbumTitle = sanitizeName(album_title);
 
     // Create the hierarchical folder structure
-    const storageDir = path.join(__dirname, '..', '..', 'Storage');
+    const storageDir = STORAGE_DIR;
     const artistDir = path.join(storageDir, 'artist', sanitizedArtistName);
     const albumDir = path.join(artistDir, 'album', sanitizedAlbumTitle);
     const trackDir = path.join(albumDir, 'track');
@@ -525,7 +547,7 @@ app.put('/api/tracks/:id', async (req, res) => {
           const sanitizedAlbum = sanitizeName(album_title || 'Unknown Album');
 
           // Construct the old and new file paths
-          const storageDir = path.join(__dirname, '..', '..', 'Storage');
+          const storageDir = STORAGE_DIR;
           const artistDir = path.join(storageDir, sanitizedArtist);
           const albumDir = path.join(artistDir, sanitizedAlbum);
           const trackDir = path.join(albumDir, 'track');
@@ -684,7 +706,7 @@ const artistImageStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Use a temporary location for all requests
     // We'll move the file to the correct location in the route handlers
-    const storageDir = path.join(__dirname, '..', '..', 'Storage', 'temp');
+    const storageDir = path.join(STORAGE_DIR, 'temp');
     if (!fs.existsSync(storageDir)) {
       fs.mkdirSync(storageDir, { recursive: true });
     }
@@ -717,7 +739,7 @@ app.post('/api/artists', uploadArtistImage.single('profileImage'), async (req, r
       const sanitizedFolderNameClean = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
 
       // Create the proper directory structure: Storage/artist/artist_name/
-      const artistDir = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedFolderNameClean);
+      const artistDir = path.join(STORAGE_DIR, 'artist', sanitizedFolderNameClean);
       if (!fs.existsSync(artistDir)) {
         fs.mkdirSync(artistDir, { recursive: true });
       }
@@ -767,7 +789,7 @@ const albumCoverCreateStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Use a temporary location for all requests
     // We'll move the file to the correct location in the route handlers
-    const storageDir = path.join(__dirname, '..', '..', 'Storage', 'temp');
+    const storageDir = path.join(STORAGE_DIR, 'temp');
     if (!fs.existsSync(storageDir)) {
       fs.mkdirSync(storageDir, { recursive: true });
     }
@@ -814,7 +836,7 @@ app.post('/api/albums', uploadAlbumCoverCreate.single('coverArt'), async (req, r
       const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
       
       // Create the proper directory structure: Storage/artist/artist_name/album/album_name/
-      const artistDir = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedArtistFolderName);
+      const artistDir = path.join(STORAGE_DIR, 'artist', sanitizedArtistFolderName);
       const albumDir = path.join(artistDir, 'album', sanitizedAlbumFolderName);
       if (!fs.existsSync(artistDir)) {
         fs.mkdirSync(artistDir, { recursive: true });
@@ -895,7 +917,7 @@ app.put('/api/artists/:id', uploadArtistImage.single('profileImage'), async (req
       const sanitizedNewFolderName = sanitizedNewArtistName.toLowerCase().replace(/\s+/g, '_');
 
       // Create the proper directory structure: Storage/artist/artist_name/
-      const newArtistDir = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedNewFolderName);
+      const newArtistDir = path.join(STORAGE_DIR, 'artist', sanitizedNewFolderName);
       if (!fs.existsSync(newArtistDir)) {
         fs.mkdirSync(newArtistDir, { recursive: true });
       }
@@ -972,7 +994,7 @@ const albumCoverStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Use a temporary location for all requests
     // We'll move the file to the correct location in the route handlers
-    const storageDir = path.join(__dirname, '..', '..', 'Storage', 'temp');
+    const storageDir = path.join(STORAGE_DIR, 'temp');
     if (!fs.existsSync(storageDir)) {
       fs.mkdirSync(storageDir, { recursive: true });
     }
@@ -1019,7 +1041,7 @@ app.put('/api/albums/:id', uploadAlbumCover.single('coverArt'), async (req, res)
       const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
       
       // Create the proper directory structure: Storage/artist/artist_name/album/album_name/
-      const artistDir = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedArtistFolderName);
+      const artistDir = path.join(STORAGE_DIR, 'artist', sanitizedArtistFolderName);
       const albumDir = path.join(artistDir, 'album', sanitizedAlbumFolderName);
       if (!fs.existsSync(artistDir)) {
         fs.mkdirSync(artistDir, { recursive: true });
@@ -1138,7 +1160,7 @@ app.get('/artist/:artistId/:fileName', async (req, res) => {
     const sanitizedFolderName = sanitizedArtistName.toLowerCase().replace(/\s+/g, '_');
     
     // Construct the actual file path
-    const filePath = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedFolderName, fileName);
+    const filePath = path.join(STORAGE_DIR, 'artist', sanitizedFolderName, fileName);
     // Check if file exists before sending
     if (!fs.existsSync(filePath)) {
       return res.status(404).send('File not found');
@@ -1176,7 +1198,7 @@ app.get('/album/:albumId/:fileName', async (req, res) => {
     const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
     
     // Construct the actual file path
-    const filePath = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedArtistFolderName, 'album', sanitizedAlbumFolderName, fileName);
+    const filePath = path.join(STORAGE_DIR, 'artist', sanitizedArtistFolderName, 'album', sanitizedAlbumFolderName, fileName);
     
     // Check if file exists before sending
     if (!fs.existsSync(filePath)) {
@@ -1216,7 +1238,7 @@ app.get('/track/:trackId/:fileName', async (req, res) => {
     const sanitizedAlbumFolderName = sanitizedAlbumTitle.toLowerCase().replace(/\s+/g, '_');
     
     // Construct the actual file path
-    const filePath = path.join(__dirname, '..', '..', 'Storage', 'artist', sanitizedArtistFolderName, 'album', sanitizedAlbumFolderName, 'tracks', fileName);
+    const filePath = path.join(STORAGE_DIR, 'artist', sanitizedArtistFolderName, 'album', sanitizedAlbumFolderName, 'tracks', fileName);
     
     // Check if file exists before sending
     if (!fs.existsSync(filePath)) {

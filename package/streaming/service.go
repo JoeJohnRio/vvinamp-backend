@@ -35,6 +35,7 @@ type ServiceTarget struct {
 	fx.In
 	FileController HLSConverter `name:"hlsConverter"`
 	RedisConn      *redisDb.Connection
+	Repo           song.Repository // Add this line!
 }
 
 // NewService creates a new streaming service
@@ -43,6 +44,7 @@ func NewService(target ServiceTarget) *Service {
 	return &Service{
 		FileController: target.FileController,
 		Redis:          redisClient,
+		Repo:           target.Repo, // Add this line!
 	}
 }
 

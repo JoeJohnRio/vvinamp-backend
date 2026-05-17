@@ -24,8 +24,8 @@ func (s *Seeder) ClearMusicData() error {
 	log.Println("Clearing existing music data (preserving user data)...")
 
 	// Clear listening history first (since it references tracks/users)
-	if err := s.db.Exec("DELETE FROM listening_histories").Error; err != nil {
-		log.Printf("Warning: Could not clear listening histories: %v", err)
+	if err := s.db.Exec("DELETE FROM listening_history").Error; err != nil {
+		log.Printf("Warning: Could not clear listening history: %v", err)
 	}
 
 	// Check if track_artists table exists before clearing it
@@ -203,7 +203,7 @@ func (s *Seeder) SeedAlbums(ctx context.Context) error {
 
 	for _, albumData := range albums {
 		// Create album using raw SQL to avoid the foreign key constraint issue
-		query := `INSERT INTO albums (id, title, artist_id, cover_art, release_date) VALUES (?, ?, ?, ?, ?)`
+		query := `INSERT INTO albums (id, title, artist_id, cover_art, release_date, genre_id) VALUES (?, ?, ?, ?, ?, NULL)`
 		if err := s.db.Exec(query, albumData.ID, albumData.Title, albumData.ArtistID, albumData.CoverArt, albumData.ReleaseDate).Error; err != nil {
 			log.Printf("Error seeding album %s: %v", albumData.Title, err)
 			continue

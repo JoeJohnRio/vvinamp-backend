@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"vvinamp/graphql/model"
 
 	"github.com/redis/go-redis/v9"
@@ -12,13 +13,15 @@ import (
 func getQueueKey(userId string) string {
 	return fmt.Sprintf("player_queue:%s", userId)
 }
-
 func (s *Service) GetPlayerQueue(ctx context.Context, userId string) (*model.PlayerQueue, error) {
 	key := getQueueKey(userId)
 	val, err := s.Redis.Get(ctx, key).Result()
+
+	// If no queue exists in Redis, return a fresh one
 	if err == redis.Nil {
 		return &model.PlayerQueue{
-			UpcomingTrackIds: []string{},
+			UpcomingTrack: []*model.TrackMinimal{},
+			PreviousTrack: []*model.TrackMinimal{}, // Initialize this too
 		}, nil
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to get queue from redis: %w", err)
@@ -29,8 +32,12 @@ func (s *Service) GetPlayerQueue(ctx context.Context, userId string) (*model.Pla
 		return nil, fmt.Errorf("failed to unmarshal queue: %w", err)
 	}
 
-	if queue.UpcomingTrackIds == nil {
-		queue.UpcomingTrackIds = []string{}
+	// Ensure slices are initialized if they unmarshalled as nil
+	if queue.UpcomingTrack == nil {
+		queue.UpcomingTrack = []*model.TrackMinimal{}
+	}
+	if queue.PreviousTrack == nil {
+		queue.PreviousTrack = []*model.TrackMinimal{}
 	}
 
 	return &queue, nil
@@ -51,17 +58,28 @@ func (s *Service) AddToQueue(ctx context.Context, userId string, trackIds []stri
 	if err != nil {
 		return nil, err
 	}
+	log.Println("joel123 jalan -1")
 
-	if queue.CurrentTrackID == nil && len(trackIds) > 0 {
-		currentTrack := trackIds[0]
-		queue.CurrentTrackID = &currentTrack
-		if len(trackIds) > 1 {
-			queue.UpcomingTrackIds = append(queue.UpcomingTrackIds, trackIds[1:]...)
-		}
-	} else {
-		queue.UpcomingTrackIds = append(queue.UpcomingTrackIds, trackIds...)
+	tracksWithDetails, err := s.Repo.GetTracksWithDetails(ctx, trackIds)
+	if err != nil {
+		return nil, err
 	}
 
+	for _, t := range tracksWithDetails {
+		title := t.Title
+		artistName := t.ArtistName
+		coverUrl := t.AlbumCoverURL
+
+		minimalTrack := &model.TrackMinimal{
+			TrackID:       t.ID.String(),
+			Title:         &title,
+			Artist:        &artistName,
+			CoverImageURL: &coverUrl,
+		}
+
+		queue.UpcomingTrack = append(queue.UpcomingTrack, minimalTrack)
+	}
+	// 3. Save to Redis
 	if err := s.savePlayerQueue(ctx, userId, queue); err != nil {
 		return nil, err
 	}
@@ -71,7 +89,7 @@ func (s *Service) AddToQueue(ctx context.Context, userId string, trackIds []stri
 
 func (s *Service) ClearQueue(ctx context.Context, userId string) (*model.PlayerQueue, error) {
 	queue := &model.PlayerQueue{
-		UpcomingTrackIds: []string{},
+		UpcomingTrack: []*model.TrackMinimal{},
 	}
 
 	if err := s.savePlayerQueue(ctx, userId, queue); err != nil {
@@ -81,20 +99,56 @@ func (s *Service) ClearQueue(ctx context.Context, userId string) (*model.PlayerQ
 	return queue, nil
 }
 
+func (s *Service) SkipToPrevious(ctx context.Context, userId string) (*model.PlayerQueue, error) {
+	queue, err := s.GetPlayerQueue(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(queue.PreviousTrack) > 0 {
+		// 1. If there's a current track, push it back to the front of upcoming
+		if queue.CurrentTrack != nil {
+			queue.UpcomingTrack = append(
+				[]*model.TrackMinimal{queue.CurrentTrack},
+				queue.UpcomingTrack...,
+			)
+		}
+
+		// 2. Pop the last item from previous to be the new current
+		lastIndex := len(queue.PreviousTrack) - 1
+		prevTrack := queue.PreviousTrack[lastIndex]
+		queue.CurrentTrack = prevTrack
+		queue.PreviousTrack = queue.PreviousTrack[:lastIndex]
+	}
+
+	if err := s.savePlayerQueue(ctx, userId, queue); err != nil {
+		return nil, err
+	}
+	return queue, nil
+}
+
 func (s *Service) SkipToNext(ctx context.Context, userId string) (*model.PlayerQueue, error) {
 	queue, err := s.GetPlayerQueue(ctx, userId)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(queue.UpcomingTrackIds) > 0 {
-		nextTrack := queue.UpcomingTrackIds[0]
-		queue.CurrentTrackID = &nextTrack
-		queue.UpcomingTrackIds = queue.UpcomingTrackIds[1:]
-	} else {
-		queue.CurrentTrackID = nil
+	// 1. Add current track to the end of the previous track history
+	if queue.CurrentTrack != nil {
+		queue.PreviousTrack = append(queue.PreviousTrack, queue.CurrentTrack)
 	}
 
+	// 2. Shift the first upcoming track to be the new current track
+	if len(queue.UpcomingTrack) > 0 {
+		nextTrack := queue.UpcomingTrack[0]
+		queue.CurrentTrack = nextTrack // nextTrack is already a pointer, no '&' needed
+		queue.UpcomingTrack = queue.UpcomingTrack[1:]
+	} else {
+		queue.CurrentTrack = nil // Optional: clears the player if nothing is next
+		queue.UpcomingTrack = nil
+	}
+
+	// Save to Redis
 	if err := s.savePlayerQueue(ctx, userId, queue); err != nil {
 		return nil, err
 	}
