@@ -53,6 +53,10 @@ func (s *Service) savePlayerQueue(ctx context.Context, userId string, queue *mod
 	return s.Redis.Set(ctx, key, string(data), 0).Err()
 }
 
+func (s *Service) SetPlayerQueue(ctx context.Context, userId string, queue *model.PlayerQueue) error {
+	return s.savePlayerQueue(ctx, userId, queue)
+}
+
 func (s *Service) AddToQueue(ctx context.Context, userId string, trackIds []string) (*model.PlayerQueue, error) {
 	queue, err := s.GetPlayerQueue(ctx, userId)
 	if err != nil {

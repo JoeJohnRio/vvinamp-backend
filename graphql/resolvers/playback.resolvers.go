@@ -9,11 +9,146 @@ import (
 	"fmt"
 	"vvinamp/constant"
 	"vvinamp/graphql/model"
+	searchpkg "vvinamp/package/search"
 )
 
 // PlayContext is the resolver for the playContext field.
 func (r *mutationResolver) PlayContext(ctx context.Context, context model.PlaybackContextInput, offsetTrackID string) (*model.PlaybackState, error) {
-	panic(fmt.Errorf("not implemented: PlayContext - playContext"))
+	userId, _ := ctx.Value(constant.Session).(string)
+	if userId == "" {
+		return nil, fmt.Errorf("unauthorized")
+	}
+
+	var trackIDs []string
+	switch context.Type {
+	case model.ContextTypePlaylist:
+		if context.ID == nil || *context.ID == "" {
+			return nil, fmt.Errorf("playlist id is required")
+		}
+		playlistTracks, err := r.PlaylistService.GetPlaylistSongs(ctx, *context.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load playlist tracks: %w", err)
+		}
+		for _, pt := range playlistTracks {
+			trackIDs = append(trackIDs, pt.TrackID)
+		}
+
+	case model.ContextTypeArtist:
+		if context.ID == nil || *context.ID == "" {
+			return nil, fmt.Errorf("artist id is required")
+		}
+		_, artistTracks, _, err := r.ArtistService.GetArtistScreenData(ctx, *context.ID, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load artist tracks: %w", err)
+		}
+		for _, t := range artistTracks {
+			trackIDs = append(trackIDs, t.ID.String())
+		}
+
+	case model.ContextTypeSearchResults:
+		if len(context.TrackIds) > 0 {
+			trackIDs = append(trackIDs, context.TrackIds...)
+			if len(trackIDs) > 100 {
+				trackIDs = trackIDs[:100]
+			}
+		} else {
+			if context.ID == nil || *context.ID == "" {
+				return nil, fmt.Errorf("search query is required for search results")
+			}
+
+			contentType := searchpkg.ContentTypeTrack
+			searchResult, err := searchpkg.ForContext(ctx).Search(ctx, searchpkg.SearchQuery{
+				Query:       context.ID,
+				ContentType: &contentType,
+				Limit:       100,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to search tracks for playback: %w", err)
+			}
+			for _, track := range searchResult.Tracks {
+				trackIDs = append(trackIDs, track.ID.String())
+			}
+		}
+
+	default:
+		return nil, fmt.Errorf("unsupported playback context type: %s", context.Type)
+	}
+
+	if len(trackIDs) == 0 {
+		return nil, fmt.Errorf("no tracks available for playback")
+	}
+
+	// Preserve order of requested track IDs when loading details.
+	trackDetails, err := r.StreamingService.Repo.GetTracksWithDetails(ctx, trackIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load track details: %w", err)
+	}
+	trackMap := make(map[string]*model.TrackMinimal, len(trackDetails))
+	for _, t := range trackDetails {
+		trackID := t.ID.String()
+		trackMap[trackID] = &model.TrackMinimal{
+			TrackID:       trackID,
+			Title:         &t.Title,
+			Artist:        &t.ArtistName,
+			CoverImageURL: &t.AlbumCoverURL,
+		}
+	}
+
+	orderedTracks := make([]*model.TrackMinimal, 0, len(trackIDs))
+	for _, id := range trackIDs {
+		if track, ok := trackMap[id]; ok {
+			orderedTracks = append(orderedTracks, track)
+		}
+	}
+
+	if len(orderedTracks) == 0 {
+		return nil, fmt.Errorf("no playable tracks found")
+	}
+
+	offsetIndex := -1
+	for i, track := range orderedTracks {
+		if track.TrackID == offsetTrackID {
+			offsetIndex = i
+			break
+		}
+	}
+	if offsetIndex < 0 {
+		return nil, fmt.Errorf("offset track %s not found in the playback context", offsetTrackID)
+	}
+
+	queue := &model.PlayerQueue{
+		CurrentTrack:  orderedTracks[offsetIndex],
+		PreviousTrack: orderedTracks[:offsetIndex],
+		UpcomingTrack: orderedTracks[offsetIndex+1:],
+	}
+
+	if err := r.StreamingService.SetPlayerQueue(ctx, userId, queue); err != nil {
+		return nil, fmt.Errorf("failed to save playback queue: %w", err)
+	}
+
+	contentID := ""
+	if context.ID != nil {
+		contentID = *context.ID
+	}
+	playbackInfoResult, err := r.StreamingService.GetPlaybackInfo(ctx, offsetTrackID, string(context.Type), contentID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get playback info: %w", err)
+	}
+
+	playbackInfo := &model.PlaybackInfo{
+		HlsURL: playbackInfoResult.HlsURL,
+	}
+	if playbackInfoResult.Mp3Fallback != "" {
+		playbackInfo.Mp3Fallback = &playbackInfoResult.Mp3Fallback
+	}
+	if playbackInfoResult.DurationMs != nil {
+		playbackInfo.DurationMs = playbackInfoResult.DurationMs
+	}
+
+	return &model.PlaybackState{
+		Queue:        queue,
+		PlaybackInfo: playbackInfo,
+	}, nil
 }
 
 // AddToQueue is the resolver for the addToQueue field.

@@ -62,6 +62,7 @@ func (r *mutationResolver) UpdatePlaylist(ctx context.Context, id string, input 
 	if err != nil {
 		return nil, fmt.Errorf("failed to check ownership: %w", err)
 	}
+
 	if !isOwner {
 		return nil, fmt.Errorf("unauthorized: you are not the owner of this playlist")
 	}
@@ -140,6 +141,7 @@ func (r *mutationResolver) AddSongToPlaylist(ctx context.Context, input model.Ad
 	if err != nil {
 		return nil, fmt.Errorf("failed to check ownership: %w", err)
 	}
+
 	if !isOwner {
 		return nil, fmt.Errorf("unauthorized: you are not the owner of this playlist")
 	}
