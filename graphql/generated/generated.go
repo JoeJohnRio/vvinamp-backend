@@ -143,6 +143,7 @@ type ComplexityRoot struct {
 		RemoveSongFromPlaylist func(childComplexity int, input model.RemoveSongFromPlaylistInput) int
 		SavePlaylist           func(childComplexity int, input model.SavePlaylistInput) int
 		SkipToNext             func(childComplexity int) int
+		SkipToPrevious         func(childComplexity int) int
 		Test                   func(childComplexity int) int
 		UnsavePlaylist         func(childComplexity int, input model.UnsavePlaylistInput) int
 		UpdatePlaylist         func(childComplexity int, id string, input model.UpdatePlaylistInput) int
@@ -374,7 +375,8 @@ type MutationResolver interface {
 	PlayContext(ctx context.Context, context model.PlaybackContextInput, offsetTrackID string) (*model.PlaybackState, error)
 	AddToQueue(ctx context.Context, trackIds []string) (*model.PlayerQueue, error)
 	ClearQueue(ctx context.Context) (*model.PlayerQueue, error)
-	SkipToNext(ctx context.Context) (*model.PlayerQueue, error)
+	SkipToNext(ctx context.Context) (*model.PlaybackState, error)
+	SkipToPrevious(ctx context.Context) (*model.PlaybackState, error)
 	CreatePlaylist(ctx context.Context, input model.CreatePlaylistInput) (*model.Playlist, error)
 	UpdatePlaylist(ctx context.Context, id string, input model.UpdatePlaylistInput) (*model.Playlist, error)
 	DeletePlaylist(ctx context.Context, id string) (bool, error)
@@ -915,6 +917,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.SkipToNext(childComplexity), true
+
+	case "Mutation.skipToPrevious":
+		if e.complexity.Mutation.SkipToPrevious == nil {
+			break
+		}
+
+		return e.complexity.Mutation.SkipToPrevious(childComplexity), true
 
 	case "Mutation.test":
 		if e.complexity.Mutation.Test == nil {
@@ -2197,7 +2206,8 @@ extend type Mutation {
   playContext(context: PlaybackContextInput!, offsetTrackId: ID!): PlaybackState!
   addToQueue(trackIds: [ID!]!): PlayerQueue!
   clearQueue: PlayerQueue!
-  skipToNext: PlayerQueue!
+  skipToNext: PlaybackState!
+  skipToPrevious: PlaybackState!
 }`, BuiltIn: false},
 	{Name: "../schema/playlist.graphqls", Input: `type Playlist {
   id: ID!
@@ -6605,9 +6615,9 @@ func (ec *executionContext) _Mutation_skipToNext(ctx context.Context, field grap
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.PlayerQueue)
+	res := resTmp.(*model.PlaybackState)
 	fc.Result = res
-	return ec.marshalNPlayerQueue2ᚖvvinampᚋgraphqlᚋmodelᚐPlayerQueue(ctx, field.Selections, res)
+	return ec.marshalNPlaybackState2ᚖvvinampᚋgraphqlᚋmodelᚐPlaybackState(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Mutation_skipToNext(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -6618,14 +6628,62 @@ func (ec *executionContext) fieldContext_Mutation_skipToNext(_ context.Context, 
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
-			case "currentTrack":
-				return ec.fieldContext_PlayerQueue_currentTrack(ctx, field)
-			case "previousTrack":
-				return ec.fieldContext_PlayerQueue_previousTrack(ctx, field)
-			case "upcomingTrack":
-				return ec.fieldContext_PlayerQueue_upcomingTrack(ctx, field)
+			case "queue":
+				return ec.fieldContext_PlaybackState_queue(ctx, field)
+			case "playbackInfo":
+				return ec.fieldContext_PlaybackState_playbackInfo(ctx, field)
 			}
-			return nil, fmt.Errorf("no field named %q was found under type PlayerQueue", field.Name)
+			return nil, fmt.Errorf("no field named %q was found under type PlaybackState", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_skipToPrevious(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_skipToPrevious(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().SkipToPrevious(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PlaybackState)
+	fc.Result = res
+	return ec.marshalNPlaybackState2ᚖvvinampᚋgraphqlᚋmodelᚐPlaybackState(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_skipToPrevious(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "queue":
+				return ec.fieldContext_PlaybackState_queue(ctx, field)
+			case "playbackInfo":
+				return ec.fieldContext_PlaybackState_playbackInfo(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PlaybackState", field.Name)
 		},
 	}
 	return fc, nil
@@ -16857,6 +16915,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "skipToNext":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_skipToNext(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "skipToPrevious":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_skipToPrevious(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++

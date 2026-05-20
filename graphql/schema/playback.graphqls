@@ -50,5 +50,6 @@ extend type Mutation {
   playContext(context: PlaybackContextInput!, offsetTrackId: ID!): PlaybackState!
   addToQueue(trackIds: [ID!]!): PlayerQueue!
   clearQueue: PlayerQueue!
-  skipToNext: PlayerQueue!
+  skipToNext: PlaybackState!
+  skipToPrevious: PlaybackState!
 }

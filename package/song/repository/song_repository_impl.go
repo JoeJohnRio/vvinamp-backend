@@ -109,7 +109,7 @@ func (r *sqlRepository) GetTracksWithDetails(ctx context.Context, trackIds []str
 	log.Println("joel123 jalan 1")
 	err := r.DB(ctx).
 		Table("tracks").
-		Select("tracks.id, tracks.title, albums.cover_art, artists.name as artist_name").
+		Select("tracks.id, tracks.title, albums.cover_art as album_cover_url, artists.name as artist_name").
 		Joins("JOIN albums ON tracks.album_id = albums.id").
 		Joins("JOIN artists ON albums.artist_id = artists.id").
 		Where("tracks.id IN ?", trackIds). // Uses WHERE id IN ('id1', 'id2')

@@ -106,10 +106,15 @@ func (r *mutationResolver) PlayContext(ctx context.Context, context model.Playba
 	}
 
 	offsetIndex := -1
-	for i, track := range orderedTracks {
-		if track.TrackID == offsetTrackID {
-			offsetIndex = i
-			break
+	if offsetTrackID == "" && context.Type == model.ContextTypePlaylist {
+		offsetIndex = 0
+		offsetTrackID = orderedTracks[0].TrackID
+	} else {
+		for i, track := range orderedTracks {
+			if track.TrackID == offsetTrackID {
+				offsetIndex = i
+				break
+			}
 		}
 	}
 	if offsetIndex < 0 {
@@ -176,12 +181,73 @@ func (r *mutationResolver) ClearQueue(ctx context.Context) (*model.PlayerQueue, 
 }
 
 // SkipToNext is the resolver for the skipToNext field.
-func (r *mutationResolver) SkipToNext(ctx context.Context) (*model.PlayerQueue, error) {
+func (r *mutationResolver) SkipToNext(ctx context.Context) (*model.PlaybackState, error) {
 	userId, _ := ctx.Value(constant.Session).(string)
 	if userId == "" {
 		return nil, fmt.Errorf("unauthorized")
 	}
-	return r.StreamingService.SkipToNext(ctx, userId)
+
+	queue, err := r.StreamingService.SkipToNext(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	if queue == nil || queue.CurrentTrack == nil || queue.CurrentTrack.TrackID == "" {
+		return nil, fmt.Errorf("no current track available")
+	}
+
+	pInfoResult, err := r.StreamingService.GetPlaybackInfo(ctx, queue.CurrentTrack.TrackID, "", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get playback info: %w", err)
+	}
+
+	playbackInfo := &model.PlaybackInfo{HlsURL: pInfoResult.HlsURL}
+	if pInfoResult.Mp3Fallback != "" {
+		playbackInfo.Mp3Fallback = &pInfoResult.Mp3Fallback
+	}
+	if pInfoResult.DurationMs != nil {
+		playbackInfo.DurationMs = pInfoResult.DurationMs
+	}
+
+	return &model.PlaybackState{
+		Queue:        queue,
+		PlaybackInfo: playbackInfo,
+	}, nil
+}
+
+// SkipToPrevious is the resolver for the skipToPrevious field.
+func (r *mutationResolver) SkipToPrevious(ctx context.Context) (*model.PlaybackState, error) {
+	userId, _ := ctx.Value(constant.Session).(string)
+	if userId == "" {
+		return nil, fmt.Errorf("unauthorized")
+	}
+
+	queue, err := r.StreamingService.SkipToPrevious(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	if queue == nil || queue.CurrentTrack == nil || queue.CurrentTrack.TrackID == "" {
+		return nil, fmt.Errorf("no current track available")
+	}
+
+	pInfoResult, err := r.StreamingService.GetPlaybackInfo(ctx, queue.CurrentTrack.TrackID, "", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get playback info: %w", err)
+	}
+
+	playbackInfo := &model.PlaybackInfo{HlsURL: pInfoResult.HlsURL}
+	if pInfoResult.Mp3Fallback != "" {
+		playbackInfo.Mp3Fallback = &pInfoResult.Mp3Fallback
+	}
+	if pInfoResult.DurationMs != nil {
+		playbackInfo.DurationMs = pInfoResult.DurationMs
+	}
+
+	return &model.PlaybackState{
+		Queue:        queue,
+		PlaybackInfo: playbackInfo,
+	}, nil
 }
 
 // PlaybackInfo is the resolver for the playbackInfo field.
