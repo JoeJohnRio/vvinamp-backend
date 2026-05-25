@@ -73,7 +73,7 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 		// Get content name based on content type
 		var contentName string
 		var contentSubtitle *string
-		var contentImage *string
+		var contentImage []string
 		switch contentType {
 		case graphqlModel.ContentTypeTrack:
 			songSvc := r.SongService
@@ -81,19 +81,19 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 			if err != nil {
 				log.Printf("Error fetching track for content name/image: %v", err)
 				contentName = "Unknown Track"
+				contentImage = []string{}
 				empty := ""
-				contentImage = &empty
 				contentSubtitle = &empty
 			} else {
 				contentName = data.Title
 				album, err := songSvc.GetAlbumByID(ctx, data.AlbumID.String())
 				if err != nil {
 					log.Printf("Error fetching album for content image: %v", err)
+					contentImage = []string{}
 					empty := ""
-					contentImage = &empty
 					contentSubtitle = &empty
 				} else {
-					contentImage = &album.CoverArt
+					contentImage = []string{album.CoverArt}
 					artist, artistErr := r.ArtistService.GetArtistByID(ctx, album.ArtistID.String())
 					if artistErr == nil && artist != nil {
 						contentSubtitle = &artist.Name
@@ -111,12 +111,16 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 			if result.Error != nil {
 				log.Printf("Error fetching podcast episode: %v", result.Error)
 				contentName = "Unknown Podcast Episode"
+				contentImage = []string{}
 				empty := ""
-				contentImage = &empty
 				contentSubtitle = &empty
 			} else {
 				contentName = podcastEpisode.Title
-				contentImage = podcastEpisode.CoverArt
+				if podcastEpisode.CoverArt != nil && *podcastEpisode.CoverArt != "" {
+					contentImage = []string{*podcastEpisode.CoverArt}
+				} else {
+					contentImage = []string{}
+				}
 				if podcastEpisode.Series != nil {
 					contentSubtitle = &podcastEpisode.Series.Title
 				} else {
@@ -126,25 +130,58 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 			}
 		case graphqlModel.ContentTypePlaylist:
 			// For playlists, fetch playlist info
-			var playlist dbModel.Playlist
-			db := postgre.ForContext(ctx)
-			result := db.Where("id = ?", raw.ContentID).First(&playlist)
-			if result.Error != nil {
-				log.Printf("Error fetching playlist: %v", result.Error)
+			playlistSvc := r.PlaylistService
+			playlistTracks, err := playlistSvc.GetPlaylistSongs(ctx, raw.ContentID)
+			if err != nil || len(playlistTracks) == 0 {
 				contentName = "Unknown Playlist"
+				contentImage = []string{}
 				empty := ""
-				contentImage = &empty
 				contentSubtitle = &empty
 			} else {
-				contentName = playlist.Title
-				contentImage = playlist.CoverImage
+				var albumCovers []string
+				seenCovers := make(map[string]bool)
+				for _, pt := range playlistTracks {
+					track, err := r.SongService.GetSingleTrack(ctx, pt.TrackID)
+					if err != nil || track == nil {
+						continue
+					}
 
-				creator, err := r.UserService.GetByID(ctx, playlist.CreatorID)
-				if err == nil && creator != nil {
-					contentSubtitle = &creator.Username
+					album, err := r.SongService.GetAlbumByID(ctx, track.AlbumID.String())
+					if err != nil || album == nil || album.CoverArt == "" {
+						continue
+					}
+
+					if !seenCovers[album.CoverArt] {
+						seenCovers[album.CoverArt] = true
+						albumCovers = append(albumCovers, album.CoverArt)
+						if len(albumCovers) == 4 {
+							break
+						}
+					}
+				}
+
+				if len(albumCovers) > 0 && len(albumCovers) < 4 {
+					contentImage = []string{albumCovers[0]}
 				} else {
+					contentImage = albumCovers
+				}
+
+				var playlist dbModel.Playlist
+				db := postgre.ForContext(ctx)
+				result := db.Where("id = ?", raw.ContentID).First(&playlist)
+				if result.Error != nil {
+					contentName = "Unknown Playlist"
 					empty := ""
 					contentSubtitle = &empty
+				} else {
+					contentName = playlist.Title
+					creator, err := r.UserService.GetByID(ctx, playlist.CreatorID)
+					if err == nil && creator != nil {
+						contentSubtitle = &creator.Username
+					} else {
+						empty := ""
+						contentSubtitle = &empty
+					}
 				}
 			}
 		case graphqlModel.ContentTypePodcastSeries:
@@ -155,12 +192,16 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 			if result.Error != nil {
 				log.Printf("Error fetching podcast series: %v", result.Error)
 				contentName = "Unknown Podcast Series"
+				contentImage = []string{}
 				empty := ""
-				contentImage = &empty
 				contentSubtitle = &empty
 			} else {
 				contentName = podcastSeries.Title
-				contentImage = podcastSeries.CoverArt
+				if podcastSeries.CoverArt != nil && *podcastSeries.CoverArt != "" {
+					contentImage = []string{*podcastSeries.CoverArt}
+				} else {
+					contentImage = []string{}
+				}
 				contentSubtitle = podcastSeries.Publisher
 			}
 		case graphqlModel.ContentTypeArtist:
@@ -171,20 +212,24 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 			if result.Error != nil {
 				log.Printf("Error fetching artist: %v", result.Error)
 				contentName = "Unknown Artist"
+				contentImage = []string{}
 				empty := ""
-				contentImage = &empty
 				contentSubtitle = &empty
 			} else {
 				contentName = artist.Name
-				contentImage = artist.ProfileImage
+				if artist.ProfileImage != nil && *artist.ProfileImage != "" {
+					contentImage = []string{*artist.ProfileImage}
+				} else {
+					contentImage = []string{}
+				}
 				empty := "Artist"
 				contentSubtitle = &empty
 			}
 		default:
-			// For other content types, return empty string
-			empty := ""
+			// For other content types, return empty list
 			contentName = "Unknown Content"
-			contentImage = &empty
+			contentImage = []string{}
+			empty := ""
 			contentSubtitle = &empty
 		}
 

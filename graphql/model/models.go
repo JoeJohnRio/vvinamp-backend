@@ -65,6 +65,12 @@ type DateRangeInput struct {
 	To   *string `json:"to,omitempty"`
 }
 
+type EditPlaylistInput struct {
+	PlaylistID        string                 `json:"playlistId"`
+	DeletedTrackIds   []string               `json:"deletedTrackIds,omitempty"`
+	RepositionedSongs []*RepositionSongInput `json:"repositionedSongs,omitempty"`
+}
+
 type ListeningHistory struct {
 	ID              string      `json:"id"`
 	ContentID       string      `json:"contentId"`
@@ -74,7 +80,7 @@ type ListeningHistory struct {
 	ContentType     ContentType `json:"contentType"`
 	ContentName     string      `json:"contentName"`
 	ContentSubtitle *string     `json:"contentSubtitle,omitempty"`
-	ContentImage    *string     `json:"contentImage,omitempty"`
+	ContentImage    []string    `json:"contentImage,omitempty"`
 }
 
 type Login struct {
@@ -224,6 +230,11 @@ type RemoveSongFromPlaylistInput struct {
 	TrackID    string `json:"trackId"`
 }
 
+type RepositionSongInput struct {
+	TrackID  string `json:"trackId"`
+	Position int    `json:"position"`
+}
+
 type SavePlaylistInput struct {
 	PlaylistID string `json:"playlistId"`
 }
@@ -309,6 +320,14 @@ type UpdatePlaylistInput struct {
 	Description *string `json:"description,omitempty"`
 	IsPublic    *bool   `json:"isPublic,omitempty"`
 	CoverImage  *string `json:"coverImage,omitempty"`
+}
+
+type UserDetail struct {
+	ID               string  `json:"id"`
+	Username         string  `json:"username"`
+	Email            string  `json:"email"`
+	ProfilePicture   *string `json:"profilePicture,omitempty"`
+	SubscriptionType string  `json:"subscriptionType"`
 }
 
 type UserFollow struct {
@@ -498,6 +517,65 @@ func (e *PlaylistSortOrder) UnmarshalJSON(b []byte) error {
 }
 
 func (e PlaylistSortOrder) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type PlaylistTrackSortBy string
+
+const (
+	PlaylistTrackSortByTitle         PlaylistTrackSortBy = "TITLE"
+	PlaylistTrackSortByArtistName    PlaylistTrackSortBy = "ARTIST_NAME"
+	PlaylistTrackSortByAlbumName     PlaylistTrackSortBy = "ALBUM_NAME"
+	PlaylistTrackSortByRecentlyAdded PlaylistTrackSortBy = "RECENTLY_ADDED"
+)
+
+var AllPlaylistTrackSortBy = []PlaylistTrackSortBy{
+	PlaylistTrackSortByTitle,
+	PlaylistTrackSortByArtistName,
+	PlaylistTrackSortByAlbumName,
+	PlaylistTrackSortByRecentlyAdded,
+}
+
+func (e PlaylistTrackSortBy) IsValid() bool {
+	switch e {
+	case PlaylistTrackSortByTitle, PlaylistTrackSortByArtistName, PlaylistTrackSortByAlbumName, PlaylistTrackSortByRecentlyAdded:
+		return true
+	}
+	return false
+}
+
+func (e PlaylistTrackSortBy) String() string {
+	return string(e)
+}
+
+func (e *PlaylistTrackSortBy) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = PlaylistTrackSortBy(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid PlaylistTrackSortBy", str)
+	}
+	return nil
+}
+
+func (e PlaylistTrackSortBy) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *PlaylistTrackSortBy) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e PlaylistTrackSortBy) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

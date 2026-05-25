@@ -11,6 +11,7 @@ import (
 	"vvinamp/graphql/model"
 	"vvinamp/internal/pkg/session"
 	dbModel "vvinamp/model"
+	playlistpkg "vvinamp/package/playlist"
 
 	"github.com/google/uuid"
 )
@@ -240,6 +241,49 @@ func (r *mutationResolver) UnsavePlaylist(ctx context.Context, input model.Unsav
 	return true, nil
 }
 
+// EditPlaylist is the resolver for the editPlaylist field.
+func (r *mutationResolver) EditPlaylist(ctx context.Context, input model.EditPlaylistInput) (bool, error) {
+	// Require authentication
+	sessionHelper := session.NewGraphQLSessionHelper()
+	userID, err := sessionHelper.RequireSessionForResolver(ctx)
+	if err != nil {
+		return false, fmt.Errorf("unauthorized: %v", err)
+	}
+
+	playlistSvc := r.PlaylistService
+
+	// Check ownership
+	isOwner, err := playlistSvc.IsPlaylistOwner(ctx, input.PlaylistID, userID)
+	if err != nil {
+		return false, fmt.Errorf("failed to check ownership: %w", err)
+	}
+	if !isOwner {
+		return false, fmt.Errorf("unauthorized: you are not the owner of this playlist")
+	}
+
+	if len(input.DeletedTrackIds) == 0 && len(input.RepositionedSongs) == 0 {
+		return true, nil
+	}
+
+	repositionedSongs := make([]playlistpkg.RepositionSong, 0, len(input.RepositionedSongs))
+	for _, item := range input.RepositionedSongs {
+		if item == nil {
+			continue
+		}
+		repositionedSongs = append(repositionedSongs, playlistpkg.RepositionSong{
+			TrackID:  item.TrackID,
+			Position: item.Position,
+		})
+	}
+
+	err = playlistSvc.EditPlaylist(ctx, input.PlaylistID, input.DeletedTrackIds, repositionedSongs)
+	if err != nil {
+		return false, fmt.Errorf("failed to edit playlist: %w", err)
+	}
+
+	return true, nil
+}
+
 // Creator is the resolver for the creator field.
 func (r *playlistResolver) Creator(ctx context.Context, obj *model.Playlist) (*model.User, error) {
 	if obj.Creator != nil {
@@ -367,7 +411,7 @@ func (r *queryResolver) GetPlaylist(ctx context.Context, id string) (*model.Play
 }
 
 // GetPlaylistTracks is the resolver for the getPlaylistTracks field.
-func (r *queryResolver) GetPlaylistTracks(ctx context.Context, playlistID string, first *int, after *string, last *int, before *string) (*model.PlaylistTrackConnection, error) {
+func (r *queryResolver) GetPlaylistTracks(ctx context.Context, playlistID string, sortBy *model.PlaylistTrackSortBy, first *int, after *string, last *int, before *string) (*model.PlaylistTrackConnection, error) {
 	playlistSvc := r.PlaylistService
 	songSvc := r.SongService
 
@@ -391,7 +435,7 @@ func (r *queryResolver) GetPlaylistTracks(ctx context.Context, playlistID string
 		}
 	}
 
-	return getPlaylistTracks(ctx, r.Resolver, playlistID, first, after, last, before, songSvc)
+	return getPlaylistTracks(ctx, r.Resolver, playlistID, sortBy, first, after, last, before, songSvc)
 }
 
 // GetMyPlaylists is the resolver for the getMyPlaylists field.

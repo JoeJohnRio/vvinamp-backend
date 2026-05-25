@@ -36,6 +36,36 @@ func (r *queryResolver) Me(ctx context.Context) (*model.User, error) {
 	return currentUser, nil
 }
 
+// GetCurrentUserDetail is the resolver for the getCurrentUserDetail field - returns the current authenticated user details
+func (r *queryResolver) GetCurrentUserDetail(ctx context.Context) (*model.UserDetail, error) {
+	// Use the session helper to validate the session
+	sessionHelper := session.NewGraphQLSessionHelper()
+
+	userID, err := sessionHelper.RequireSessionForResolver(ctx)
+	if err != nil {
+		// Return a GraphQL error indicating unauthorized access
+		return nil, fmt.Errorf("unauthorized: %v", err)
+	}
+
+	// Get the user service from context
+	userSvc := user.ForContext(ctx)
+
+	// Fetch the user by ID
+	currentUser, err := userSvc.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch user: %v", err)
+	}
+
+	// Return only the necessary user details (no passwordHash)
+	return &model.UserDetail{
+		ID:               currentUser.ID,
+		Username:         currentUser.Username,
+		Email:            currentUser.Email,
+		ProfilePicture:   currentUser.ProfilePicture,
+		SubscriptionType: currentUser.SubscriptionType,
+	}, nil
+}
+
 // Playlists is the resolver for the playlists field.
 func (r *userResolver) Playlists(ctx context.Context, obj *model.User) ([]*model.Playlist, error) {
 	panic("not implemented")

@@ -8,6 +8,11 @@ import (
 
 type key string
 
+type RepositionSong struct {
+	TrackID  string
+	Position int
+}
+
 const (
 	Key key = "playlist"
 )
@@ -23,6 +28,7 @@ type Service interface {
 	DeletePlaylist(ctx context.Context, id string) error
 	AddSongToPlaylist(ctx context.Context, playlistID, trackID string, position int) error
 	RemoveSongFromPlaylist(ctx context.Context, playlistID, trackID string) error
+	EditPlaylist(ctx context.Context, playlistID string, deletedTrackIds []string, repositionedSongs []RepositionSong) error
 	GetPlaylistSongs(ctx context.Context, playlistID string) ([]*dbModel.PlaylistTrack, error)
 	SavePlaylist(ctx context.Context, userID, playlistID string) error
 	UnsavePlaylist(ctx context.Context, userID, playlistID string) error

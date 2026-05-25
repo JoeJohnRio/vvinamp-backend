@@ -56,6 +56,17 @@ input RemoveSongFromPlaylistInput {
   trackId: ID!
 }
 
+input RepositionSongInput {
+  trackId: ID!
+  position: Int!
+}
+
+input EditPlaylistInput {
+  playlistId: ID!
+  deletedTrackIds: [ID!]
+  repositionedSongs: [RepositionSongInput!]
+}
+
 input SavePlaylistInput {
   playlistId: ID!
 }
@@ -71,10 +82,17 @@ enum PlaylistSortOrder {
   CREATOR
 }
 
+enum PlaylistTrackSortBy {
+  TITLE
+  ARTIST_NAME
+  ALBUM_NAME
+  RECENTLY_ADDED
+}
+
 extend type Query {
   getPlaylist(id: ID!): Playlist
 
-  getPlaylistTracks(playlistId: ID!, first: Int, after: String, last: Int, before: String): PlaylistTrackConnection!
+  getPlaylistTracks(playlistId: ID!, sortBy: PlaylistTrackSortBy = RECENTLY_ADDED, first: Int, after: String, last: Int, before: String): PlaylistTrackConnection!
 
   getMyPlaylists(first: Int, after: String, last: Int, before: String): PlaylistConnection!
 
@@ -97,6 +115,8 @@ extend type Mutation {
   savePlaylist(input: SavePlaylistInput!): Playlist!
   
   unsavePlaylist(input: UnsavePlaylistInput!): Boolean!
+
+  editPlaylist(input: EditPlaylistInput!): Boolean!
 }
 
 type PlaylistConnection {

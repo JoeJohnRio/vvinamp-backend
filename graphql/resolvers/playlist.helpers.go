@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 	"vvinamp/graphql/model"
 	dbModel "vvinamp/model"
@@ -194,7 +196,7 @@ func getMyPlaylistFeed(ctx context.Context, resolver *Resolver, userID string, f
 }
 
 // getPlaylistTracks is a helper function to get playlist tracks with pagination
-func getPlaylistTracks(ctx context.Context, resolver *Resolver, playlistID string, first *int, after *string, last *int, before *string, songSvc interface {
+func getPlaylistTracks(ctx context.Context, resolver *Resolver, playlistID string, sortBy *model.PlaylistTrackSortBy, first *int, after *string, last *int, before *string, songSvc interface {
 	GetSingleTrack(ctx context.Context, id string) (*dbModel.Track, error)
 	GetAlbumByID(ctx context.Context, id string) (*dbModel.Album, error)
 }) (*model.PlaylistTrackConnection, error) {
@@ -229,6 +231,69 @@ func getPlaylistTracks(ctx context.Context, resolver *Resolver, playlistID strin
 	playlistTracks, err := playlistSvc.GetPlaylistSongs(ctx, playlistID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get playlist tracks: %w", err)
+	}
+
+	sortByValue := "RECENTLY_ADDED"
+	if sortBy != nil {
+		sortByValue = string(*sortBy)
+	}
+
+	switch sortByValue {
+	case "TITLE", "ARTIST_NAME", "ALBUM_NAME":
+		type sortKey struct {
+			track        *dbModel.Track
+			album        *dbModel.Album
+			artistName   string
+			albumName    string
+			playlistTrack *dbModel.PlaylistTrack
+		}
+		keys := make([]sortKey, 0, len(playlistTracks))
+		for _, pt := range playlistTracks {
+			track, err := songSvc.GetSingleTrack(ctx, pt.TrackID)
+			var album *dbModel.Album
+			artistName := ""
+			albumName := ""
+			if err == nil && track != nil {
+				album, _ = songSvc.GetAlbumByID(ctx, track.AlbumID.String())
+				if album != nil {
+					albumName = album.Title
+					artistStruct, _ := resolver.ArtistService.GetArtistByID(ctx, album.ArtistID.String())
+					if artistStruct != nil {
+						artistName = artistStruct.Name
+					}
+				}
+			}
+			keys = append(keys, sortKey{track: track, album: album, artistName: artistName, albumName: albumName, playlistTrack: pt})
+		}
+
+		sort.SliceStable(keys, func(i, j int) bool {
+			switch sortByValue {
+			case "TITLE":
+				if keys[i].track == nil {
+					return false
+				}
+				if keys[j].track == nil {
+					return true
+				}
+				return strings.ToLower(keys[i].track.Title) < strings.ToLower(keys[j].track.Title)
+			case "ARTIST_NAME":
+				return strings.ToLower(keys[i].artistName) < strings.ToLower(keys[j].artistName)
+			case "ALBUM_NAME":
+				return strings.ToLower(keys[i].albumName) < strings.ToLower(keys[j].albumName)
+			default:
+				return false
+			}
+		})
+
+		sorted := make([]*dbModel.PlaylistTrack, len(keys))
+		for i, k := range keys {
+			sorted[i] = k.playlistTrack
+		}
+		playlistTracks = sorted
+	default:
+		sort.SliceStable(playlistTracks, func(i, j int) bool {
+			return playlistTracks[i].AddedAt.After(playlistTracks[j].AddedAt)
+		})
 	}
 
 	// Apply pagination manually (since service returns all tracks)

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"vvinamp/database/postgre"
@@ -15,8 +16,8 @@ import (
 )
 
 var (
-	ErrPlaylistNotFound = errors.New("playlist not found")
-	ErrNotOwner         = errors.New("user is not the playlist owner")
+	ErrPlaylistNotFound  = errors.New("playlist not found")
+	ErrNotOwner          = errors.New("user is not the playlist owner")
 	ErrSongAlreadyExists = errors.New("song already exists in playlist")
 )
 
@@ -224,13 +225,13 @@ func (r *sqlRepository) AddSong(ctx context.Context, playlistID, trackID string,
 		return err
 	}
 
-	// If position is not specified or negative, add to the end
+	// If position is not specified or negative, add to the end using zero-based indexing.
 	if position < 0 {
 		var maxPosition int
 		err := r.DB(ctx).
 			Model(&dbModel.PlaylistTrack{}).
 			Where("playlist_id = ?", playlistID).
-			Select("COALESCE(MAX(position), 0)").
+			Select("COALESCE(MAX(position), -1)").
 			Scan(&maxPosition).Error
 		if err != nil {
 			return err
@@ -253,6 +254,76 @@ func (r *sqlRepository) RemoveSong(ctx context.Context, playlistID, trackID stri
 	return r.DB(ctx).
 		Where("playlist_id = ? AND track_id = ?", playlistID, trackID).
 		Delete(&dbModel.PlaylistTrack{}).Error
+}
+
+// EditPlaylist applies deleted track removals and repositioning in a single transaction.
+func (r *sqlRepository) EditPlaylist(ctx context.Context, playlistID string, deletedTrackIds []string, repositionedSongs []playlist.RepositionSong) error {
+	tx := r.DB(ctx).Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if len(deletedTrackIds) > 0 {
+		if err := tx.Where("playlist_id = ? AND track_id IN ?", playlistID, deletedTrackIds).
+			Delete(&dbModel.PlaylistTrack{}).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	// Rebuild the playlist ordering after any deletes and requested moves.
+	var playlistTracks []*dbModel.PlaylistTrack
+	if err := tx.
+		Where("playlist_id = ?", playlistID).
+		Order("position ASC").
+		Find(&playlistTracks).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	trackOrder := make([]string, 0, len(playlistTracks))
+	for _, pt := range playlistTracks {
+		trackOrder = append(trackOrder, pt.TrackID)
+	}
+
+	for _, song := range repositionedSongs {
+		currentIndex := -1
+		for idx, trackID := range trackOrder {
+			if trackID == song.TrackID {
+				currentIndex = idx
+				break
+			}
+		}
+		if currentIndex < 0 {
+			tx.Rollback()
+			return fmt.Errorf("playlist track not found: %s", song.TrackID)
+		}
+
+		trackOrder = append(trackOrder[:currentIndex], trackOrder[currentIndex+1:]...)
+
+		target := song.Position
+		if target < 0 {
+			target = 0
+		}
+		if target > len(trackOrder) {
+			target = len(trackOrder)
+		}
+
+		trackOrder = append(trackOrder[:target], append([]string{song.TrackID}, trackOrder[target:]...)...)
+	}
+
+	// Update all track positions sequentially using zero-based indexing.
+	for idx, trackID := range trackOrder {
+		newPos := idx
+		if err := tx.Model(&dbModel.PlaylistTrack{}).
+			Where("playlist_id = ? AND track_id = ?", playlistID, trackID).
+			Update("position", newPos).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	return tx.Commit().Error
 }
 
 // Save saves a playlist for a user

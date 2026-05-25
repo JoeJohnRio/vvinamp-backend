@@ -7,7 +7,7 @@ type ListeningHistory {
   contentType: ContentType!
   contentName: String!
   contentSubtitle: String
-  contentImage: String
+  contentImage: [String!]
 }
 
 extend type Query {

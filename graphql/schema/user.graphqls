@@ -24,7 +24,18 @@ type UserFollow {
   artist: Artist!
 }
 
+type UserDetail {
+  id: ID!
+  username: String!
+  email: String!
+  profilePicture: String
+  subscriptionType: String!
+}
+
 extend type Query {
   # Protected query that requires authentication
   me: User!
+  
+  # Get current authenticated user details
+  getCurrentUserDetail: UserDetail!
 }

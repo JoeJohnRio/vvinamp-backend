@@ -97,6 +97,11 @@ func (s *service) RemoveSongFromPlaylist(ctx context.Context, playlistID, trackI
 	return s.repo.RemoveSong(ctx, playlistID, trackID)
 }
 
+// EditPlaylist applies deletes and repositioning to a playlist in a single operation.
+func (s *service) EditPlaylist(ctx context.Context, playlistID string, deletedTrackIds []string, repositionedSongs []playlist.RepositionSong) error {
+	return s.repo.EditPlaylist(ctx, playlistID, deletedTrackIds, repositionedSongs)
+}
+
 // GetPlaylistSongs retrieves all songs in a playlist
 func (s *service) GetPlaylistSongs(ctx context.Context, playlistID string) ([]*dbModel.PlaylistTrack, error) {
 	return s.repo.GetSongsByPlaylistID(ctx, playlistID)

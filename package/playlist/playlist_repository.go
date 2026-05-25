@@ -19,6 +19,7 @@ type Repository interface {
 	GetSongsByPlaylistID(ctx context.Context, playlistID string) ([]*dbModel.PlaylistTrack, error)
 	AddSong(ctx context.Context, playlistID, trackID string, position int) error
 	RemoveSong(ctx context.Context, playlistID, trackID string) error
+	EditPlaylist(ctx context.Context, playlistID string, deletedTrackIds []string, repositionedSongs []RepositionSong) error
 
 	// Saved playlists
 	Save(ctx context.Context, userID, playlistID string) error
