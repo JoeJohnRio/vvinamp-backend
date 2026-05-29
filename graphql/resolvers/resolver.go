@@ -2,23 +2,26 @@ package resolvers
 
 import (
 	"context"
-	userService "vvinamp/package/user"
-	historyService "vvinamp/package/history"
-	songService "vvinamp/package/song"
-	artistService "vvinamp/package/artist/service"
-	streamingService "vvinamp/package/streaming"
-	playlistService "vvinamp/package/playlist"
 	"vvinamp/constant"
 	"vvinamp/internal/pkg/session"
+	youtubeService "vvinamp/internal/services/youtube"
+	artistService "vvinamp/package/artist/service"
+	historyService "vvinamp/package/history"
+	playlistService "vvinamp/package/playlist"
+	songService "vvinamp/package/song"
+	streamingService "vvinamp/package/streaming"
+	userService "vvinamp/package/user"
 )
 
 type Resolver struct {
-	ArtistService artistService.ArtistService
-	UserService   userService.Service
-	HistoryService historyService.Service
-	SongService   songService.Service
-	StreamingService *streamingService.Service
-	PlaylistService playlistService.Service
+	ArtistService          artistService.ArtistService
+	UserService            userService.Service
+	HistoryService         historyService.Service
+	SongService            songService.Service
+	StreamingService       *streamingService.Service
+	PlaylistService        playlistService.Service
+	YoutubeSearchService   *youtubeService.SearchService
+	YoutubeDownloadService *youtubeService.DownloadService
 }
 
 func NewResolver(
@@ -28,14 +31,18 @@ func NewResolver(
 	songService songService.Service,
 	streamingService *streamingService.Service,
 	playlistService playlistService.Service,
+	youtubeSearchService *youtubeService.SearchService,
+	youtubeDownloadService *youtubeService.DownloadService,
 ) *Resolver {
 	return &Resolver{
-		ArtistService:  artistService,
-		UserService:    userService,
-		HistoryService: historyService,
-		SongService:    songService,
-		StreamingService: streamingService,
-		PlaylistService: playlistService,
+		ArtistService:          artistService,
+		UserService:            userService,
+		HistoryService:         historyService,
+		SongService:            songService,
+		StreamingService:       streamingService,
+		PlaylistService:        playlistService,
+		YoutubeSearchService:   youtubeSearchService,
+		YoutubeDownloadService: youtubeDownloadService,
 	}
 }
 

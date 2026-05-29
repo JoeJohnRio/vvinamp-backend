@@ -7,12 +7,18 @@ package resolvers
 import (
 	"context"
 	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/model"
 	"vvinamp/internal/pkg/session"
 	dbModel "vvinamp/model"
 	playlistpkg "vvinamp/package/playlist"
 
+	"github.com/99designs/gqlgen/graphql"
 	"github.com/google/uuid"
 )
 
@@ -279,6 +285,127 @@ func (r *mutationResolver) EditPlaylist(ctx context.Context, input model.EditPla
 	err = playlistSvc.EditPlaylist(ctx, input.PlaylistID, input.DeletedTrackIds, repositionedSongs)
 	if err != nil {
 		return false, fmt.Errorf("failed to edit playlist: %w", err)
+	}
+
+	return true, nil
+}
+
+// UploadPlaylistCover is the resolver for the uploadPlaylistCover field.
+func (r *mutationResolver) UploadPlaylistCover(ctx context.Context, playlistID string, file graphql.Upload) (string, error) {
+	// Require authentication
+	sessionHelper := session.NewGraphQLSessionHelper()
+	userID, err := sessionHelper.RequireSessionForResolver(ctx)
+	if err != nil {
+		return "", fmt.Errorf("unauthorized: %v", err)
+	}
+
+	playlistSvc := r.PlaylistService
+
+	// Check ownership
+	isOwner, err := playlistSvc.IsPlaylistOwner(ctx, playlistID, userID)
+	if err != nil {
+		return "", fmt.Errorf("failed to check ownership: %w", err)
+	}
+	if !isOwner {
+		return "", fmt.Errorf("unauthorized: you are not the owner of this playlist")
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext == "" {
+		ext = ".jpg"
+	}
+
+	base := os.Getenv("STORAGE_PATH")
+	if base == "" {
+		base = os.Getenv("BASE_STORAGE_PATH")
+	}
+	if base == "" {
+		base = filepath.Join(".", "Storage")
+	}
+
+	destDir := filepath.Join(base, "Mobile", "Playlist", playlistID)
+	if err := os.MkdirAll(destDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	destName := "playlist" + ext
+	destPath := filepath.Join(destDir, destName)
+
+	out, err := os.Create(destPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create file: %w", err)
+	}
+	defer out.Close()
+
+	if _, err := io.Copy(out, file.File); err != nil {
+		return "", fmt.Errorf("failed to write file: %w", err)
+	}
+
+	// Add cache-busting parameter with current timestamp
+	timestamp := time.Now().Unix()
+	url := fmt.Sprintf("https://cirio.my.id/storage/Mobile/Playlist/%s/%s?v=%d", playlistID, destName, timestamp)
+
+	// Update playlist record
+	p, err := playlistSvc.GetPlaylistByID(ctx, playlistID)
+	if err == nil && p != nil {
+		p.CoverImage = &url
+		_, _ = playlistSvc.UpdatePlaylist(ctx, p)
+	}
+
+	return url, nil
+}
+
+// DeletePlaylistCoverImage is the resolver for the deletePlaylistCoverImage field.
+func (r *mutationResolver) DeletePlaylistCoverImage(ctx context.Context, playlistID string) (bool, error) {
+	// Require authentication
+	sessionHelper := session.NewGraphQLSessionHelper()
+	userID, err := sessionHelper.RequireSessionForResolver(ctx)
+	if err != nil {
+		return false, fmt.Errorf("unauthorized: %v", err)
+	}
+
+	playlistSvc := r.PlaylistService
+
+	// Check ownership
+	isOwner, err := playlistSvc.IsPlaylistOwner(ctx, playlistID, userID)
+	if err != nil {
+		return false, fmt.Errorf("failed to check ownership: %w", err)
+	}
+	if !isOwner {
+		return false, fmt.Errorf("unauthorized: you are not the owner of this playlist")
+	}
+
+	base := os.Getenv("STORAGE_PATH")
+	if base == "" {
+		base = os.Getenv("BASE_STORAGE_PATH")
+	}
+	if base == "" {
+		base = filepath.Join(".", "Storage")
+	}
+
+	dirPath := filepath.Join(base, "Mobile", "Playlist", playlistID)
+	possible := []string{"playlist.jpg", "playlist.jpeg", "playlist.png", "playlist.webp"}
+	deleted := false
+	for _, f := range possible {
+		p := filepath.Join(dirPath, f)
+		if _, err := os.Stat(p); err == nil {
+			if err := os.Remove(p); err == nil {
+				deleted = true
+				break
+			}
+		}
+	}
+
+	if !deleted {
+		return false, fmt.Errorf("file not found")
+	}
+
+	// Clear DB field
+	p, err := playlistSvc.GetPlaylistByID(ctx, playlistID)
+	if err == nil && p != nil {
+		empty := ""
+		p.CoverImage = &empty
+		_, _ = playlistSvc.UpdatePlaylist(ctx, p)
 	}
 
 	return true, nil

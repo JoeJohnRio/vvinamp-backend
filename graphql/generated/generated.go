@@ -108,6 +108,18 @@ type ComplexityRoot struct {
 		RefreshToken func(childComplexity int) int
 	}
 
+	DownloadTask struct {
+		CreatedAt  func(childComplexity int) int
+		Error      func(childComplexity int) int
+		FilePath   func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Progress   func(childComplexity int) int
+		Status     func(childComplexity int) int
+		Title      func(childComplexity int) int
+		UpdatedAt  func(childComplexity int) int
+		YoutubeURL func(childComplexity int) int
+	}
+
 	Genre struct {
 		Albums      func(childComplexity int) int
 		Description func(childComplexity int) int
@@ -132,22 +144,25 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddSongToPlaylist      func(childComplexity int, input model.AddSongToPlaylistInput) int
-		AddToQueue             func(childComplexity int, trackIds []string) int
-		ClearQueue             func(childComplexity int) int
-		CreatePlaylist         func(childComplexity int, input model.CreatePlaylistInput) int
-		DeletePlaylist         func(childComplexity int, id string) int
-		EditPlaylist           func(childComplexity int, input model.EditPlaylistInput) int
-		PlayContext            func(childComplexity int, context model.PlaybackContextInput, offsetTrackID string) int
-		RefreshToken           func(childComplexity int, refreshToken string) int
-		Register               func(childComplexity int, input model.RegisterInput) int
-		RemoveSongFromPlaylist func(childComplexity int, input model.RemoveSongFromPlaylistInput) int
-		SavePlaylist           func(childComplexity int, input model.SavePlaylistInput) int
-		SkipToNext             func(childComplexity int) int
-		SkipToPrevious         func(childComplexity int) int
-		Test                   func(childComplexity int) int
-		UnsavePlaylist         func(childComplexity int, input model.UnsavePlaylistInput) int
-		UpdatePlaylist         func(childComplexity int, id string, input model.UpdatePlaylistInput) int
+		AddSongToPlaylist        func(childComplexity int, input model.AddSongToPlaylistInput) int
+		AddToQueue               func(childComplexity int, trackIds []string) int
+		ClearQueue               func(childComplexity int) int
+		CreatePlaylist           func(childComplexity int, input model.CreatePlaylistInput) int
+		DeletePlaylist           func(childComplexity int, id string) int
+		DeletePlaylistCoverImage func(childComplexity int, playlistID string) int
+		EditPlaylist             func(childComplexity int, input model.EditPlaylistInput) int
+		PlayContext              func(childComplexity int, context model.PlaybackContextInput, offsetTrackID string) int
+		RefreshToken             func(childComplexity int, refreshToken string) int
+		Register                 func(childComplexity int, input model.RegisterInput) int
+		RemoveSongFromPlaylist   func(childComplexity int, input model.RemoveSongFromPlaylistInput) int
+		SavePlaylist             func(childComplexity int, input model.SavePlaylistInput) int
+		SkipToNext               func(childComplexity int) int
+		SkipToPrevious           func(childComplexity int) int
+		StartDownload            func(childComplexity int, input model.DownloadInput) int
+		Test                     func(childComplexity int) int
+		UnsavePlaylist           func(childComplexity int, input model.UnsavePlaylistInput) int
+		UpdatePlaylist           func(childComplexity int, id string, input model.UpdatePlaylistInput) int
+		UploadPlaylistCover      func(childComplexity int, playlistID string, file graphql.Upload) int
 	}
 
 	PageInfo struct {
@@ -246,11 +261,13 @@ type ComplexityRoot struct {
 		GetArtistHeader      func(childComplexity int, id string) int
 		GetArtistScreenData  func(childComplexity int, artistID string) int
 		GetCurrentUserDetail func(childComplexity int) int
+		GetDownloadTask      func(childComplexity int, id string) int
 		GetMyPlaylistFeed    func(childComplexity int, first *int, after *string, last *int, before *string, sortOrder *model.PlaylistSortOrder) int
 		GetMyPlaylists       func(childComplexity int, first *int, after *string, last *int, before *string) int
 		GetPlaylist          func(childComplexity int, id string) int
 		GetPlaylistTracks    func(childComplexity int, playlistID string, sortBy *model.PlaylistTrackSortBy, first *int, after *string, last *int, before *string) int
 		GetPlaylistsByUser   func(childComplexity int, userID string, first *int, after *string, last *int, before *string) int
+		ListDownloadTasks    func(childComplexity int) int
 		ListRecentHistory    func(childComplexity int, limit int) int
 		Login                func(childComplexity int, email string, password string) int
 		Logout               func(childComplexity int) int
@@ -260,6 +277,7 @@ type ComplexityRoot struct {
 		RandomTracks         func(childComplexity int, limit int, excludeIds []string) int
 		RecommendedTracks    func(childComplexity int, limit int) int
 		Search               func(childComplexity int, filter model.SearchFilter, first *int, after *string, last *int, before *string) int
+		SearchYoutube        func(childComplexity int, query string) int
 		Test                 func(childComplexity int) int
 	}
 
@@ -276,6 +294,18 @@ type ComplexityRoot struct {
 	SearchItemEdge struct {
 		Cursor func(childComplexity int) int
 		Node   func(childComplexity int) int
+	}
+
+	SearchResult struct {
+		Channel        func(childComplexity int) int
+		Duration       func(childComplexity int) int
+		DurationString func(childComplexity int) int
+		ID             func(childComplexity int) int
+		Thumbnail      func(childComplexity int) int
+		Title          func(childComplexity int) int
+		URL            func(childComplexity int) int
+		ViewCount      func(childComplexity int) int
+		WebpageURL     func(childComplexity int) int
 	}
 
 	StringConnection struct {
@@ -395,6 +425,9 @@ type MutationResolver interface {
 	SavePlaylist(ctx context.Context, input model.SavePlaylistInput) (*model.Playlist, error)
 	UnsavePlaylist(ctx context.Context, input model.UnsavePlaylistInput) (bool, error)
 	EditPlaylist(ctx context.Context, input model.EditPlaylistInput) (bool, error)
+	UploadPlaylistCover(ctx context.Context, playlistID string, file graphql.Upload) (string, error)
+	DeletePlaylistCoverImage(ctx context.Context, playlistID string) (bool, error)
+	StartDownload(ctx context.Context, input model.DownloadInput) (*model.DownloadTask, error)
 }
 type PlaylistResolver interface {
 	Creator(ctx context.Context, obj *model.Playlist) (*model.User, error)
@@ -424,6 +457,9 @@ type QueryResolver interface {
 	RandomTracks(ctx context.Context, limit int, excludeIds []string) ([]*model.Track, error)
 	Me(ctx context.Context) (*model.User, error)
 	GetCurrentUserDetail(ctx context.Context) (*model.UserDetail, error)
+	SearchYoutube(ctx context.Context, query string) ([]*model.SearchResult, error)
+	GetDownloadTask(ctx context.Context, id string) (*model.DownloadTask, error)
+	ListDownloadTasks(ctx context.Context) ([]*model.DownloadTask, error)
 }
 type UserResolver interface {
 	Playlists(ctx context.Context, obj *model.User) ([]*model.Playlist, error)
@@ -710,6 +746,69 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.AuthSession.RefreshToken(childComplexity), true
 
+	case "DownloadTask.createdAt":
+		if e.complexity.DownloadTask.CreatedAt == nil {
+			break
+		}
+
+		return e.complexity.DownloadTask.CreatedAt(childComplexity), true
+
+	case "DownloadTask.error":
+		if e.complexity.DownloadTask.Error == nil {
+			break
+		}
+
+		return e.complexity.DownloadTask.Error(childComplexity), true
+
+	case "DownloadTask.filePath":
+		if e.complexity.DownloadTask.FilePath == nil {
+			break
+		}
+
+		return e.complexity.DownloadTask.FilePath(childComplexity), true
+
+	case "DownloadTask.id":
+		if e.complexity.DownloadTask.ID == nil {
+			break
+		}
+
+		return e.complexity.DownloadTask.ID(childComplexity), true
+
+	case "DownloadTask.progress":
+		if e.complexity.DownloadTask.Progress == nil {
+			break
+		}
+
+		return e.complexity.DownloadTask.Progress(childComplexity), true
+
+	case "DownloadTask.status":
+		if e.complexity.DownloadTask.Status == nil {
+			break
+		}
+
+		return e.complexity.DownloadTask.Status(childComplexity), true
+
+	case "DownloadTask.title":
+		if e.complexity.DownloadTask.Title == nil {
+			break
+		}
+
+		return e.complexity.DownloadTask.Title(childComplexity), true
+
+	case "DownloadTask.updatedAt":
+		if e.complexity.DownloadTask.UpdatedAt == nil {
+			break
+		}
+
+		return e.complexity.DownloadTask.UpdatedAt(childComplexity), true
+
+	case "DownloadTask.youtubeUrl":
+		if e.complexity.DownloadTask.YoutubeURL == nil {
+			break
+		}
+
+		return e.complexity.DownloadTask.YoutubeURL(childComplexity), true
+
 	case "Genre.albums":
 		if e.complexity.Genre.Albums == nil {
 			break
@@ -863,6 +962,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.DeletePlaylist(childComplexity, args["id"].(string)), true
 
+	case "Mutation.deletePlaylistCoverImage":
+		if e.complexity.Mutation.DeletePlaylistCoverImage == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deletePlaylistCoverImage_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.DeletePlaylistCoverImage(childComplexity, args["playlistId"].(string)), true
+
 	case "Mutation.editPlaylist":
 		if e.complexity.Mutation.EditPlaylist == nil {
 			break
@@ -949,6 +1060,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Mutation.SkipToPrevious(childComplexity), true
 
+	case "Mutation.startDownload":
+		if e.complexity.Mutation.StartDownload == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_startDownload_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.StartDownload(childComplexity, args["input"].(model.DownloadInput)), true
+
 	case "Mutation.test":
 		if e.complexity.Mutation.Test == nil {
 			break
@@ -979,6 +1102,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.UpdatePlaylist(childComplexity, args["id"].(string), args["input"].(model.UpdatePlaylistInput)), true
+
+	case "Mutation.uploadPlaylistCover":
+		if e.complexity.Mutation.UploadPlaylistCover == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_uploadPlaylistCover_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.UploadPlaylistCover(childComplexity, args["playlistId"].(string), args["file"].(graphql.Upload)), true
 
 	case "PageInfo.endCursor":
 		if e.complexity.PageInfo.EndCursor == nil {
@@ -1408,6 +1543,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.GetCurrentUserDetail(childComplexity), true
 
+	case "Query.getDownloadTask":
+		if e.complexity.Query.GetDownloadTask == nil {
+			break
+		}
+
+		args, err := ec.field_Query_getDownloadTask_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.GetDownloadTask(childComplexity, args["id"].(string)), true
+
 	case "Query.getMyPlaylistFeed":
 		if e.complexity.Query.GetMyPlaylistFeed == nil {
 			break
@@ -1467,6 +1614,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Query.GetPlaylistsByUser(childComplexity, args["userId"].(string), args["first"].(*int), args["after"].(*string), args["last"].(*int), args["before"].(*string)), true
+
+	case "Query.listDownloadTasks":
+		if e.complexity.Query.ListDownloadTasks == nil {
+			break
+		}
+
+		return e.complexity.Query.ListDownloadTasks(childComplexity), true
 
 	case "Query.listRecentHistory":
 		if e.complexity.Query.ListRecentHistory == nil {
@@ -1561,6 +1715,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.Search(childComplexity, args["filter"].(model.SearchFilter), args["first"].(*int), args["after"].(*string), args["last"].(*int), args["before"].(*string)), true
 
+	case "Query.searchYoutube":
+		if e.complexity.Query.SearchYoutube == nil {
+			break
+		}
+
+		args, err := ec.field_Query_searchYoutube_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.SearchYoutube(childComplexity, args["query"].(string)), true
+
 	case "Query.test":
 		if e.complexity.Query.Test == nil {
 			break
@@ -1609,6 +1775,69 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SearchItemEdge.Node(childComplexity), true
+
+	case "SearchResult.channel":
+		if e.complexity.SearchResult.Channel == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.Channel(childComplexity), true
+
+	case "SearchResult.duration":
+		if e.complexity.SearchResult.Duration == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.Duration(childComplexity), true
+
+	case "SearchResult.durationString":
+		if e.complexity.SearchResult.DurationString == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.DurationString(childComplexity), true
+
+	case "SearchResult.id":
+		if e.complexity.SearchResult.ID == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.ID(childComplexity), true
+
+	case "SearchResult.thumbnail":
+		if e.complexity.SearchResult.Thumbnail == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.Thumbnail(childComplexity), true
+
+	case "SearchResult.title":
+		if e.complexity.SearchResult.Title == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.Title(childComplexity), true
+
+	case "SearchResult.url":
+		if e.complexity.SearchResult.URL == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.URL(childComplexity), true
+
+	case "SearchResult.viewCount":
+		if e.complexity.SearchResult.ViewCount == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.ViewCount(childComplexity), true
+
+	case "SearchResult.webpageUrl":
+		if e.complexity.SearchResult.WebpageURL == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.WebpageURL(childComplexity), true
 
 	case "StringConnection.edges":
 		if e.complexity.StringConnection.Edges == nil {
@@ -1971,6 +2200,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputAddSongToPlaylistInput,
 		ec.unmarshalInputCreatePlaylistInput,
 		ec.unmarshalInputDateRangeInput,
+		ec.unmarshalInputDownloadInput,
 		ec.unmarshalInputEditPlaylistInput,
 		ec.unmarshalInputLogin,
 		ec.unmarshalInputPlaybackContextInput,
@@ -2299,6 +2529,8 @@ type PlaylistTrack {
   addedAt: String!
 }
 
+scalar Upload
+
 type PlaylistTrackConnection {
   edges: [PlaylistTrackEdge!]!
   pageInfo: PageInfo!
@@ -2368,6 +2600,17 @@ enum PlaylistTrackSortBy {
   RECENTLY_ADDED
 }
 
+type PlaylistConnection {
+  edges: [PlaylistEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type PlaylistEdge {
+  cursor: String!
+  node: Playlist!
+}
+
 extend type Query {
   getPlaylist(id: ID!): Playlist
 
@@ -2396,18 +2639,14 @@ extend type Mutation {
   unsavePlaylist(input: UnsavePlaylistInput!): Boolean!
 
   editPlaylist(input: EditPlaylistInput!): Boolean!
+
+  # Upload a playlist cover and return the public URL
+  uploadPlaylistCover(playlistId: ID!, file: Upload!): String!
+
+  # Delete a playlist cover file on storage
+  deletePlaylistCoverImage(playlistId: ID!): Boolean!
 }
 
-type PlaylistConnection {
-  edges: [PlaylistEdge!]!
-  pageInfo: PageInfo!
-  totalCount: Int!
-}
-
-type PlaylistEdge {
-  cursor: String!
-  node: Playlist!
-}
 `, BuiltIn: false},
 	{Name: "../schema/podcast.graphqls", Input: `type PodcastSeries {
   id: ID!
@@ -2580,6 +2819,44 @@ extend type Query {
   getCurrentUserDetail: UserDetail!
 }
 `, BuiltIn: false},
+	{Name: "../schema/youtube.graphqls", Input: `extend type Query {
+  searchYoutube(query: String!): [SearchResult!]!
+  getDownloadTask(id: String!): DownloadTask
+  listDownloadTasks: [DownloadTask!]!
+}
+
+extend type Mutation {
+  startDownload(input: DownloadInput!): DownloadTask!
+}
+
+type SearchResult {
+  id: ID!
+  title: String!
+  url: String!
+  webpageUrl: String!
+  duration: Int
+  durationString: String
+  viewCount: Int
+  channel: String
+  thumbnail: String
+}
+
+type DownloadTask {
+  id: ID!
+  title: String
+  youtubeUrl: String!
+  status: String!
+  progress: Int!
+  filePath: String
+  error: String
+  createdAt: DateTimeISO!
+  updatedAt: DateTimeISO!
+}
+
+input DownloadInput {
+  youtubeUrl: String!
+}
+`, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
 
@@ -2668,6 +2945,34 @@ func (ec *executionContext) field_Mutation_createPlaylist_argsInput(
 	}
 
 	var zeroVal model.CreatePlaylistInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_deletePlaylistCoverImage_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_deletePlaylistCoverImage_argsPlaylistID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["playlistId"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_deletePlaylistCoverImage_argsPlaylistID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["playlistId"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("playlistId"))
+	if tmp, ok := rawArgs["playlistId"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -2890,6 +3195,34 @@ func (ec *executionContext) field_Mutation_savePlaylist_argsInput(
 	return zeroVal, nil
 }
 
+func (ec *executionContext) field_Mutation_startDownload_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_startDownload_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_startDownload_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.DownloadInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.DownloadInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNDownloadInput2vvinampᚋgraphqlᚋmodelᚐDownloadInput(ctx, tmp)
+	}
+
+	var zeroVal model.DownloadInput
+	return zeroVal, nil
+}
+
 func (ec *executionContext) field_Mutation_unsavePlaylist_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -2966,6 +3299,57 @@ func (ec *executionContext) field_Mutation_updatePlaylist_argsInput(
 	}
 
 	var zeroVal model.UpdatePlaylistInput
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_uploadPlaylistCover_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_uploadPlaylistCover_argsPlaylistID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["playlistId"] = arg0
+	arg1, err := ec.field_Mutation_uploadPlaylistCover_argsFile(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["file"] = arg1
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_uploadPlaylistCover_argsPlaylistID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["playlistId"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("playlistId"))
+	if tmp, ok := rawArgs["playlistId"]; ok {
+		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_uploadPlaylistCover_argsFile(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (graphql.Upload, error) {
+	if _, ok := rawArgs["file"]; !ok {
+		var zeroVal graphql.Upload
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("file"))
+	if tmp, ok := rawArgs["file"]; ok {
+		return ec.unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx, tmp)
+	}
+
+	var zeroVal graphql.Upload
 	return zeroVal, nil
 }
 
@@ -3075,6 +3459,34 @@ func (ec *executionContext) field_Query_getArtistScreenData_argsArtistID(
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("artistId"))
 	if tmp, ok := rawArgs["artistId"]; ok {
 		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_getDownloadTask_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_getDownloadTask_argsID(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["id"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_getDownloadTask_argsID(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["id"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
+	if tmp, ok := rawArgs["id"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
 	var zeroVal string
@@ -3772,6 +4184,34 @@ func (ec *executionContext) field_Query_recommendedTracks_argsLimit(
 	}
 
 	var zeroVal int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutube_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_searchYoutube_argsQuery(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["query"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_searchYoutube_argsQuery(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["query"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("query"))
+	if tmp, ok := rawArgs["query"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
 	return zeroVal, nil
 }
 
@@ -5754,6 +6194,393 @@ func (ec *executionContext) fieldContext_AuthSession_expiresAt(_ context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _DownloadTask_id(ctx context.Context, field graphql.CollectedField, obj *model.DownloadTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DownloadTask_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DownloadTask_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DownloadTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DownloadTask_title(ctx context.Context, field graphql.CollectedField, obj *model.DownloadTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DownloadTask_title(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DownloadTask_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DownloadTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DownloadTask_youtubeUrl(ctx context.Context, field graphql.CollectedField, obj *model.DownloadTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DownloadTask_youtubeUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.YoutubeURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DownloadTask_youtubeUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DownloadTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DownloadTask_status(ctx context.Context, field graphql.CollectedField, obj *model.DownloadTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DownloadTask_status(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Status, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DownloadTask_status(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DownloadTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DownloadTask_progress(ctx context.Context, field graphql.CollectedField, obj *model.DownloadTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DownloadTask_progress(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Progress, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DownloadTask_progress(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DownloadTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DownloadTask_filePath(ctx context.Context, field graphql.CollectedField, obj *model.DownloadTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DownloadTask_filePath(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FilePath, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DownloadTask_filePath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DownloadTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DownloadTask_error(ctx context.Context, field graphql.CollectedField, obj *model.DownloadTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DownloadTask_error(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Error, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DownloadTask_error(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DownloadTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DownloadTask_createdAt(ctx context.Context, field graphql.CollectedField, obj *model.DownloadTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DownloadTask_createdAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CreatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNDateTimeISO2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DownloadTask_createdAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DownloadTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTimeISO does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _DownloadTask_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.DownloadTask) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_DownloadTask_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(time.Time)
+	fc.Result = res
+	return ec.marshalNDateTimeISO2timeᚐTime(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_DownloadTask_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "DownloadTask",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTimeISO does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Genre_id(ctx context.Context, field graphql.CollectedField, obj *model.Genre) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Genre_id(ctx, field)
 	if err != nil {
@@ -7378,6 +8205,191 @@ func (ec *executionContext) fieldContext_Mutation_editPlaylist(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_editPlaylist_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_uploadPlaylistCover(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_uploadPlaylistCover(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().UploadPlaylistCover(rctx, fc.Args["playlistId"].(string), fc.Args["file"].(graphql.Upload))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_uploadPlaylistCover(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_uploadPlaylistCover_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deletePlaylistCoverImage(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_deletePlaylistCoverImage(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().DeletePlaylistCoverImage(rctx, fc.Args["playlistId"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(bool)
+	fc.Result = res
+	return ec.marshalNBoolean2bool(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_deletePlaylistCoverImage(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Boolean does not have child fields")
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deletePlaylistCoverImage_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_startDownload(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_startDownload(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().StartDownload(rctx, fc.Args["input"].(model.DownloadInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.DownloadTask)
+	fc.Result = res
+	return ec.marshalNDownloadTask2ᚖvvinampᚋgraphqlᚋmodelᚐDownloadTask(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_startDownload(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_DownloadTask_id(ctx, field)
+			case "title":
+				return ec.fieldContext_DownloadTask_title(ctx, field)
+			case "youtubeUrl":
+				return ec.fieldContext_DownloadTask_youtubeUrl(ctx, field)
+			case "status":
+				return ec.fieldContext_DownloadTask_status(ctx, field)
+			case "progress":
+				return ec.fieldContext_DownloadTask_progress(ctx, field)
+			case "filePath":
+				return ec.fieldContext_DownloadTask_filePath(ctx, field)
+			case "error":
+				return ec.fieldContext_DownloadTask_error(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_DownloadTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_DownloadTask_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DownloadTask", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_startDownload_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -11196,6 +12208,217 @@ func (ec *executionContext) fieldContext_Query_getCurrentUserDetail(_ context.Co
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_searchYoutube(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_searchYoutube(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().SearchYoutube(rctx, fc.Args["query"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.SearchResult)
+	fc.Result = res
+	return ec.marshalNSearchResult2ᚕᚖvvinampᚋgraphqlᚋmodelᚐSearchResultᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_searchYoutube(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_SearchResult_id(ctx, field)
+			case "title":
+				return ec.fieldContext_SearchResult_title(ctx, field)
+			case "url":
+				return ec.fieldContext_SearchResult_url(ctx, field)
+			case "webpageUrl":
+				return ec.fieldContext_SearchResult_webpageUrl(ctx, field)
+			case "duration":
+				return ec.fieldContext_SearchResult_duration(ctx, field)
+			case "durationString":
+				return ec.fieldContext_SearchResult_durationString(ctx, field)
+			case "viewCount":
+				return ec.fieldContext_SearchResult_viewCount(ctx, field)
+			case "channel":
+				return ec.fieldContext_SearchResult_channel(ctx, field)
+			case "thumbnail":
+				return ec.fieldContext_SearchResult_thumbnail(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SearchResult", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_searchYoutube_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_getDownloadTask(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_getDownloadTask(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().GetDownloadTask(rctx, fc.Args["id"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*model.DownloadTask)
+	fc.Result = res
+	return ec.marshalODownloadTask2ᚖvvinampᚋgraphqlᚋmodelᚐDownloadTask(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_getDownloadTask(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_DownloadTask_id(ctx, field)
+			case "title":
+				return ec.fieldContext_DownloadTask_title(ctx, field)
+			case "youtubeUrl":
+				return ec.fieldContext_DownloadTask_youtubeUrl(ctx, field)
+			case "status":
+				return ec.fieldContext_DownloadTask_status(ctx, field)
+			case "progress":
+				return ec.fieldContext_DownloadTask_progress(ctx, field)
+			case "filePath":
+				return ec.fieldContext_DownloadTask_filePath(ctx, field)
+			case "error":
+				return ec.fieldContext_DownloadTask_error(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_DownloadTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_DownloadTask_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DownloadTask", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_getDownloadTask_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_listDownloadTasks(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_listDownloadTasks(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().ListDownloadTasks(rctx)
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.DownloadTask)
+	fc.Result = res
+	return ec.marshalNDownloadTask2ᚕᚖvvinampᚋgraphqlᚋmodelᚐDownloadTaskᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_listDownloadTasks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_DownloadTask_id(ctx, field)
+			case "title":
+				return ec.fieldContext_DownloadTask_title(ctx, field)
+			case "youtubeUrl":
+				return ec.fieldContext_DownloadTask_youtubeUrl(ctx, field)
+			case "status":
+				return ec.fieldContext_DownloadTask_status(ctx, field)
+			case "progress":
+				return ec.fieldContext_DownloadTask_progress(ctx, field)
+			case "filePath":
+				return ec.fieldContext_DownloadTask_filePath(ctx, field)
+			case "error":
+				return ec.fieldContext_DownloadTask_error(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_DownloadTask_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_DownloadTask_updatedAt(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type DownloadTask", field.Name)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query___type(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query___type(ctx, field)
 	if err != nil {
@@ -11628,6 +12851,387 @@ func (ec *executionContext) fieldContext_SearchItemEdge_node(_ context.Context, 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type SearchItem does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_id(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_title(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_title(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_url(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_url(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.URL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_url(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_webpageUrl(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_webpageUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.WebpageURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_webpageUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_duration(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_duration(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Duration, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_duration(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_durationString(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_durationString(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.DurationString, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_durationString(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_viewCount(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_viewCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ViewCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_viewCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_channel(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_channel(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Channel, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_channel(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_thumbnail(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_thumbnail(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Thumbnail, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_thumbnail(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -16127,6 +17731,33 @@ func (ec *executionContext) unmarshalInputDateRangeInput(ctx context.Context, ob
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputDownloadInput(ctx context.Context, obj any) (model.DownloadInput, error) {
+	var it model.DownloadInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"youtubeUrl"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "youtubeUrl":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("youtubeUrl"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.YoutubeURL = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputEditPlaylistInput(ctx context.Context, obj any) (model.EditPlaylistInput, error) {
 	var it model.EditPlaylistInput
 	asMap := map[string]any{}
@@ -17158,6 +18789,76 @@ func (ec *executionContext) _AuthSession(ctx context.Context, sel ast.SelectionS
 	return out
 }
 
+var downloadTaskImplementors = []string{"DownloadTask"}
+
+func (ec *executionContext) _DownloadTask(ctx context.Context, sel ast.SelectionSet, obj *model.DownloadTask) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, downloadTaskImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DownloadTask")
+		case "id":
+			out.Values[i] = ec._DownloadTask_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._DownloadTask_title(ctx, field, obj)
+		case "youtubeUrl":
+			out.Values[i] = ec._DownloadTask_youtubeUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "status":
+			out.Values[i] = ec._DownloadTask_status(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "progress":
+			out.Values[i] = ec._DownloadTask_progress(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "filePath":
+			out.Values[i] = ec._DownloadTask_filePath(ctx, field, obj)
+		case "error":
+			out.Values[i] = ec._DownloadTask_error(ctx, field, obj)
+		case "createdAt":
+			out.Values[i] = ec._DownloadTask_createdAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "updatedAt":
+			out.Values[i] = ec._DownloadTask_updatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
 var genreImplementors = []string{"Genre"}
 
 func (ec *executionContext) _Genre(ctx context.Context, sel ast.SelectionSet, obj *model.Genre) graphql.Marshaler {
@@ -17532,6 +19233,27 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "editPlaylist":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_editPlaylist(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "uploadPlaylistCover":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_uploadPlaylistCover(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deletePlaylistCoverImage":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deletePlaylistCoverImage(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "startDownload":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_startDownload(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -18768,6 +20490,69 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "searchYoutube":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_searchYoutube(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "getDownloadTask":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_getDownloadTask(ctx, field)
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "listDownloadTasks":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_listDownloadTasks(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "__type":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Query___type(ctx, field)
@@ -18908,6 +20693,70 @@ func (ec *executionContext) _SearchItemEdge(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var searchResultImplementors = []string{"SearchResult"}
+
+func (ec *executionContext) _SearchResult(ctx context.Context, sel ast.SelectionSet, obj *model.SearchResult) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, searchResultImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SearchResult")
+		case "id":
+			out.Values[i] = ec._SearchResult_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._SearchResult_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "url":
+			out.Values[i] = ec._SearchResult_url(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "webpageUrl":
+			out.Values[i] = ec._SearchResult_webpageUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "duration":
+			out.Values[i] = ec._SearchResult_duration(ctx, field, obj)
+		case "durationString":
+			out.Values[i] = ec._SearchResult_durationString(ctx, field, obj)
+		case "viewCount":
+			out.Values[i] = ec._SearchResult_viewCount(ctx, field, obj)
+		case "channel":
+			out.Values[i] = ec._SearchResult_channel(ctx, field, obj)
+		case "thumbnail":
+			out.Values[i] = ec._SearchResult_thumbnail(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -20154,6 +22003,69 @@ func (ec *executionContext) marshalNDateTimeISO2timeᚐTime(ctx context.Context,
 	return res
 }
 
+func (ec *executionContext) unmarshalNDownloadInput2vvinampᚋgraphqlᚋmodelᚐDownloadInput(ctx context.Context, v any) (model.DownloadInput, error) {
+	res, err := ec.unmarshalInputDownloadInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDownloadTask2vvinampᚋgraphqlᚋmodelᚐDownloadTask(ctx context.Context, sel ast.SelectionSet, v model.DownloadTask) graphql.Marshaler {
+	return ec._DownloadTask(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDownloadTask2ᚕᚖvvinampᚋgraphqlᚋmodelᚐDownloadTaskᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.DownloadTask) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNDownloadTask2ᚖvvinampᚋgraphqlᚋmodelᚐDownloadTask(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNDownloadTask2ᚖvvinampᚋgraphqlᚋmodelᚐDownloadTask(ctx context.Context, sel ast.SelectionSet, v *model.DownloadTask) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DownloadTask(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNEditPlaylistInput2vvinampᚋgraphqlᚋmodelᚐEditPlaylistInput(ctx context.Context, v any) (model.EditPlaylistInput, error) {
 	res, err := ec.unmarshalInputEditPlaylistInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -20760,6 +22672,60 @@ func (ec *executionContext) marshalNSearchItemEdge2ᚖvvinampᚋgraphqlᚋmodel�
 	return ec._SearchItemEdge(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNSearchResult2ᚕᚖvvinampᚋgraphqlᚋmodelᚐSearchResultᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SearchResult) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSearchResult2ᚖvvinampᚋgraphqlᚋmodelᚐSearchResult(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSearchResult2ᚖvvinampᚋgraphqlᚋmodelᚐSearchResult(ctx context.Context, sel ast.SelectionSet, v *model.SearchResult) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SearchResult(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -20960,6 +22926,22 @@ func (ec *executionContext) unmarshalNUnsavePlaylistInput2vvinampᚋgraphqlᚋmo
 func (ec *executionContext) unmarshalNUpdatePlaylistInput2vvinampᚋgraphqlᚋmodelᚐUpdatePlaylistInput(ctx context.Context, v any) (model.UpdatePlaylistInput, error) {
 	res, err := ec.unmarshalInputUpdatePlaylistInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, v any) (graphql.Upload, error) {
+	res, err := graphql.UnmarshalUpload(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNUpload2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚐUpload(ctx context.Context, sel ast.SelectionSet, v graphql.Upload) graphql.Marshaler {
+	_ = sel
+	res := graphql.MarshalUpload(v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) marshalNUser2vvinampᚋgraphqlᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v model.User) graphql.Marshaler {
@@ -21460,6 +23442,13 @@ func (ec *executionContext) marshalODateTimeISO2ᚖtimeᚐTime(ctx context.Conte
 	_ = ctx
 	res := graphql.MarshalTime(*v)
 	return res
+}
+
+func (ec *executionContext) marshalODownloadTask2ᚖvvinampᚋgraphqlᚋmodelᚐDownloadTask(ctx context.Context, sel ast.SelectionSet, v *model.DownloadTask) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._DownloadTask(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOGenre2ᚖvvinampᚋgraphqlᚋmodelᚐGenre(ctx context.Context, sel ast.SelectionSet, v *model.Genre) graphql.Marshaler {

@@ -5,6 +5,8 @@ import (
 	"context"
 	"io"
 	"log"
+	"os"
+	"strconv"
 	"strings"
 
 	"vvinamp/controller/auth"
@@ -12,6 +14,7 @@ import (
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/resolvers"
 	"vvinamp/internal/pkg/session"
+	youtubeService "vvinamp/internal/services/youtube"
 	artistPackage "vvinamp/package/artist/service"
 	"vvinamp/package/history"
 	"vvinamp/package/playlist"
@@ -31,17 +34,19 @@ import (
 
 // GraphQLController handle the graphql request, parse request to schema and return results
 type GraphQLController struct {
-	graphiQLEnable bool
-	auth           *auth.Auth
-	postgre        *postgre.Connection
-	user           user.Service
-	history        history.Service
-	song           song.Service
-	artist         artistPackage.ArtistService
-	search         search.Service
-	streaming      *streaming.Service
-	playlist       playlist.Service
-	logger         *zap.Logger
+	graphiQLEnable  bool
+	auth            *auth.Auth
+	postgre         *postgre.Connection
+	user            user.Service
+	history         history.Service
+	song            song.Service
+	artist          artistPackage.ArtistService
+	search          search.Service
+	streaming       *streaming.Service
+	playlist        playlist.Service
+	youtubeSearch   *youtubeService.SearchService
+	youtubeDownload *youtubeService.DownloadService
+	logger          *zap.Logger
 }
 
 // GraphQLControllerTarget is parameter object for geting all GraphQLController's dependency
@@ -62,19 +67,45 @@ type GraphQLControllerTarget struct {
 
 // NewGraphQLController is a constructor for GraphQLController
 func NewGraphQLController(target GraphQLControllerTarget) Result {
+	ytDlpPath := os.Getenv("YT_DLP_PATH")
+	if ytDlpPath == "" {
+		ytDlpPath = "yt-dlp"
+	}
+
+	storagePath := os.Getenv("STORAGE_PATH")
+	if storagePath == "" {
+		storagePath = "./media/downloads"
+	}
+
+	maxDownloadSize := int64(500)
+	if env := os.Getenv("MAX_DOWNLOAD_SIZE"); env != "" {
+		if parsed, err := strconv.ParseInt(env, 10, 64); err == nil {
+			maxDownloadSize = parsed
+		}
+	}
+
+	downloadTimeout := 600
+	if env := os.Getenv("DOWNLOAD_TIMEOUT"); env != "" {
+		if parsed, err := strconv.Atoi(env); err == nil {
+			downloadTimeout = parsed
+		}
+	}
+
 	return Result{
 		Controller: &GraphQLController{
-			graphiQLEnable: target.GraphiQLEnable,
-			auth:           target.Auth,
-			postgre:        target.Postgresql,
-			user:           target.User,
-			history:        target.History,
-			song:           target.Song,
-			artist:         target.Artist,
-			search:         target.Search,
-			streaming:      target.Streaming,
-			playlist:       target.Playlist,
-			logger:         target.Logger,
+			graphiQLEnable:  target.GraphiQLEnable,
+			auth:            target.Auth,
+			postgre:         target.Postgresql,
+			user:            target.User,
+			history:         target.History,
+			song:            target.Song,
+			artist:          target.Artist,
+			search:          target.Search,
+			streaming:       target.Streaming,
+			playlist:        target.Playlist,
+			youtubeSearch:   youtubeService.NewSearchService(ytDlpPath),
+			youtubeDownload: youtubeService.NewDownloadService(storagePath, ytDlpPath, downloadTimeout, maxDownloadSize),
+			logger:          target.Logger,
 		},
 	}
 }
@@ -82,7 +113,7 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 // GrqphQL is defining as the GraphQL handler
 func (m *GraphQLController) GraphQL() gin.HandlerFunc {
 	// Create resolver with required services
-	resolver := resolvers.NewResolver(m.artist, m.user, m.history, m.song, m.streaming, m.playlist)
+	resolver := resolvers.NewResolver(m.artist, m.user, m.history, m.song, m.streaming, m.playlist, m.youtubeSearch, m.youtubeDownload)
 
 	// 1. Create a new Server instance using handler.New()
 	srv := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: resolver}))

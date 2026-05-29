@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"time"
 )
 
 type SearchItem interface {
@@ -63,6 +64,22 @@ type CreatePlaylistInput struct {
 type DateRangeInput struct {
 	From *string `json:"from,omitempty"`
 	To   *string `json:"to,omitempty"`
+}
+
+type DownloadInput struct {
+	YoutubeURL string `json:"youtubeUrl"`
+}
+
+type DownloadTask struct {
+	ID         string    `json:"id"`
+	Title      *string   `json:"title,omitempty"`
+	YoutubeURL string    `json:"youtubeUrl"`
+	Status     string    `json:"status"`
+	Progress   int       `json:"progress"`
+	FilePath   *string   `json:"filePath,omitempty"`
+	Error      *string   `json:"error,omitempty"`
+	CreatedAt  time.Time `json:"createdAt"`
+	UpdatedAt  time.Time `json:"updatedAt"`
 }
 
 type EditPlaylistInput struct {
@@ -258,6 +275,18 @@ type SearchItemConnection struct {
 type SearchItemEdge struct {
 	Cursor string     `json:"cursor"`
 	Node   SearchItem `json:"node"`
+}
+
+type SearchResult struct {
+	ID             string  `json:"id"`
+	Title          string  `json:"title"`
+	URL            string  `json:"url"`
+	WebpageURL     string  `json:"webpageUrl"`
+	Duration       *int    `json:"duration,omitempty"`
+	DurationString *string `json:"durationString,omitempty"`
+	ViewCount      *int    `json:"viewCount,omitempty"`
+	Channel        *string `json:"channel,omitempty"`
+	Thumbnail      *string `json:"thumbnail,omitempty"`
 }
 
 type StringConnection struct {

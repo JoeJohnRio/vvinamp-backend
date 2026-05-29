@@ -28,6 +28,7 @@ var Module = fx.Options(
 		redis.New,
 		controller.NewGraphQLController,
 		controller.NewHomeController,
+		controller.NewUploadController,
 
 		// 2. Replace the simple constructor with this wrapper
 		func(target controller.FileServerControllerTarget) (controller.Result, HlsOut) {

@@ -20,6 +20,8 @@ type PlaylistTrack {
   addedAt: String!
 }
 
+scalar Upload
+
 type PlaylistTrackConnection {
   edges: [PlaylistTrackEdge!]!
   pageInfo: PageInfo!
@@ -89,6 +91,17 @@ enum PlaylistTrackSortBy {
   RECENTLY_ADDED
 }
 
+type PlaylistConnection {
+  edges: [PlaylistEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type PlaylistEdge {
+  cursor: String!
+  node: Playlist!
+}
+
 extend type Query {
   getPlaylist(id: ID!): Playlist
 
@@ -117,15 +130,11 @@ extend type Mutation {
   unsavePlaylist(input: UnsavePlaylistInput!): Boolean!
 
   editPlaylist(input: EditPlaylistInput!): Boolean!
+
+  # Upload a playlist cover and return the public URL
+  uploadPlaylistCover(playlistId: ID!, file: Upload!): String!
+
+  # Delete a playlist cover file on storage
+  deletePlaylistCoverImage(playlistId: ID!): Boolean!
 }
 
-type PlaylistConnection {
-  edges: [PlaylistEdge!]!
-  pageInfo: PageInfo!
-  totalCount: Int!
-}
-
-type PlaylistEdge {
-  cursor: String!
-  node: Playlist!
-}

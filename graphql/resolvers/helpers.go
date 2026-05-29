@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"vvinamp/graphql/model"
-	"vvinamp/package/search"
+	youtubeService "vvinamp/internal/services/youtube"
 	dbModel "vvinamp/model"
+	"vvinamp/package/search"
 )
 
 // convertToSearchItems converts search results to GraphQL models
@@ -122,4 +123,23 @@ func decodeCursor(cursor string) (int, error) {
 	var offset int
 	_, err = fmt.Sscanf(string(decoded), "cursor:%d", &offset)
 	return offset, err
+}
+
+func intPtr(v int) *int       { return &v }
+func strPtr(v string) *string { return &v }
+
+func ptr[T any](v T) *T { return &v }
+
+func convertDownloadTask(task *youtubeService.DownloadTask) *model.DownloadTask {
+	return &model.DownloadTask{
+		ID:         task.ID,
+		Title:      strPtr(task.Title),
+		YoutubeURL: task.YoutubeURL,
+		Status:     task.Status,
+		Progress:   task.Progress,
+		FilePath:   strPtr(task.FilePath),
+		Error:      strPtr(task.Error),
+		CreatedAt:  task.CreatedAt,
+		UpdatedAt:  task.UpdatedAt,
+	}
 }
