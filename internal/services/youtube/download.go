@@ -24,10 +24,18 @@ type DownloadService struct {
 	tasksMu     sync.RWMutex
 }
 
+type DownloadResult struct {
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	YoutubeURL string `json:"youtube_url"`
+	FilePath   string `json:"file_path"`
+}
+
 func NewDownloadService(storagePath, ytDlpPath string, timeoutSec int, maxSizeMB int64) *DownloadService {
 	if storagePath == "" {
 		storagePath = "./media/downloads"
 	}
+	storagePath = filepath.Join(storagePath, "youtube")
 
 	if ytDlpPath == "" {
 		ytDlpPath = "yt-dlp"
@@ -118,7 +126,7 @@ func (d *DownloadService) executeDownload(ctx context.Context, task *DownloadTas
 		task.Title = meta.Title
 	}
 
-	outputTemplate := filepath.Join(d.storagePath, "%(id)s.%(ext)s")
+	outputTemplate := filepath.Join(d.storagePath, "%(id)s.mp3")
 	cmd := exec.CommandContext(ctx, d.ytDlpPath,
 		"--no-playlist",
 		"--extract-audio",
@@ -156,6 +164,48 @@ func (d *DownloadService) executeDownload(ctx context.Context, task *DownloadTas
 	task.FilePath = finalPath
 	task.UpdatedAt = time.Now().UTC()
 	d.tasksMu.Unlock()
+}
+
+func (d *DownloadService) EnsureDownloaded(ctx context.Context, youtubeURL string) (*DownloadResult, error) {
+	if strings.TrimSpace(youtubeURL) == "" {
+		return nil, fmt.Errorf("youtube url is required")
+	}
+
+	meta, err := d.fetchMetadata(ctx, youtubeURL)
+	if err != nil {
+		return nil, err
+	}
+
+	finalPath := filepath.Join(d.storagePath, fmt.Sprintf("%s.mp3", meta.ID))
+	if _, err := os.Stat(finalPath); err == nil {
+		return &DownloadResult{ID: meta.ID, Title: meta.Title, YoutubeURL: youtubeURL, FilePath: finalPath}, nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(d.timeoutSec)*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, d.ytDlpPath,
+		"--no-playlist",
+		"--extract-audio",
+		"--audio-format", "mp3",
+		"--audio-quality", "0",
+		"--max-filesize", fmt.Sprintf("%dM", d.maxSizeMB),
+		"--output", finalPath,
+		youtubeURL,
+	)
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("yt-dlp download failed: %w: %s", err, strings.TrimSpace(stderr.String()))
+	}
+
+	if _, err := os.Stat(finalPath); err != nil {
+		return nil, fmt.Errorf("download completed but file missing: %s", finalPath)
+	}
+
+	return &DownloadResult{ID: meta.ID, Title: meta.Title, YoutubeURL: youtubeURL, FilePath: finalPath}, nil
 }
 
 func (d *DownloadService) fetchMetadata(ctx context.Context, youtubeURL string) (*DownloadTask, error) {

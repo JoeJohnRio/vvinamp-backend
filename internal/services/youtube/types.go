@@ -5,7 +5,7 @@ import "time"
 type SearchResult struct {
 	ID             string `json:"id"`
 	Title          string `json:"title"`
-	URL            string `json:"webpage_url"`
+	URL            string `json:"url"`
 	WebpageURL     string `json:"webpage_url"`
 	Duration       int    `json:"duration"`
 	DurationString string `json:"duration_string"`

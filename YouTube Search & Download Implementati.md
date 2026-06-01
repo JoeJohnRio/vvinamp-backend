@@ -402,7 +402,7 @@ func (d *DownloadService) executeDownload(ctx context.Context, task *DownloadTas
 		"-f", "bestaudio/best",
 		"-x", // Extract audio
 		"--audio-format", "mp3",
-		"--audio-quality", "192",
+		"--audio-quality", "0",
 		"--no-warnings",
 		"--quiet",
 		"-o", outputPath,

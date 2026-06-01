@@ -1,11 +1,14 @@
 extend type Query {
   searchYoutube(query: String!): [SearchResult!]!
+  searchYoutubeFromApi(query: String!, first: Int, after: String, last: Int, before: String): SearchResultConnection!
+  searchYoutubeFromYtDlp(query: String!, first: Int, after: String, last: Int, before: String): SearchResultConnection!
   getDownloadTask(id: String!): DownloadTask
   listDownloadTasks: [DownloadTask!]!
 }
 
 extend type Mutation {
   startDownload(input: DownloadInput!): DownloadTask!
+  playYoutube(youtubeUrl: String!): YoutubePlaybackInfo!
 }
 
 type SearchResult {
@@ -18,6 +21,17 @@ type SearchResult {
   viewCount: Int
   channel: String
   thumbnail: String
+}
+
+type SearchResultEdge {
+  cursor: String!
+  node: SearchResult!
+}
+
+type SearchResultConnection {
+  edges: [SearchResultEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
 }
 
 type DownloadTask {
@@ -34,4 +48,13 @@ type DownloadTask {
 
 input DownloadInput {
   youtubeUrl: String!
+}
+
+type YoutubePlaybackInfo {
+  id: ID!
+  youtubeUrl: String!
+  title: String
+  filePath: String!
+  fileUrl: String!
+  hlsUrl: String!
 }

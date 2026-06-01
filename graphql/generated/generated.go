@@ -152,6 +152,7 @@ type ComplexityRoot struct {
 		DeletePlaylistCoverImage func(childComplexity int, playlistID string) int
 		EditPlaylist             func(childComplexity int, input model.EditPlaylistInput) int
 		PlayContext              func(childComplexity int, context model.PlaybackContextInput, offsetTrackID string) int
+		PlayYoutube              func(childComplexity int, youtubeURL string) int
 		RefreshToken             func(childComplexity int, refreshToken string) int
 		Register                 func(childComplexity int, input model.RegisterInput) int
 		RemoveSongFromPlaylist   func(childComplexity int, input model.RemoveSongFromPlaylistInput) int
@@ -257,28 +258,30 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Album                func(childComplexity int, id string) int
-		GetArtistHeader      func(childComplexity int, id string) int
-		GetArtistScreenData  func(childComplexity int, artistID string) int
-		GetCurrentUserDetail func(childComplexity int) int
-		GetDownloadTask      func(childComplexity int, id string) int
-		GetMyPlaylistFeed    func(childComplexity int, first *int, after *string, last *int, before *string, sortOrder *model.PlaylistSortOrder) int
-		GetMyPlaylists       func(childComplexity int, first *int, after *string, last *int, before *string) int
-		GetPlaylist          func(childComplexity int, id string) int
-		GetPlaylistTracks    func(childComplexity int, playlistID string, sortBy *model.PlaylistTrackSortBy, first *int, after *string, last *int, before *string) int
-		GetPlaylistsByUser   func(childComplexity int, userID string, first *int, after *string, last *int, before *string) int
-		ListDownloadTasks    func(childComplexity int) int
-		ListRecentHistory    func(childComplexity int, limit int) int
-		Login                func(childComplexity int, email string, password string) int
-		Logout               func(childComplexity int) int
-		Me                   func(childComplexity int) int
-		PlaybackInfo         func(childComplexity int, input model.PlaybackInput) int
-		PlayerQueue          func(childComplexity int) int
-		RandomTracks         func(childComplexity int, limit int, excludeIds []string) int
-		RecommendedTracks    func(childComplexity int, limit int) int
-		Search               func(childComplexity int, filter model.SearchFilter, first *int, after *string, last *int, before *string) int
-		SearchYoutube        func(childComplexity int, query string) int
-		Test                 func(childComplexity int) int
+		Album                  func(childComplexity int, id string) int
+		GetArtistHeader        func(childComplexity int, id string) int
+		GetArtistScreenData    func(childComplexity int, artistID string) int
+		GetCurrentUserDetail   func(childComplexity int) int
+		GetDownloadTask        func(childComplexity int, id string) int
+		GetMyPlaylistFeed      func(childComplexity int, first *int, after *string, last *int, before *string, sortOrder *model.PlaylistSortOrder) int
+		GetMyPlaylists         func(childComplexity int, first *int, after *string, last *int, before *string) int
+		GetPlaylist            func(childComplexity int, id string) int
+		GetPlaylistTracks      func(childComplexity int, playlistID string, sortBy *model.PlaylistTrackSortBy, first *int, after *string, last *int, before *string) int
+		GetPlaylistsByUser     func(childComplexity int, userID string, first *int, after *string, last *int, before *string) int
+		ListDownloadTasks      func(childComplexity int) int
+		ListRecentHistory      func(childComplexity int, limit int) int
+		Login                  func(childComplexity int, email string, password string) int
+		Logout                 func(childComplexity int) int
+		Me                     func(childComplexity int) int
+		PlaybackInfo           func(childComplexity int, input model.PlaybackInput) int
+		PlayerQueue            func(childComplexity int) int
+		RandomTracks           func(childComplexity int, limit int, excludeIds []string) int
+		RecommendedTracks      func(childComplexity int, limit int) int
+		Search                 func(childComplexity int, filter model.SearchFilter, first *int, after *string, last *int, before *string) int
+		SearchYoutube          func(childComplexity int, query string) int
+		SearchYoutubeFromAPI   func(childComplexity int, query string, first *int, after *string, last *int, before *string) int
+		SearchYoutubeFromYtDlp func(childComplexity int, query string, first *int, after *string, last *int, before *string) int
+		Test                   func(childComplexity int) int
 	}
 
 	RegisterPayload struct {
@@ -306,6 +309,17 @@ type ComplexityRoot struct {
 		URL            func(childComplexity int) int
 		ViewCount      func(childComplexity int) int
 		WebpageURL     func(childComplexity int) int
+	}
+
+	SearchResultConnection struct {
+		Edges      func(childComplexity int) int
+		PageInfo   func(childComplexity int) int
+		TotalCount func(childComplexity int) int
+	}
+
+	SearchResultEdge struct {
+		Cursor func(childComplexity int) int
+		Node   func(childComplexity int) int
 	}
 
 	StringConnection struct {
@@ -390,6 +404,15 @@ type ComplexityRoot struct {
 		Track   func(childComplexity int) int
 		User    func(childComplexity int) int
 	}
+
+	YoutubePlaybackInfo struct {
+		FilePath   func(childComplexity int) int
+		FileURL    func(childComplexity int) int
+		HlsURL     func(childComplexity int) int
+		ID         func(childComplexity int) int
+		Title      func(childComplexity int) int
+		YoutubeURL func(childComplexity int) int
+	}
 }
 
 type AlbumResolver interface {
@@ -428,6 +451,7 @@ type MutationResolver interface {
 	UploadPlaylistCover(ctx context.Context, playlistID string, file graphql.Upload) (string, error)
 	DeletePlaylistCoverImage(ctx context.Context, playlistID string) (bool, error)
 	StartDownload(ctx context.Context, input model.DownloadInput) (*model.DownloadTask, error)
+	PlayYoutube(ctx context.Context, youtubeURL string) (*model.YoutubePlaybackInfo, error)
 }
 type PlaylistResolver interface {
 	Creator(ctx context.Context, obj *model.Playlist) (*model.User, error)
@@ -458,6 +482,8 @@ type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
 	GetCurrentUserDetail(ctx context.Context) (*model.UserDetail, error)
 	SearchYoutube(ctx context.Context, query string) ([]*model.SearchResult, error)
+	SearchYoutubeFromAPI(ctx context.Context, query string, first *int, after *string, last *int, before *string) (*model.SearchResultConnection, error)
+	SearchYoutubeFromYtDlp(ctx context.Context, query string, first *int, after *string, last *int, before *string) (*model.SearchResultConnection, error)
 	GetDownloadTask(ctx context.Context, id string) (*model.DownloadTask, error)
 	ListDownloadTasks(ctx context.Context) ([]*model.DownloadTask, error)
 }
@@ -997,6 +1023,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.PlayContext(childComplexity, args["context"].(model.PlaybackContextInput), args["offsetTrackId"].(string)), true
+
+	case "Mutation.playYoutube":
+		if e.complexity.Mutation.PlayYoutube == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_playYoutube_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.PlayYoutube(childComplexity, args["youtubeUrl"].(string)), true
 
 	case "Mutation.refreshToken":
 		if e.complexity.Mutation.RefreshToken == nil {
@@ -1727,6 +1765,30 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Query.SearchYoutube(childComplexity, args["query"].(string)), true
 
+	case "Query.searchYoutubeFromApi":
+		if e.complexity.Query.SearchYoutubeFromAPI == nil {
+			break
+		}
+
+		args, err := ec.field_Query_searchYoutubeFromApi_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.SearchYoutubeFromAPI(childComplexity, args["query"].(string), args["first"].(*int), args["after"].(*string), args["last"].(*int), args["before"].(*string)), true
+
+	case "Query.searchYoutubeFromYtDlp":
+		if e.complexity.Query.SearchYoutubeFromYtDlp == nil {
+			break
+		}
+
+		args, err := ec.field_Query_searchYoutubeFromYtDlp_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.SearchYoutubeFromYtDlp(childComplexity, args["query"].(string), args["first"].(*int), args["after"].(*string), args["last"].(*int), args["before"].(*string)), true
+
 	case "Query.test":
 		if e.complexity.Query.Test == nil {
 			break
@@ -1838,6 +1900,41 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SearchResult.WebpageURL(childComplexity), true
+
+	case "SearchResultConnection.edges":
+		if e.complexity.SearchResultConnection.Edges == nil {
+			break
+		}
+
+		return e.complexity.SearchResultConnection.Edges(childComplexity), true
+
+	case "SearchResultConnection.pageInfo":
+		if e.complexity.SearchResultConnection.PageInfo == nil {
+			break
+		}
+
+		return e.complexity.SearchResultConnection.PageInfo(childComplexity), true
+
+	case "SearchResultConnection.totalCount":
+		if e.complexity.SearchResultConnection.TotalCount == nil {
+			break
+		}
+
+		return e.complexity.SearchResultConnection.TotalCount(childComplexity), true
+
+	case "SearchResultEdge.cursor":
+		if e.complexity.SearchResultEdge.Cursor == nil {
+			break
+		}
+
+		return e.complexity.SearchResultEdge.Cursor(childComplexity), true
+
+	case "SearchResultEdge.node":
+		if e.complexity.SearchResultEdge.Node == nil {
+			break
+		}
+
+		return e.complexity.SearchResultEdge.Node(childComplexity), true
 
 	case "StringConnection.edges":
 		if e.complexity.StringConnection.Edges == nil {
@@ -2188,6 +2285,48 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.UserLike.User(childComplexity), true
+
+	case "YoutubePlaybackInfo.filePath":
+		if e.complexity.YoutubePlaybackInfo.FilePath == nil {
+			break
+		}
+
+		return e.complexity.YoutubePlaybackInfo.FilePath(childComplexity), true
+
+	case "YoutubePlaybackInfo.fileUrl":
+		if e.complexity.YoutubePlaybackInfo.FileURL == nil {
+			break
+		}
+
+		return e.complexity.YoutubePlaybackInfo.FileURL(childComplexity), true
+
+	case "YoutubePlaybackInfo.hlsUrl":
+		if e.complexity.YoutubePlaybackInfo.HlsURL == nil {
+			break
+		}
+
+		return e.complexity.YoutubePlaybackInfo.HlsURL(childComplexity), true
+
+	case "YoutubePlaybackInfo.id":
+		if e.complexity.YoutubePlaybackInfo.ID == nil {
+			break
+		}
+
+		return e.complexity.YoutubePlaybackInfo.ID(childComplexity), true
+
+	case "YoutubePlaybackInfo.title":
+		if e.complexity.YoutubePlaybackInfo.Title == nil {
+			break
+		}
+
+		return e.complexity.YoutubePlaybackInfo.Title(childComplexity), true
+
+	case "YoutubePlaybackInfo.youtubeUrl":
+		if e.complexity.YoutubePlaybackInfo.YoutubeURL == nil {
+			break
+		}
+
+		return e.complexity.YoutubePlaybackInfo.YoutubeURL(childComplexity), true
 
 	}
 	return 0, false
@@ -2821,12 +2960,15 @@ extend type Query {
 `, BuiltIn: false},
 	{Name: "../schema/youtube.graphqls", Input: `extend type Query {
   searchYoutube(query: String!): [SearchResult!]!
+  searchYoutubeFromApi(query: String!, first: Int, after: String, last: Int, before: String): SearchResultConnection!
+  searchYoutubeFromYtDlp(query: String!, first: Int, after: String, last: Int, before: String): SearchResultConnection!
   getDownloadTask(id: String!): DownloadTask
   listDownloadTasks: [DownloadTask!]!
 }
 
 extend type Mutation {
   startDownload(input: DownloadInput!): DownloadTask!
+  playYoutube(youtubeUrl: String!): YoutubePlaybackInfo!
 }
 
 type SearchResult {
@@ -2839,6 +2981,17 @@ type SearchResult {
   viewCount: Int
   channel: String
   thumbnail: String
+}
+
+type SearchResultEdge {
+  cursor: String!
+  node: SearchResult!
+}
+
+type SearchResultConnection {
+  edges: [SearchResultEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
 }
 
 type DownloadTask {
@@ -2855,6 +3008,15 @@ type DownloadTask {
 
 input DownloadInput {
   youtubeUrl: String!
+}
+
+type YoutubePlaybackInfo {
+  id: ID!
+  youtubeUrl: String!
+  title: String
+  filePath: String!
+  fileUrl: String!
+  hlsUrl: String!
 }
 `, BuiltIn: false},
 }
@@ -3077,6 +3239,34 @@ func (ec *executionContext) field_Mutation_playContext_argsOffsetTrackID(
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offsetTrackId"))
 	if tmp, ok := rawArgs["offsetTrackId"]; ok {
 		return ec.unmarshalNID2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_playYoutube_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_playYoutube_argsYoutubeURL(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["youtubeUrl"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_playYoutube_argsYoutubeURL(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["youtubeUrl"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("youtubeUrl"))
+	if tmp, ok := rawArgs["youtubeUrl"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
 	}
 
 	var zeroVal string
@@ -4184,6 +4374,246 @@ func (ec *executionContext) field_Query_recommendedTracks_argsLimit(
 	}
 
 	var zeroVal int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutubeFromApi_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_searchYoutubeFromApi_argsQuery(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["query"] = arg0
+	arg1, err := ec.field_Query_searchYoutubeFromApi_argsFirst(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["first"] = arg1
+	arg2, err := ec.field_Query_searchYoutubeFromApi_argsAfter(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg2
+	arg3, err := ec.field_Query_searchYoutubeFromApi_argsLast(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["last"] = arg3
+	arg4, err := ec.field_Query_searchYoutubeFromApi_argsBefore(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["before"] = arg4
+	return args, nil
+}
+func (ec *executionContext) field_Query_searchYoutubeFromApi_argsQuery(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["query"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("query"))
+	if tmp, ok := rawArgs["query"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutubeFromApi_argsFirst(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["first"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("first"))
+	if tmp, ok := rawArgs["first"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutubeFromApi_argsAfter(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["after"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("after"))
+	if tmp, ok := rawArgs["after"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutubeFromApi_argsLast(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["last"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("last"))
+	if tmp, ok := rawArgs["last"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutubeFromApi_argsBefore(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["before"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("before"))
+	if tmp, ok := rawArgs["before"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutubeFromYtDlp_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Query_searchYoutubeFromYtDlp_argsQuery(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["query"] = arg0
+	arg1, err := ec.field_Query_searchYoutubeFromYtDlp_argsFirst(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["first"] = arg1
+	arg2, err := ec.field_Query_searchYoutubeFromYtDlp_argsAfter(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["after"] = arg2
+	arg3, err := ec.field_Query_searchYoutubeFromYtDlp_argsLast(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["last"] = arg3
+	arg4, err := ec.field_Query_searchYoutubeFromYtDlp_argsBefore(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["before"] = arg4
+	return args, nil
+}
+func (ec *executionContext) field_Query_searchYoutubeFromYtDlp_argsQuery(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (string, error) {
+	if _, ok := rawArgs["query"]; !ok {
+		var zeroVal string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("query"))
+	if tmp, ok := rawArgs["query"]; ok {
+		return ec.unmarshalNString2string(ctx, tmp)
+	}
+
+	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutubeFromYtDlp_argsFirst(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["first"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("first"))
+	if tmp, ok := rawArgs["first"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutubeFromYtDlp_argsAfter(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["after"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("after"))
+	if tmp, ok := rawArgs["after"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutubeFromYtDlp_argsLast(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*int, error) {
+	if _, ok := rawArgs["last"]; !ok {
+		var zeroVal *int
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("last"))
+	if tmp, ok := rawArgs["last"]; ok {
+		return ec.unmarshalOInt2ᚖint(ctx, tmp)
+	}
+
+	var zeroVal *int
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_searchYoutubeFromYtDlp_argsBefore(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (*string, error) {
+	if _, ok := rawArgs["before"]; !ok {
+		var zeroVal *string
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("before"))
+	if tmp, ok := rawArgs["before"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -8396,6 +8826,75 @@ func (ec *executionContext) fieldContext_Mutation_startDownload(ctx context.Cont
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_playYoutube(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_playYoutube(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().PlayYoutube(rctx, fc.Args["youtubeUrl"].(string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.YoutubePlaybackInfo)
+	fc.Result = res
+	return ec.marshalNYoutubePlaybackInfo2ᚖvvinampᚋgraphqlᚋmodelᚐYoutubePlaybackInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_playYoutube(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_YoutubePlaybackInfo_id(ctx, field)
+			case "youtubeUrl":
+				return ec.fieldContext_YoutubePlaybackInfo_youtubeUrl(ctx, field)
+			case "title":
+				return ec.fieldContext_YoutubePlaybackInfo_title(ctx, field)
+			case "filePath":
+				return ec.fieldContext_YoutubePlaybackInfo_filePath(ctx, field)
+			case "fileUrl":
+				return ec.fieldContext_YoutubePlaybackInfo_fileUrl(ctx, field)
+			case "hlsUrl":
+				return ec.fieldContext_YoutubePlaybackInfo_hlsUrl(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type YoutubePlaybackInfo", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_playYoutube_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _PageInfo_hasNextPage(ctx context.Context, field graphql.CollectedField, obj *model.PageInfo) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_PageInfo_hasNextPage(ctx, field)
 	if err != nil {
@@ -12283,6 +12782,132 @@ func (ec *executionContext) fieldContext_Query_searchYoutube(ctx context.Context
 	return fc, nil
 }
 
+func (ec *executionContext) _Query_searchYoutubeFromApi(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_searchYoutubeFromApi(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().SearchYoutubeFromAPI(rctx, fc.Args["query"].(string), fc.Args["first"].(*int), fc.Args["after"].(*string), fc.Args["last"].(*int), fc.Args["before"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.SearchResultConnection)
+	fc.Result = res
+	return ec.marshalNSearchResultConnection2ᚖvvinampᚋgraphqlᚋmodelᚐSearchResultConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_searchYoutubeFromApi(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "edges":
+				return ec.fieldContext_SearchResultConnection_edges(ctx, field)
+			case "pageInfo":
+				return ec.fieldContext_SearchResultConnection_pageInfo(ctx, field)
+			case "totalCount":
+				return ec.fieldContext_SearchResultConnection_totalCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SearchResultConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_searchYoutubeFromApi_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_searchYoutubeFromYtDlp(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Query_searchYoutubeFromYtDlp(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Query().SearchYoutubeFromYtDlp(rctx, fc.Args["query"].(string), fc.Args["first"].(*int), fc.Args["after"].(*string), fc.Args["last"].(*int), fc.Args["before"].(*string))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.SearchResultConnection)
+	fc.Result = res
+	return ec.marshalNSearchResultConnection2ᚖvvinampᚋgraphqlᚋmodelᚐSearchResultConnection(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Query_searchYoutubeFromYtDlp(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "edges":
+				return ec.fieldContext_SearchResultConnection_edges(ctx, field)
+			case "pageInfo":
+				return ec.fieldContext_SearchResultConnection_pageInfo(ctx, field)
+			case "totalCount":
+				return ec.fieldContext_SearchResultConnection_totalCount(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SearchResultConnection", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_searchYoutubeFromYtDlp_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_getDownloadTask(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_getDownloadTask(ctx, field)
 	if err != nil {
@@ -13232,6 +13857,262 @@ func (ec *executionContext) fieldContext_SearchResult_thumbnail(_ context.Contex
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResultConnection_edges(ctx context.Context, field graphql.CollectedField, obj *model.SearchResultConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResultConnection_edges(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Edges, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.([]*model.SearchResultEdge)
+	fc.Result = res
+	return ec.marshalNSearchResultEdge2ᚕᚖvvinampᚋgraphqlᚋmodelᚐSearchResultEdgeᚄ(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResultConnection_edges(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResultConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "cursor":
+				return ec.fieldContext_SearchResultEdge_cursor(ctx, field)
+			case "node":
+				return ec.fieldContext_SearchResultEdge_node(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SearchResultEdge", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResultConnection_pageInfo(ctx context.Context, field graphql.CollectedField, obj *model.SearchResultConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResultConnection_pageInfo(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.PageInfo, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.PageInfo)
+	fc.Result = res
+	return ec.marshalNPageInfo2ᚖvvinampᚋgraphqlᚋmodelᚐPageInfo(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResultConnection_pageInfo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResultConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "hasNextPage":
+				return ec.fieldContext_PageInfo_hasNextPage(ctx, field)
+			case "hasPreviousPage":
+				return ec.fieldContext_PageInfo_hasPreviousPage(ctx, field)
+			case "startCursor":
+				return ec.fieldContext_PageInfo_startCursor(ctx, field)
+			case "endCursor":
+				return ec.fieldContext_PageInfo_endCursor(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type PageInfo", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResultConnection_totalCount(ctx context.Context, field graphql.CollectedField, obj *model.SearchResultConnection) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResultConnection_totalCount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.TotalCount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(int)
+	fc.Result = res
+	return ec.marshalNInt2int(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResultConnection_totalCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResultConnection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResultEdge_cursor(ctx context.Context, field graphql.CollectedField, obj *model.SearchResultEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResultEdge_cursor(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Cursor, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResultEdge_cursor(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResultEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResultEdge_node(ctx context.Context, field graphql.CollectedField, obj *model.SearchResultEdge) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResultEdge_node(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Node, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.SearchResult)
+	fc.Result = res
+	return ec.marshalNSearchResult2ᚖvvinampᚋgraphqlᚋmodelᚐSearchResult(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResultEdge_node(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResultEdge",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_SearchResult_id(ctx, field)
+			case "title":
+				return ec.fieldContext_SearchResult_title(ctx, field)
+			case "url":
+				return ec.fieldContext_SearchResult_url(ctx, field)
+			case "webpageUrl":
+				return ec.fieldContext_SearchResult_webpageUrl(ctx, field)
+			case "duration":
+				return ec.fieldContext_SearchResult_duration(ctx, field)
+			case "durationString":
+				return ec.fieldContext_SearchResult_durationString(ctx, field)
+			case "viewCount":
+				return ec.fieldContext_SearchResult_viewCount(ctx, field)
+			case "channel":
+				return ec.fieldContext_SearchResult_channel(ctx, field)
+			case "thumbnail":
+				return ec.fieldContext_SearchResult_thumbnail(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type SearchResult", field.Name)
 		},
 	}
 	return fc, nil
@@ -15643,6 +16524,267 @@ func (ec *executionContext) _UserLike_likedAt(ctx context.Context, field graphql
 func (ec *executionContext) fieldContext_UserLike_likedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "UserLike",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _YoutubePlaybackInfo_id(ctx context.Context, field graphql.CollectedField, obj *model.YoutubePlaybackInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_YoutubePlaybackInfo_id(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNID2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_YoutubePlaybackInfo_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "YoutubePlaybackInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _YoutubePlaybackInfo_youtubeUrl(ctx context.Context, field graphql.CollectedField, obj *model.YoutubePlaybackInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_YoutubePlaybackInfo_youtubeUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.YoutubeURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_YoutubePlaybackInfo_youtubeUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "YoutubePlaybackInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _YoutubePlaybackInfo_title(ctx context.Context, field graphql.CollectedField, obj *model.YoutubePlaybackInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_YoutubePlaybackInfo_title(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.Title, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_YoutubePlaybackInfo_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "YoutubePlaybackInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _YoutubePlaybackInfo_filePath(ctx context.Context, field graphql.CollectedField, obj *model.YoutubePlaybackInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_YoutubePlaybackInfo_filePath(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FilePath, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_YoutubePlaybackInfo_filePath(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "YoutubePlaybackInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _YoutubePlaybackInfo_fileUrl(ctx context.Context, field graphql.CollectedField, obj *model.YoutubePlaybackInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_YoutubePlaybackInfo_fileUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FileURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_YoutubePlaybackInfo_fileUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "YoutubePlaybackInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _YoutubePlaybackInfo_hlsUrl(ctx context.Context, field graphql.CollectedField, obj *model.YoutubePlaybackInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_YoutubePlaybackInfo_hlsUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.HlsURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalNString2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_YoutubePlaybackInfo_hlsUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "YoutubePlaybackInfo",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
@@ -19258,6 +20400,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "playYoutube":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_playYoutube(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -20512,6 +21661,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 			}
 
 			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "searchYoutubeFromApi":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_searchYoutubeFromApi(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "searchYoutubeFromYtDlp":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_searchYoutubeFromYtDlp(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "getDownloadTask":
 			field := field
 
@@ -20757,6 +21950,99 @@ func (ec *executionContext) _SearchResult(ctx context.Context, sel ast.Selection
 			out.Values[i] = ec._SearchResult_channel(ctx, field, obj)
 		case "thumbnail":
 			out.Values[i] = ec._SearchResult_thumbnail(ctx, field, obj)
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var searchResultConnectionImplementors = []string{"SearchResultConnection"}
+
+func (ec *executionContext) _SearchResultConnection(ctx context.Context, sel ast.SelectionSet, obj *model.SearchResultConnection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, searchResultConnectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SearchResultConnection")
+		case "edges":
+			out.Values[i] = ec._SearchResultConnection_edges(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "pageInfo":
+			out.Values[i] = ec._SearchResultConnection_pageInfo(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "totalCount":
+			out.Values[i] = ec._SearchResultConnection_totalCount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var searchResultEdgeImplementors = []string{"SearchResultEdge"}
+
+func (ec *executionContext) _SearchResultEdge(ctx context.Context, sel ast.SelectionSet, obj *model.SearchResultEdge) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, searchResultEdgeImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("SearchResultEdge")
+		case "cursor":
+			out.Values[i] = ec._SearchResultEdge_cursor(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "node":
+			out.Values[i] = ec._SearchResultEdge_node(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -21472,6 +22758,67 @@ func (ec *executionContext) _UserLike(ctx context.Context, sel ast.SelectionSet,
 			}
 		case "likedAt":
 			out.Values[i] = ec._UserLike_likedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.deferred, int32(len(deferred)))
+
+	for label, dfs := range deferred {
+		ec.processDeferredGroup(graphql.DeferredGroup{
+			Label:    label,
+			Path:     graphql.GetPath(ctx),
+			FieldSet: dfs,
+			Context:  ctx,
+		})
+	}
+
+	return out
+}
+
+var youtubePlaybackInfoImplementors = []string{"YoutubePlaybackInfo"}
+
+func (ec *executionContext) _YoutubePlaybackInfo(ctx context.Context, sel ast.SelectionSet, obj *model.YoutubePlaybackInfo) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, youtubePlaybackInfoImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferred := make(map[string]*graphql.FieldSet)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("YoutubePlaybackInfo")
+		case "id":
+			out.Values[i] = ec._YoutubePlaybackInfo_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "youtubeUrl":
+			out.Values[i] = ec._YoutubePlaybackInfo_youtubeUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._YoutubePlaybackInfo_title(ctx, field, obj)
+		case "filePath":
+			out.Values[i] = ec._YoutubePlaybackInfo_filePath(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "fileUrl":
+			out.Values[i] = ec._YoutubePlaybackInfo_fileUrl(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hlsUrl":
+			out.Values[i] = ec._YoutubePlaybackInfo_hlsUrl(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -22726,6 +24073,74 @@ func (ec *executionContext) marshalNSearchResult2ᚖvvinampᚋgraphqlᚋmodelᚐ
 	return ec._SearchResult(ctx, sel, v)
 }
 
+func (ec *executionContext) marshalNSearchResultConnection2vvinampᚋgraphqlᚋmodelᚐSearchResultConnection(ctx context.Context, sel ast.SelectionSet, v model.SearchResultConnection) graphql.Marshaler {
+	return ec._SearchResultConnection(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNSearchResultConnection2ᚖvvinampᚋgraphqlᚋmodelᚐSearchResultConnection(ctx context.Context, sel ast.SelectionSet, v *model.SearchResultConnection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SearchResultConnection(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNSearchResultEdge2ᚕᚖvvinampᚋgraphqlᚋmodelᚐSearchResultEdgeᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.SearchResultEdge) graphql.Marshaler {
+	ret := make(graphql.Array, len(v))
+	var wg sync.WaitGroup
+	isLen1 := len(v) == 1
+	if !isLen1 {
+		wg.Add(len(v))
+	}
+	for i := range v {
+		i := i
+		fc := &graphql.FieldContext{
+			Index:  &i,
+			Result: &v[i],
+		}
+		ctx := graphql.WithFieldContext(ctx, fc)
+		f := func(i int) {
+			defer func() {
+				if r := recover(); r != nil {
+					ec.Error(ctx, ec.Recover(ctx, r))
+					ret = nil
+				}
+			}()
+			if !isLen1 {
+				defer wg.Done()
+			}
+			ret[i] = ec.marshalNSearchResultEdge2ᚖvvinampᚋgraphqlᚋmodelᚐSearchResultEdge(ctx, sel, v[i])
+		}
+		if isLen1 {
+			f(i)
+		} else {
+			go f(i)
+		}
+
+	}
+	wg.Wait()
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNSearchResultEdge2ᚖvvinampᚋgraphqlᚋmodelᚐSearchResultEdge(ctx context.Context, sel ast.SelectionSet, v *model.SearchResultEdge) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._SearchResultEdge(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalString(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -23078,6 +24493,20 @@ func (ec *executionContext) marshalNUserLike2ᚖvvinampᚋgraphqlᚋmodelᚐUser
 		return graphql.Null
 	}
 	return ec._UserLike(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNYoutubePlaybackInfo2vvinampᚋgraphqlᚋmodelᚐYoutubePlaybackInfo(ctx context.Context, sel ast.SelectionSet, v model.YoutubePlaybackInfo) graphql.Marshaler {
+	return ec._YoutubePlaybackInfo(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNYoutubePlaybackInfo2ᚖvvinampᚋgraphqlᚋmodelᚐYoutubePlaybackInfo(ctx context.Context, sel ast.SelectionSet, v *model.YoutubePlaybackInfo) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._YoutubePlaybackInfo(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

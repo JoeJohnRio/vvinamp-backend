@@ -289,6 +289,17 @@ type SearchResult struct {
 	Thumbnail      *string `json:"thumbnail,omitempty"`
 }
 
+type SearchResultConnection struct {
+	Edges      []*SearchResultEdge `json:"edges"`
+	PageInfo   *PageInfo           `json:"pageInfo"`
+	TotalCount int                 `json:"totalCount"`
+}
+
+type SearchResultEdge struct {
+	Cursor string        `json:"cursor"`
+	Node   *SearchResult `json:"node"`
+}
+
 type StringConnection struct {
 	Edges      []*StringEdge `json:"edges"`
 	PageInfo   *PageInfo     `json:"pageInfo"`
@@ -368,6 +379,15 @@ type UserLike struct {
 	User    *User  `json:"user"`
 	Track   *Track `json:"track"`
 	LikedAt string `json:"likedAt"`
+}
+
+type YoutubePlaybackInfo struct {
+	ID         string  `json:"id"`
+	YoutubeURL string  `json:"youtubeUrl"`
+	Title      *string `json:"title,omitempty"`
+	FilePath   string  `json:"filePath"`
+	FileURL    string  `json:"fileUrl"`
+	HlsURL     string  `json:"hlsUrl"`
 }
 
 type ContentType string

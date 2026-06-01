@@ -143,3 +143,21 @@ func convertDownloadTask(task *youtubeService.DownloadTask) *model.DownloadTask 
 		UpdatedAt:  task.UpdatedAt,
 	}
 }
+
+func convertSearchResults(results []youtubeService.SearchResult) []*model.SearchResult {
+	items := make([]*model.SearchResult, 0, len(results))
+	for _, result := range results {
+		items = append(items, &model.SearchResult{
+			ID:             result.ID,
+			Title:          result.Title,
+			URL:            result.WebpageURL,
+			WebpageURL:     result.WebpageURL,
+			Duration:       intPtr(result.Duration),
+			DurationString: strPtr(result.DurationString),
+			ViewCount:      intPtr(int(result.ViewCount)),
+			Channel:        strPtr(result.Channel),
+			Thumbnail:      strPtr(result.Thumbnail),
+		})
+	}
+	return items
+}

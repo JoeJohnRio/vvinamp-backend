@@ -6,6 +6,7 @@ package resolvers
 
 import (
 	"context"
+	"fmt"
 	"vvinamp/graphql/model"
 	youtubeService "vvinamp/internal/services/youtube"
 )
@@ -24,6 +25,36 @@ func (r *mutationResolver) StartDownload(ctx context.Context, input model.Downlo
 	return convertDownloadTask(task), nil
 }
 
+// PlayYoutube is the resolver for the playYoutube field.
+func (r *mutationResolver) PlayYoutube(ctx context.Context, youtubeURL string) (*model.YoutubePlaybackInfo, error) {
+	result, err := r.YoutubeDownloadService.EnsureDownloaded(ctx, youtubeURL)
+	if err != nil {
+		return nil, err
+	}
+
+	var title *string
+	if result.Title != "" {
+		title = &result.Title
+	}
+
+	hlsURL := fmt.Sprintf("/hls/%s/playlist.m3u8", result.ID)
+	if !r.StreamingService.FileController.HLSExists(result.ID) {
+		hlsURL, err = r.StreamingService.FileController.ConvertToHLS(ctx, result.FilePath, result.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create hls stream: %w", err)
+		}
+	}
+
+	return &model.YoutubePlaybackInfo{
+		ID:         result.ID,
+		YoutubeURL: result.YoutubeURL,
+		Title:      title,
+		FilePath:   result.FilePath,
+		FileURL:    fmt.Sprintf("/storage/youtube/%s.mp3", result.ID),
+		HlsURL:     hlsURL,
+	}, nil
+}
+
 // SearchYoutube is the resolver for the searchYoutube field.
 func (r *queryResolver) SearchYoutube(ctx context.Context, query string) ([]*model.SearchResult, error) {
 	results, err := r.YoutubeSearchService.Search(ctx, query)
@@ -31,22 +62,145 @@ func (r *queryResolver) SearchYoutube(ctx context.Context, query string) ([]*mod
 		return nil, err
 	}
 
-	items := make([]*model.SearchResult, 0, len(results))
-	for _, result := range results {
-		items = append(items, &model.SearchResult{
-			ID:             result.ID,
-			Title:          result.Title,
-			URL:            result.WebpageURL,
-			WebpageURL:     result.WebpageURL,
-			Duration:       intPtr(result.Duration),
-			DurationString: strPtr(result.DurationString),
-			ViewCount:      intPtr(int(result.ViewCount)),
-			Channel:        strPtr(result.Channel),
-			Thumbnail:      strPtr(result.Thumbnail),
-		})
+	return convertSearchResults(results), nil
+}
+
+// SearchYoutubeFromAPI is the resolver for the searchYoutubeFromApi field.
+func (r *queryResolver) SearchYoutubeFromAPI(ctx context.Context, query string, first *int, after *string, last *int, before *string) (*model.SearchResultConnection, error) {
+	limit := 20
+	if first != nil {
+		limit = *first
+	}
+	if last != nil {
+		limit = *last
 	}
 
-	return items, nil
+	offset := 0
+	if after != nil {
+		cursorOffset, err := decodeCursor(*after)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cursor: %w", err)
+		}
+		offset = cursorOffset + 1
+	}
+	if before != nil {
+		cursorOffset, err := decodeCursor(*before)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cursor: %w", err)
+		}
+		offset = cursorOffset - limit
+		if offset < 0 {
+			offset = 0
+		}
+	}
+
+	fetchLimit := limit + 1
+	results, err := r.YoutubeSearchService.SearchYoutubeFromAPIPaginated(ctx, query, offset, fetchLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	hasNextPage := len(results) > limit
+	if hasNextPage {
+		results = results[:limit]
+	}
+
+	nodes := convertSearchResults(results)
+	edges := make([]*model.SearchResultEdge, len(nodes))
+	for i, node := range nodes {
+		edges[i] = &model.SearchResultEdge{
+			Cursor: encodeCursor(offset + i),
+			Node:   node,
+		}
+	}
+
+	pageInfo := &model.PageInfo{
+		HasNextPage:     hasNextPage,
+		HasPreviousPage: offset > 0,
+	}
+	if len(edges) > 0 {
+		startCursor := edges[0].Cursor
+		endCursor := edges[len(edges)-1].Cursor
+		pageInfo.StartCursor = &startCursor
+		pageInfo.EndCursor = &endCursor
+	}
+
+	totalCount := offset + len(nodes)
+
+	return &model.SearchResultConnection{
+		Edges:      edges,
+		PageInfo:   pageInfo,
+		TotalCount: totalCount,
+	}, nil
+}
+
+// SearchYoutubeFromYtDlp is the resolver for the searchYoutubeFromYtDlp field.
+func (r *queryResolver) SearchYoutubeFromYtDlp(ctx context.Context, query string, first *int, after *string, last *int, before *string) (*model.SearchResultConnection, error) {
+	limit := 20
+	if first != nil {
+		limit = *first
+	}
+	if last != nil {
+		limit = *last
+	}
+
+	offset := 0
+	if after != nil {
+		cursorOffset, err := decodeCursor(*after)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cursor: %w", err)
+		}
+		offset = cursorOffset + 1
+	}
+	if before != nil {
+		cursorOffset, err := decodeCursor(*before)
+		if err != nil {
+			return nil, fmt.Errorf("invalid cursor: %w", err)
+		}
+		offset = cursorOffset - limit
+		if offset < 0 {
+			offset = 0
+		}
+	}
+
+	fetchLimit := limit + 1
+	results, err := r.YoutubeSearchService.SearchYoutubeFromYtDlpPaginated(ctx, query, offset, fetchLimit)
+	if err != nil {
+		return nil, err
+	}
+
+	hasNextPage := len(results) > limit
+	if hasNextPage {
+		results = results[:limit]
+	}
+
+	nodes := convertSearchResults(results)
+	edges := make([]*model.SearchResultEdge, len(nodes))
+	for i, node := range nodes {
+		edges[i] = &model.SearchResultEdge{
+			Cursor: encodeCursor(offset + i),
+			Node:   node,
+		}
+	}
+
+	pageInfo := &model.PageInfo{
+		HasNextPage:     hasNextPage,
+		HasPreviousPage: offset > 0,
+	}
+	if len(edges) > 0 {
+		startCursor := edges[0].Cursor
+		endCursor := edges[len(edges)-1].Cursor
+		pageInfo.StartCursor = &startCursor
+		pageInfo.EndCursor = &endCursor
+	}
+
+	totalCount := offset + len(nodes)
+
+	return &model.SearchResultConnection{
+		Edges:      edges,
+		PageInfo:   pageInfo,
+		TotalCount: totalCount,
+	}, nil
 }
 
 // GetDownloadTask is the resolver for the getDownloadTask field.
