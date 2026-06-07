@@ -125,14 +125,11 @@ func (r *queryResolver) Login(ctx context.Context, email string, password string
 		return nil, err
 	}
 	var accessToken, refreshToken string
-	log.Println("joel123 Login")
 	// If you're using context to pass auth writer for middleware/token things:
 	if arw, ok := ctx.Value("authResponseWriter").(*auth.AuthResponseWriter); ok {
-		log.Println("joel123 login 1")
 		arw.SetSessionToResolver(u.ID)
 		// At this point, the authentication.go middleware will set cookies
 
-		log.Println("joel123 login 2")
 		if arw.GetAuth() != nil {
 			// Generate the tokens (logic centralized)
 			accessToken, refreshToken, err = arw.GetAuth().GenerateTokens(u.ID)

@@ -7,6 +7,7 @@ package resolvers
 import (
 	"context"
 	"fmt"
+	"log"
 	"vvinamp/graphql/model"
 	youtubeService "vvinamp/internal/services/youtube"
 )
@@ -164,6 +165,7 @@ func (r *queryResolver) SearchYoutubeFromYtDlp(ctx context.Context, query string
 	}
 
 	fetchLimit := limit + 1
+	log.Printf("joel123 Resolver: Searching YouTube with yt-dlp for query: %s, offset: %d, limit: %d", query, offset, fetchLimit)
 	results, err := r.YoutubeSearchService.SearchYoutubeFromYtDlpPaginated(ctx, query, offset, fetchLimit)
 	if err != nil {
 		return nil, err

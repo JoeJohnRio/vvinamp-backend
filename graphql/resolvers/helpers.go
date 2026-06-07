@@ -156,6 +156,8 @@ func convertSearchResults(results []youtubeService.SearchResult) []*model.Search
 			DurationString: strPtr(result.DurationString),
 			ViewCount:      intPtr(int(result.ViewCount)),
 			Channel:        strPtr(result.Channel),
+			ChannelID:      strPtr(result.ChannelID),
+			UploaderID:     strPtr(result.UploaderID),
 			Thumbnail:      strPtr(result.Thumbnail),
 		})
 	}

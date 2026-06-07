@@ -11,6 +11,8 @@ type SearchResult struct {
 	DurationString string `json:"duration_string"`
 	ViewCount      int64  `json:"view_count"`
 	Channel        string `json:"uploader"`
+	ChannelID      string `json:"channel_id"`
+	UploaderID     string `json:"uploader_id"`
 	Thumbnail      string `json:"thumbnail"`
 }
 

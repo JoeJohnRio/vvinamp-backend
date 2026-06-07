@@ -12,7 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// delete check if its used joel123
 type Service struct {
 	Repo song.Repository
 }

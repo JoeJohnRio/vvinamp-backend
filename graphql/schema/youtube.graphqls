@@ -20,6 +20,8 @@ type SearchResult {
   durationString: String
   viewCount: Int
   channel: String
+  channelId: String
+  uploaderId: String
   thumbnail: String
 }
 

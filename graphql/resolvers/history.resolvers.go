@@ -50,8 +50,6 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 
 	var apiHistories []*graphqlModel.ListeningHistory
 	for _, raw := range a {
-		log.Println("joel123 content 1", raw.ContentType)
-		log.Println("joel123 content 2", raw.ContentID)
 
 		// Inline the mapContentType logic
 		var contentType graphqlModel.ContentType

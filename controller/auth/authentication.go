@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"log"
 	"strings"
 	"time"
 	"vvinamp/internal/pkg/session"
@@ -31,12 +30,10 @@ type Auth struct {
 
 // SetSessionToResolver implements the AuthResponseWriter interface
 func (arw *AuthResponseWriter) SetSessionToResolver(userID string) {
-	log.Println("joel123 SetSessionToResolver")
 	arw.sessionToResolver = userID
 }
 
 func (arw *AuthResponseWriter) GetAuth() *Auth {
-	log.Println("joel123 GetAuth")
 	return arw.auth
 }
 
@@ -64,7 +61,6 @@ func NewAuth(target AuthTarget) *Auth {
 
 // GenerateTokens creates both access and refresh tokens
 func (a *Auth) GenerateTokens(userID string) (accessToken, refreshToken string, err error) {
-	log.Println("joel123", userID)
 	// Generate access token (short-lived)
 	accessClaims := &model.Token{
 		UserID: userID,
@@ -97,7 +93,6 @@ func (a *Auth) GenerateTokens(userID string) (accessToken, refreshToken string, 
 		return "", "", err
 	}
 
-	log.Println("joel123 access token", accessToken)
 	return accessToken, refreshToken, nil
 }
 
@@ -106,14 +101,11 @@ func (a *Auth) GenerateTokens(userID string) (accessToken, refreshToken string, 
 func (a *Auth) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Get JWT from Authorization: Bearer <token>
-		log.Println("joel123 Middleware Authentication")
 		authHeader := c.GetHeader("Authorization")
 		tokenPart := ""
 		if strings.HasPrefix(authHeader, "Bearer ") {
 			tokenPart = strings.TrimPrefix(authHeader, "Bearer ")
 		}
-
-		log.Println("joel123 Bearer Authentication", tokenPart)
 
 		if tokenPart != "" {
 			tk := &model.Token{}
@@ -121,20 +113,16 @@ func (a *Auth) Middleware() gin.HandlerFunc {
 				return []byte(a.tokenPassword), nil
 			})
 			if err == nil && token.Valid && !time.Unix(tk.ExpiresAt, 0).Before(time.Now()) {
-				log.Println("joel123 token is valid")
-				log.Println("joel123 user ID from token:", tk.UserID)
 
 				// Create session using session manager
 				ctx := a.sessionMgr.CreateSession(c.Request.Context(), tk.UserID)
 				c.Request = c.Request.WithContext(ctx)
 			} else {
-				log.Println("joel123 token is invalid, err:", err)
 				// Even if token is invalid, continue with the request but without session
 				// The session validation will happen later in specific routes
 			}
 		} else {
 			// No token provided, continue without session
-			log.Println("joel123 no token provided")
 		}
 
 		arw := &AuthResponseWriter{

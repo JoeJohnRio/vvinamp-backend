@@ -1,31 +1,39 @@
 package youtube
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"net/http"
-	"net/url"
+	neturl "net/url"
 	"os"
 	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	redisdb "vvinamp/database/redis"
 )
 
 type SearchService struct {
 	ytDlpPath string
 	apiKey    string
+	redisConn *redisdb.Connection
 }
 
-func NewSearchService(ytDlpPath string) *SearchService {
+func NewSearchService(ytDlpPath string, redisConn *redisdb.Connection) *SearchService {
 	return &SearchService{
 		ytDlpPath: ytDlpPath,
 		apiKey:    os.Getenv("YT_API_KEY"),
+		redisConn: redisConn,
 	}
 }
 
@@ -40,11 +48,9 @@ func (s *SearchService) Search(ctx context.Context, query string) ([]SearchResul
 
 	results, err := s.SearchYoutubeFromAPI(ctx, query)
 	if err == nil {
-		log.Printf("joel123 YouTube API search successful for query: %s", query)
 		return results, nil
 	}
 
-	log.Printf("joel123 YouTube API search failed for err: %s", err)
 	return s.SearchYoutubeFromYtDlp(ctx, query)
 }
 
@@ -54,7 +60,7 @@ func (s *SearchService) SearchYoutubeFromAPI(ctx context.Context, query string) 
 	}
 
 	// default to non-paginated (first page)
-	return s.SearchYoutubeFromAPIPaginated(ctx, query, 0, 10)
+	return s.SearchYoutubeFromAPIPaginated(ctx, query, 0, 5)
 }
 
 func (s *SearchService) SearchYoutubeFromAPIPaginated(ctx context.Context, query string, offset, limit int) ([]SearchResult, error) {
@@ -67,13 +73,13 @@ func (s *SearchService) SearchYoutubeFromAPIPaginated(ctx context.Context, query
 	}
 
 	if limit <= 0 {
-		limit = 10
+		limit = 5
 	}
 
 	// YouTube API supports maxResults up to 50
 	fetchCount := offset + limit
 	if fetchCount < 1 {
-		fetchCount = 10
+		fetchCount = 5
 	}
 	if fetchCount > 50 {
 		fetchCount = 50
@@ -102,7 +108,7 @@ func (s *SearchService) searchWithYouTubeAPIWithMax(ctx context.Context, query s
 	defer cancel()
 
 	endpoint := "https://www.googleapis.com/youtube/v3/search"
-	params := url.Values{}
+	params := neturl.Values{}
 	params.Set("part", "snippet")
 	params.Set("q", query)
 	params.Set("type", "video")
@@ -177,7 +183,7 @@ func (s *SearchService) SearchYoutubeFromYtDlp(ctx context.Context, query string
 		return nil, fmt.Errorf("search query cannot be empty")
 	}
 
-	return s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, 10)
+	return s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, 5)
 }
 
 func (s *SearchService) SearchYoutubeFromYtDlpPaginated(ctx context.Context, query string, offset, limit int) ([]SearchResult, error) {
@@ -186,7 +192,7 @@ func (s *SearchService) SearchYoutubeFromYtDlpPaginated(ctx context.Context, que
 	}
 
 	if limit <= 0 {
-		limit = 10
+		limit = 5
 	}
 
 	return s.searchWithYtDlp(ctx, query, offset, limit)
@@ -197,12 +203,12 @@ func (s *SearchService) searchWithYouTubeAPI(ctx context.Context, query string) 
 	defer cancel()
 
 	endpoint := "https://www.googleapis.com/youtube/v3/search"
-	params := url.Values{}
+	params := neturl.Values{}
 	params.Set("part", "snippet")
 	params.Set("q", query)
 	params.Set("type", "video")
 	// params.Set("videoCategoryId", "10")
-	params.Set("maxResults", "10")
+	params.Set("maxResults", "5")
 	params.Set("key", s.apiKey)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
@@ -261,7 +267,7 @@ func (s *SearchService) searchWithYouTubeAPI(ctx context.Context, query string) 
 
 func (s *SearchService) fetchVideoDetails(ctx context.Context, ids []string) ([]SearchResult, error) {
 	endpoint := "https://www.googleapis.com/youtube/v3/videos"
-	params := url.Values{}
+	params := neturl.Values{}
 	params.Set("part", "snippet,contentDetails,statistics")
 	params.Set("id", strings.Join(ids, ","))
 	params.Set("key", s.apiKey)
@@ -288,6 +294,7 @@ func (s *SearchService) fetchVideoDetails(ctx context.Context, ids []string) ([]
 			Snippet struct {
 				Title        string `json:"title"`
 				ChannelTitle string `json:"channelTitle"`
+				ChannelID    string `json:"channelId"`
 				Thumbnails   struct {
 					Default struct {
 						URL string `json:"url"`
@@ -350,6 +357,8 @@ func (s *SearchService) fetchVideoDetails(ctx context.Context, ids []string) ([]
 			DurationString: item.ContentDetails.Duration,
 			ViewCount:      viewCount,
 			Channel:        item.Snippet.ChannelTitle,
+			ChannelID:      item.Snippet.ChannelID,
+			UploaderID:     item.Snippet.ChannelID,
 			Thumbnail:      thumbnail,
 		})
 	}
@@ -378,68 +387,153 @@ func defaultString(value, fallback string) string {
 }
 
 func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offset, limit int) ([]SearchResult, error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	// If cached in Redis, read and slice
+	log.Printf("joel123 Performing yt-dlp search for query: %s", query)
+	key := fmt.Sprintf("ytsearch:%x", sha1.Sum([]byte(strings.ToLower(query))))
+	if s.redisConn != nil {
+		if client, err := s.redisConn.Client(); err == nil {
+			if raw, err := client.Get(ctx, key).Result(); err == nil {
+				var cached []SearchResult
+				if err := json.Unmarshal([]byte(raw), &cached); err == nil {
+					if offset >= len(cached) {
+						return []SearchResult{}, nil
+					}
+					end := offset + limit
+					if end > len(cached) {
+						end = len(cached)
+					}
+					return cached[offset:end], nil
+				}
+			}
+		}
+	}
+
+	// Not cached: run yt-dlp search (ytsearch50) and stream results.
+	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
-	fetchCount := offset + limit
-	if fetchCount < 1 {
-		fetchCount = 10
-	}
-	if fetchCount > 100 {
-		fetchCount = 100
-	}
-
-	searchURL := fmt.Sprintf("ytsearch%d:%s music", fetchCount, query)
 	cmd := exec.CommandContext(ctx, s.ytDlpPath,
 		"--dump-json",
 		"--skip-download",
-		searchURL,
+		fmt.Sprintf("ytsearch50:%s", query),
 	)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stdout pipe: %w", err)
+	}
+	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("yt-dlp search failed: %w: %s", err, stderr.String())
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("yt-dlp start failed: %w: %s", err, stderr.String())
 	}
 
-	output := strings.TrimSpace(stdout.String())
-	if output == "" {
-		return []SearchResult{}, nil
+	deliverCh := make(chan SearchResult, 128)
+	errCh := make(chan error, 1)
+
+	results := make([]SearchResult, 0, 50)
+	var mu sync.Mutex
+
+	// Single goroutine: scan, append to results, send to deliverCh for immediate consumption,
+	// and when finished persist the full results to Redis.
+	go func() {
+		defer close(deliverCh)
+		scanner := bufio.NewScanner(stdoutPipe)
+		// increase scanner buffer to handle long JSON lines
+		scanner.Buffer(make([]byte, 0, 1024*1024), 10*1024*1024)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.TrimSpace(line) == "" {
+				continue
+			}
+			var r SearchResult
+			if err := json.Unmarshal([]byte(line), &r); err != nil {
+				// skip malformed lines
+				continue
+			}
+			if r.WebpageURL == "" && r.ID != "" {
+				r.WebpageURL = fmt.Sprintf("https://www.youtube.com/watch?v=%s", r.ID)
+			}
+			if r.URL == "" {
+				r.URL = r.WebpageURL
+			}
+
+			mu.Lock()
+			results = append(results, r)
+			mu.Unlock()
+
+			// best-effort deliver to caller; non-blocking to avoid stalling scanner
+			select {
+			case deliverCh <- r:
+			default:
+			}
+		}
+
+		if scErr := scanner.Err(); scErr != nil {
+			errCh <- scErr
+			return
+		}
+		if waitErr := cmd.Wait(); waitErr != nil {
+			errCh <- fmt.Errorf("yt-dlp wait error: %w: %s", waitErr, stderr.String())
+			return
+		}
+
+		// Persist complete results to Redis (TTL with jitter)
+		if s.redisConn != nil {
+			if client, err := s.redisConn.Client(); err == nil {
+				mu.Lock()
+				b, jerr := json.Marshal(results)
+				mu.Unlock()
+				if jerr == nil {
+					ttl := 10*time.Minute + time.Duration(rand.Intn(60))*time.Second
+					_ = client.Set(context.Background(), key, b, ttl).Err()
+				}
+			}
+		}
+
+		errCh <- nil
+	}()
+
+	// Collect up to `limit` items to return immediately
+	collected := make([]SearchResult, 0, limit)
+	for r := range deliverCh {
+		collected = append(collected, r)
+		if len(collected) >= limit {
+			break
+		}
 	}
 
-	lines := strings.Split(output, "\n")
-	results := make([]SearchResult, 0, len(lines))
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			continue
+	// If we didn't receive enough via deliverCh but scanner appended more, copy them
+	if len(collected) < limit {
+		mu.Lock()
+		available := len(results)
+		start := len(collected)
+		end := start + (limit - start)
+		if end > available {
+			end = available
 		}
+		if start < end {
+			collected = append(collected, results[start:end]...)
+		}
+		mu.Unlock()
+	}
 
-		var result SearchResult
-		if err := json.Unmarshal([]byte(line), &result); err != nil {
-			return nil, fmt.Errorf("failed to parse yt-dlp search result: %w", err)
+	// Check for scanner/cmd errors (non-blocking)
+	select {
+	case e := <-errCh:
+		if e != nil {
+			return nil, e
 		}
-
-		// If yt-dlp JSON doesn't include webpage/url fields, construct them from the id.
-		if result.WebpageURL == "" && result.ID != "" {
-			result.WebpageURL = fmt.Sprintf("https://www.youtube.com/watch?v=%s", result.ID)
-		}
-		if result.URL == "" {
-			result.URL = result.WebpageURL
-		}
-
-		results = append(results, result)
+	default:
 	}
 
 	if offset >= len(results) {
 		return []SearchResult{}, nil
 	}
-
 	end := offset + limit
 	if end > len(results) {
 		end = len(results)
 	}
-
 	return results[offset:end], nil
 }

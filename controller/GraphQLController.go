@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 
 	"vvinamp/controller/auth"
 	"vvinamp/database/postgre"
+	redisdb "vvinamp/database/redis"
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/resolvers"
 	"vvinamp/internal/pkg/session"
@@ -63,6 +63,7 @@ type GraphQLControllerTarget struct {
 	Streaming      *streaming.Service
 	Playlist       playlist.Service
 	Logger         *zap.Logger
+	Redis          *redisdb.Connection
 }
 
 // NewGraphQLController is a constructor for GraphQLController
@@ -103,7 +104,7 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 			search:          target.Search,
 			streaming:       target.Streaming,
 			playlist:        target.Playlist,
-			youtubeSearch:   youtubeService.NewSearchService(ytDlpPath),
+			youtubeSearch:   youtubeService.NewSearchService(ytDlpPath, target.Redis),
 			youtubeDownload: youtubeService.NewDownloadService(storagePath, ytDlpPath, downloadTimeout, maxDownloadSize),
 			logger:          target.Logger,
 		},
@@ -220,7 +221,6 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 func (m *GraphQLController) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
-		log.Println("joel123 Middleware graphqlcontroller.go")
 		ctx = context.WithValue(ctx, user.Key, m.user)
 		ctx = context.WithValue(ctx, history.Key, m.history)
 		ctx = context.WithValue(ctx, song.Key, m.song)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"vvinamp/graphql/model"
 
 	"github.com/redis/go-redis/v9"
@@ -62,7 +61,6 @@ func (s *Service) AddToQueue(ctx context.Context, userId string, trackIds []stri
 	if err != nil {
 		return nil, err
 	}
-	log.Println("joel123 jalan -1")
 
 	tracksWithDetails, err := s.Repo.GetTracksWithDetails(ctx, trackIds)
 	if err != nil {

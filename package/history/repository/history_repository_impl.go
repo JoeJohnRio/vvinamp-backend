@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"errors"
-	"log"
 	"vvinamp/constant"
 	"vvinamp/database/postgre"
 	"vvinamp/model"
@@ -21,14 +20,12 @@ type sqlRepository struct {
 // GetRecentHistoryByUser implements history.Repository.
 func (s *sqlRepository) GetRecentHistoryByUser(ctx context.Context, limit int) ([]*model.ListeningHistory, error) {
 	var history []*model.ListeningHistory
-	log.Println("joel123 getRecentHistoryByUser 1")
 	userID, ok := ctx.Value(constant.Session).(string)
 	if !ok || userID == "" {
 		return nil, errors.New("unauthorized: no valid session 4")
 	}
 	err := s.DB(ctx).Where("user_id = ?", userID).Limit(limit).Order("played_at DESC").Find(&history).Error
 
-	log.Println("joel123 getRecentHistoryByUser 2")
 	return history, err
 }
 

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"log"
 	"vvinamp/database/postgre"
 	dbModel "vvinamp/model"
 	"vvinamp/model/dto"
@@ -103,24 +102,18 @@ func (m *sqlRepository) GetRandomTracks(ctx context.Context, limit int, excludeI
 // Fetch multiple tracks at once to avoid N+1 performance issues
 func (r *sqlRepository) GetTracksWithDetails(ctx context.Context, trackIds []string) ([]*dto.TrackWithDetails, error) {
 
-	log.Println("joel123 jalan 0")
 	var results []*dto.TrackWithDetails
 
-	log.Println("joel123 jalan 1")
 	err := r.DB(ctx).
 		Table("tracks").
 		Select("tracks.id, tracks.title, albums.cover_art as album_cover_url, artists.name as artist_name").
 		Joins("JOIN albums ON tracks.album_id = albums.id").
 		Joins("JOIN artists ON albums.artist_id = artists.id").
 		Where("tracks.id IN ?", trackIds). // Uses WHERE id IN ('id1', 'id2')
-		Scan(&results).Error
-
-	log.Println("joel123 jalan 2")
+		Scan(&results).Debug().Error
 	if err != nil {
 		return nil, err
 	}
-
-	log.Println("joel123 jalan 3")
 	return results, nil
 }
 

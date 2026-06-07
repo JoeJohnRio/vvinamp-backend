@@ -286,6 +286,8 @@ type SearchResult struct {
 	DurationString *string `json:"durationString,omitempty"`
 	ViewCount      *int    `json:"viewCount,omitempty"`
 	Channel        *string `json:"channel,omitempty"`
+	ChannelID      *string `json:"channelId,omitempty"`
+	UploaderID     *string `json:"uploaderId,omitempty"`
 	Thumbnail      *string `json:"thumbnail,omitempty"`
 }
 

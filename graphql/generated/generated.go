@@ -301,12 +301,14 @@ type ComplexityRoot struct {
 
 	SearchResult struct {
 		Channel        func(childComplexity int) int
+		ChannelID      func(childComplexity int) int
 		Duration       func(childComplexity int) int
 		DurationString func(childComplexity int) int
 		ID             func(childComplexity int) int
 		Thumbnail      func(childComplexity int) int
 		Title          func(childComplexity int) int
 		URL            func(childComplexity int) int
+		UploaderID     func(childComplexity int) int
 		ViewCount      func(childComplexity int) int
 		WebpageURL     func(childComplexity int) int
 	}
@@ -1845,6 +1847,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.SearchResult.Channel(childComplexity), true
 
+	case "SearchResult.channelId":
+		if e.complexity.SearchResult.ChannelID == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.ChannelID(childComplexity), true
+
 	case "SearchResult.duration":
 		if e.complexity.SearchResult.Duration == nil {
 			break
@@ -1886,6 +1895,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.SearchResult.URL(childComplexity), true
+
+	case "SearchResult.uploaderId":
+		if e.complexity.SearchResult.UploaderID == nil {
+			break
+		}
+
+		return e.complexity.SearchResult.UploaderID(childComplexity), true
 
 	case "SearchResult.viewCount":
 		if e.complexity.SearchResult.ViewCount == nil {
@@ -2980,6 +2996,8 @@ type SearchResult {
   durationString: String
   viewCount: Int
   channel: String
+  channelId: String
+  uploaderId: String
   thumbnail: String
 }
 
@@ -12762,6 +12780,10 @@ func (ec *executionContext) fieldContext_Query_searchYoutube(ctx context.Context
 				return ec.fieldContext_SearchResult_viewCount(ctx, field)
 			case "channel":
 				return ec.fieldContext_SearchResult_channel(ctx, field)
+			case "channelId":
+				return ec.fieldContext_SearchResult_channelId(ctx, field)
+			case "uploaderId":
+				return ec.fieldContext_SearchResult_uploaderId(ctx, field)
 			case "thumbnail":
 				return ec.fieldContext_SearchResult_thumbnail(ctx, field)
 			}
@@ -13821,6 +13843,88 @@ func (ec *executionContext) fieldContext_SearchResult_channel(_ context.Context,
 	return fc, nil
 }
 
+func (ec *executionContext) _SearchResult_channelId(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_channelId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ChannelID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_channelId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _SearchResult_uploaderId(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_SearchResult_uploaderId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UploaderID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_SearchResult_uploaderId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "SearchResult",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _SearchResult_thumbnail(ctx context.Context, field graphql.CollectedField, obj *model.SearchResult) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_SearchResult_thumbnail(ctx, field)
 	if err != nil {
@@ -14109,6 +14213,10 @@ func (ec *executionContext) fieldContext_SearchResultEdge_node(_ context.Context
 				return ec.fieldContext_SearchResult_viewCount(ctx, field)
 			case "channel":
 				return ec.fieldContext_SearchResult_channel(ctx, field)
+			case "channelId":
+				return ec.fieldContext_SearchResult_channelId(ctx, field)
+			case "uploaderId":
+				return ec.fieldContext_SearchResult_uploaderId(ctx, field)
 			case "thumbnail":
 				return ec.fieldContext_SearchResult_thumbnail(ctx, field)
 			}
@@ -21948,6 +22056,10 @@ func (ec *executionContext) _SearchResult(ctx context.Context, sel ast.Selection
 			out.Values[i] = ec._SearchResult_viewCount(ctx, field, obj)
 		case "channel":
 			out.Values[i] = ec._SearchResult_channel(ctx, field, obj)
+		case "channelId":
+			out.Values[i] = ec._SearchResult_channelId(ctx, field, obj)
+		case "uploaderId":
+			out.Values[i] = ec._SearchResult_uploaderId(ctx, field, obj)
 		case "thumbnail":
 			out.Values[i] = ec._SearchResult_thumbnail(ctx, field, obj)
 		default:
