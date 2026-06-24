@@ -158,12 +158,6 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 					}
 				}
 
-				if len(albumCovers) > 0 && len(albumCovers) < 4 {
-					contentImage = []string{albumCovers[0]}
-				} else {
-					contentImage = albumCovers
-				}
-
 				var playlist dbModel.Playlist
 				db := postgre.ForContext(ctx)
 				result := db.Where("id = ?", raw.ContentID).First(&playlist)
@@ -173,6 +167,14 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 					contentSubtitle = &empty
 				} else {
 					contentName = playlist.Title
+					if playlist.CoverImage != nil && *playlist.CoverImage != "" {
+						contentImage = []string{*playlist.CoverImage}
+					} else if len(albumCovers) > 0 && len(albumCovers) < 4 {
+						contentImage = []string{albumCovers[0]}
+					} else {
+						contentImage = albumCovers
+					}
+
 					creator, err := r.UserService.GetByID(ctx, playlist.CreatorID)
 					if err == nil && creator != nil {
 						contentSubtitle = &creator.Username
