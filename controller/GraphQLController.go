@@ -250,9 +250,9 @@ func (m *GraphQLController) GraphiQL() gin.HandlerFunc {
 func (m *GraphQLController) Register(r *gin.Engine) {
 	// OPTIONS preflight — no auth required, must return CORS headers
 	r.OPTIONS("/v1/graphql", CORSMiddleware())
+	r.OPTIONS("/query", CORSMiddleware())
 
-	// Single route with conditional authentication
-	r.POST("/v1/graphql",
+	graphqlHandlers := []gin.HandlerFunc{
 		CORSMiddleware(),
 		m.auth.Middleware(),
 		m.postgre.Middleware(),
@@ -313,7 +313,11 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 
 			c.Next()
 		},
-		m.GraphQL())
+		m.GraphQL(),
+	}
+
+	r.POST("/v1/graphql", graphqlHandlers...)
+	r.POST("/query", graphqlHandlers...)
 
 	if !m.graphiQLEnable {
 		r.GET("/v1/graphiql", m.GraphiQL())
