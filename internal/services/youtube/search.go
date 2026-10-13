@@ -60,47 +60,125 @@ func (s *SearchService) SearchYoutubeFromAPI(ctx context.Context, query string) 
 	}
 
 	// default to non-paginated (first page)
-	return s.SearchYoutubeFromAPIPaginated(ctx, query, 0, 5)
+	results, _, _, err := s.SearchYoutubeFromAPIPaginatedWithPageToken(ctx, query, 0, 5, "", nil)
+	return results, err
 }
 
 func (s *SearchService) SearchYoutubeFromAPIPaginated(ctx context.Context, query string, offset, limit int) ([]SearchResult, error) {
+	results, _, _, err := s.SearchYoutubeFromAPIPaginatedWithPageToken(ctx, query, offset, limit, "", nil)
+	return results, err
+}
+
+func (s *SearchService) SearchYoutubeFromAPIPaginatedWithPageToken(ctx context.Context, query string, offset, limit int, pageToken string, seenIDs []string) ([]SearchResult, string, []string, error) {
 	if strings.TrimSpace(query) == "" {
-		return nil, fmt.Errorf("search query cannot be empty")
+		return nil, "", nil, fmt.Errorf("search query cannot be empty")
 	}
 
 	if s.apiKey == "" {
-		return nil, fmt.Errorf("YT_API_KEY is not configured; YouTube API search is required")
+		return nil, "", nil, fmt.Errorf("YT_API_KEY is not configured; YouTube API search is required")
 	}
 
 	if limit <= 0 {
 		limit = 5
 	}
-
-	// YouTube API supports maxResults up to 50
-	fetchCount := offset + limit
-	if fetchCount < 1 {
-		fetchCount = 5
-	}
-	if fetchCount > 50 {
-		fetchCount = 50
+	if limit > 50 {
+		limit = 50
 	}
 
-	// reuse searchWithYouTubeAPI but request a specific maxResults
-	results, err := s.searchWithYouTubeAPIWithMax(ctx, query, fetchCount)
-	if err != nil {
-		return nil, err
+	seenSet := make(map[string]struct{}, len(seenIDs)+limit)
+	for _, id := range seenIDs {
+		if id == "" {
+			continue
+		}
+		seenSet[id] = struct{}{}
 	}
 
-	if offset >= len(results) {
-		return []SearchResult{}, nil
+	results := make([]SearchResult, 0, limit)
+	currentPageToken := pageToken
+	nextPageToken := ""
+	for len(results) < limit {
+		pageResults, token, err := s.searchWithYouTubeAPIWithPageToken(ctx, query, currentPageToken, limit)
+		if err != nil {
+			return nil, "", nil, err
+		}
+
+		pageSeen := make(map[string]struct{}, len(pageResults))
+		for _, result := range pageResults {
+			if result.ID == "" {
+				continue
+			}
+			if _, alreadySeen := seenSet[result.ID]; alreadySeen {
+				continue
+			}
+			if _, alreadyInPage := pageSeen[result.ID]; alreadyInPage {
+				continue
+			}
+			pageSeen[result.ID] = struct{}{}
+			results = append(results, result)
+			if len(results) >= limit {
+				break
+			}
+		}
+
+		nextPageToken = token
+		if token == "" || token == currentPageToken {
+			break
+		}
+		currentPageToken = token
+	}
+
+	filteredResults := paginateSearchResults(results, 0, limit, seenSet)
+	for _, result := range filteredResults {
+		seenSet[result.ID] = struct{}{}
+	}
+
+	return filteredResults, nextPageToken, collectSeenIDs(seenSet), nil
+}
+
+func collectSeenIDs(seenSet map[string]struct{}) []string {
+	ids := make([]string, 0, len(seenSet))
+	for id := range seenSet {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func paginateSearchResults(results []SearchResult, offset, limit int, seenSet map[string]struct{}) []SearchResult {
+	if limit <= 0 {
+		limit = 5
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	seen := make(map[string]struct{}, len(results))
+	uniqueResults := make([]SearchResult, 0, len(results))
+	for _, result := range results {
+		if result.ID == "" {
+			continue
+		}
+		if _, exists := seen[result.ID]; exists {
+			continue
+		}
+		if seenSet != nil {
+			if _, exists := seenSet[result.ID]; exists {
+				continue
+			}
+		}
+		seen[result.ID] = struct{}{}
+		uniqueResults = append(uniqueResults, result)
+	}
+
+	if offset >= len(uniqueResults) {
+		return []SearchResult{}
 	}
 
 	end := offset + limit
-	if end > len(results) {
-		end = len(results)
+	if end > len(uniqueResults) {
+		end = len(uniqueResults)
 	}
 
-	return results[offset:end], nil
+	return uniqueResults[offset:end]
 }
 
 func (s *SearchService) searchWithYouTubeAPIWithMax(ctx context.Context, query string, maxResults int) ([]SearchResult, error) {
@@ -184,6 +262,90 @@ func (s *SearchService) SearchYoutubeFromYtDlp(ctx context.Context, query string
 	}
 
 	return s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, 5)
+}
+
+func (s *SearchService) searchWithYouTubeAPIWithPageToken(ctx context.Context, query, pageToken string, maxResults int) ([]SearchResult, string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	endpoint := "https://www.googleapis.com/youtube/v3/search"
+	params := neturl.Values{}
+	params.Set("part", "snippet")
+	params.Set("q", query)
+	params.Set("type", "video")
+	params.Set("maxResults", fmt.Sprintf("%d", maxResults))
+	params.Set("key", s.apiKey)
+	if pageToken != "" {
+		params.Set("pageToken", pageToken)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("youtube api request creation failed: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("youtube api request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, "", fmt.Errorf("youtube api returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	var searchResp struct {
+		Items []struct {
+			ID struct {
+				VideoID string `json:"videoId"`
+			} `json:"id"`
+			Snippet struct {
+				Title        string `json:"title"`
+				ChannelTitle string `json:"channelTitle"`
+				Thumbnails   struct {
+					Default struct {
+						URL string `json:"url"`
+					} `json:"default"`
+					Medium struct {
+						URL string `json:"url"`
+					} `json:"medium"`
+					High struct {
+						URL string `json:"url"`
+					} `json:"high"`
+					Standard struct {
+						URL string `json:"url"`
+					} `json:"standard"`
+					Maxres struct {
+						URL string `json:"url"`
+					} `json:"maxres"`
+				} `json:"thumbnails"`
+			} `json:"snippet"`
+		} `json:"items"`
+		NextPageToken string `json:"nextPageToken"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
+		return nil, "", fmt.Errorf("youtube api response decode failed: %w", err)
+	}
+
+	ids := make([]string, 0, len(searchResp.Items))
+	for _, item := range searchResp.Items {
+		if item.ID.VideoID != "" {
+			ids = append(ids, item.ID.VideoID)
+		}
+	}
+
+	if len(ids) == 0 {
+		return []SearchResult{}, searchResp.NextPageToken, nil
+	}
+
+	results, err := s.fetchVideoDetails(ctx, ids)
+	if err != nil {
+		return nil, "", err
+	}
+
+	return results, searchResp.NextPageToken, nil
 }
 
 func (s *SearchService) SearchYoutubeFromYtDlpPaginated(ctx context.Context, query string, offset, limit int) ([]SearchResult, error) {

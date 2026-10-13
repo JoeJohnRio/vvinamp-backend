@@ -175,25 +175,28 @@ func (f *FileServerController) getTrackAlbumAndArtistNamesByID(ctx context.Conte
 
 // Register is function to register all controller's endpoint handler
 func (f *FileServerController) Register(r *gin.Engine) {
-	// Serve static files from the storage directory
-	// This will serve files at routes like /storage/images/, /storage/tracks/, etc.
-	r.Static("/hls", filepath.Join(f.storagePath, "hls"))
+	// Serve HLS static files under /hls with CORS
+	hlsGroup := r.Group("/hls")
+	hlsGroup.Use(StaticMediaCORSMiddleware())
+	hlsGroup.OPTIONS("/*filepath", StaticMediaCORSMiddleware())
+	hlsGroup.Static("/", filepath.Join(f.storagePath, "hls"))
 
-	// Media API endpoints
-	r.GET("/artist/:artistId/:fileName", f.ArtistMediaHandler)
-	r.GET("/album/:albumId/:fileName", f.AlbumMediaHandler)
-	r.GET("/track/:trackId/:fileName", f.TrackMediaHandler)
+	// Media API endpoints with CORS applied
+	// OPTIONS preflight for each media route
+	r.OPTIONS("/artist/:artistId/:fileName", StaticMediaCORSMiddleware())
+	r.OPTIONS("/album/:albumId/:fileName", StaticMediaCORSMiddleware())
+	r.OPTIONS("/track/:trackId/:fileName", StaticMediaCORSMiddleware())
 
-	// You can also create specific routes for different file types
-	// These will serve from specific subdirectories in storage
+	// GET handlers with CORS middleware to ensure headers are present
+	r.GET("/artist/:artistId/:fileName", StaticMediaCORSMiddleware(), f.ArtistMediaHandler)
+	r.GET("/album/:albumId/:fileName", StaticMediaCORSMiddleware(), f.AlbumMediaHandler)
+	r.GET("/track/:trackId/:fileName", StaticMediaCORSMiddleware(), f.TrackMediaHandler)
 
-	// r.Static("/hls", filepath.Join(f.storagePath, "hls"))
-	// r.Static("/images", filepath.Join(f.storagePath, "images"))
-	// r.Static("/tracks", filepath.Join(f.storagePath, "tracks"))
-	// r.Static("/files", filepath.Join(f.storagePath, "files"))
-	// r.Static("/artist", filepath.Join(f.storagePath, "artist"))
-	// r.Static("/vvinamp", filepath.Join(f.storagePath, "/vvinamp/artist/michael_jackson")) //this works
-	// r.Static("/vvinamp", filepath.Join(f.storagePath, "/vvinamp/artist"))//this doesnt works
+	// Serve static images directory under /images if accessed
+	imagesGroup := r.Group("/images")
+	imagesGroup.Use(StaticMediaCORSMiddleware())
+	imagesGroup.OPTIONS("/*filepath", StaticMediaCORSMiddleware())
+	imagesGroup.Static("/", filepath.Join(f.getBaseStoragePath(), "images"))
 }
 
 // ArtistMediaHandler handles requests for artist media files

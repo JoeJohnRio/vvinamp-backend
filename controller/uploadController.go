@@ -46,9 +46,15 @@ func (u *UploadController) getBaseStoragePath() string {
 }
 
 func (u *UploadController) Register(r *gin.Engine) {
-    r.POST("/v1/upload/playlist-cover", u.UploadPlaylistCover)
-    r.DELETE("/v1/upload/playlist-cover", u.DeletePlaylistCover)
-    r.Static("/storage", u.getBaseStoragePath())
+    r.OPTIONS("/v1/upload/playlist-cover", CORSMiddleware())
+    r.POST("/v1/upload/playlist-cover", CORSMiddleware(), u.UploadPlaylistCover)
+    r.DELETE("/v1/upload/playlist-cover", CORSMiddleware(), u.DeletePlaylistCover)
+    // Serve static storage with StaticMediaCORSMiddleware so images are accessible from allowed origins
+    storageGroup := r.Group("/storage")
+    storageGroup.Use(StaticMediaCORSMiddleware())
+    // Ensure OPTIONS preflight is handled for any storage path
+    storageGroup.OPTIONS("/*filepath", StaticMediaCORSMiddleware())
+    storageGroup.Static("/", u.getBaseStoragePath())
 }
 
 func (u *UploadController) UploadPlaylistCover(c *gin.Context) {

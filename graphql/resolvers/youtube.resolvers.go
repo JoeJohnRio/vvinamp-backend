@@ -75,17 +75,24 @@ func (r *queryResolver) SearchYoutubeFromAPI(ctx context.Context, query string, 
 	if last != nil {
 		limit = *last
 	}
+	if limit <= 0 {
+		limit = 20
+	}
 
 	offset := 0
+	pageToken := ""
+	seenIDs := []string{}
 	if after != nil {
-		cursorOffset, err := decodeCursor(*after)
+		cursorOffset, cursorToken, cursorSeenIDs, err := decodeYouTubeCursor(*after)
 		if err != nil {
 			return nil, fmt.Errorf("invalid cursor: %w", err)
 		}
 		offset = cursorOffset + 1
+		pageToken = cursorToken
+		seenIDs = cursorSeenIDs
 	}
 	if before != nil {
-		cursorOffset, err := decodeCursor(*before)
+		cursorOffset, _, cursorSeenIDs, err := decodeYouTubeCursor(*before)
 		if err != nil {
 			return nil, fmt.Errorf("invalid cursor: %w", err)
 		}
@@ -93,10 +100,11 @@ func (r *queryResolver) SearchYoutubeFromAPI(ctx context.Context, query string, 
 		if offset < 0 {
 			offset = 0
 		}
+		seenIDs = cursorSeenIDs
 	}
 
 	fetchLimit := limit + 1
-	results, err := r.YoutubeSearchService.SearchYoutubeFromAPIPaginated(ctx, query, offset, fetchLimit)
+	results, nextPageToken, nextSeenIDs, err := r.YoutubeSearchService.SearchYoutubeFromAPIPaginatedWithPageToken(ctx, query, offset, fetchLimit, pageToken, seenIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +118,7 @@ func (r *queryResolver) SearchYoutubeFromAPI(ctx context.Context, query string, 
 	edges := make([]*model.SearchResultEdge, len(nodes))
 	for i, node := range nodes {
 		edges[i] = &model.SearchResultEdge{
-			Cursor: encodeCursor(offset + i),
+			Cursor: encodeYouTubeCursor(offset+i, nextPageToken, nextSeenIDs),
 			Node:   node,
 		}
 	}

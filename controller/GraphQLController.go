@@ -47,6 +47,8 @@ type GraphQLController struct {
 	youtubeSearch   *youtubeService.SearchService
 	youtubeDownload *youtubeService.DownloadService
 	logger          *zap.Logger
+	corsAllowOrigins    []string
+	corsAllowCredentials bool
 }
 
 // GraphQLControllerTarget is parameter object for geting all GraphQLController's dependency
@@ -107,8 +109,105 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 			youtubeSearch:   youtubeService.NewSearchService(ytDlpPath, target.Redis),
 			youtubeDownload: youtubeService.NewDownloadService(storagePath, ytDlpPath, downloadTimeout, maxDownloadSize),
 			logger:          target.Logger,
+			corsAllowOrigins:    parseAllowedOrigins(os.Getenv("CORS_ALLOW_ORIGINS")),
+			corsAllowCredentials: parseBoolEnv(os.Getenv("CORS_ALLOW_CREDENTIALS"), true),
 		},
 	}
+}
+
+func parseAllowedOrigins(env string) []string {
+	if env == "" {
+		return []string{
+			"http://localhost:8080",
+			"http://localhost:8081",
+			"http://localhost:8082",
+			"http://localhost:3000",
+			"http://localhost:5173",
+			"http://127.0.0.1:8080",
+			"http://127.0.0.1:8081",
+			"https://cirio.my.id",
+		}
+	}
+	parts := strings.Split(env, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		t := strings.TrimSpace(p)
+		if t != "" {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+func parseBoolEnv(env string, def bool) bool {
+	if env == "" {
+		return def
+	}
+	v := strings.ToLower(strings.TrimSpace(env))
+	return v == "1" || v == "true" || v == "yes"
+}
+
+// CORSMiddleware handles CORS preflight and sets CORS headers for actual requests
+func (m *GraphQLController) CORSMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+		// Always add Vary: Origin
+		c.Header("Vary", "Origin")
+
+		// If no origin provided, continue
+		if origin == "" {
+			c.Next()
+			return
+		}
+
+		// Check if origin is allowed
+		allowed := false
+		for _, ao := range m.corsAllowOrigins {
+			if ao == "*" || ao == origin {
+				allowed = true
+				break
+			}
+		}
+
+		if allowed {
+			// If credentials are enabled we must not return '*'
+			if m.corsAllowCredentials {
+				c.Header("Access-Control-Allow-Origin", origin)
+			} else {
+				// If allow credentials is false and origin list contains '*', allow wildcard
+				if contains(m.corsAllowOrigins, "*") {
+					c.Header("Access-Control-Allow-Origin", "*")
+				} else {
+					c.Header("Access-Control-Allow-Origin", origin)
+				}
+			}
+
+			c.Header("Access-Control-Allow-Methods", "POST, OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Apollo-Require-Preflight")
+			if m.corsAllowCredentials {
+				c.Header("Access-Control-Allow-Credentials", "true")
+			}
+			c.Header("Access-Control-Max-Age", "86400")
+		}
+
+		// If this is a preflight request, respond immediately without auth
+		if c.Request.Method == "OPTIONS" {
+			// Successful preflight
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func contains(arr []string, s string) bool {
+	for _, a := range arr {
+		if a == s {
+			return true
+		}
+	}
+	return false
 }
 
 // GrqphQL is defining as the GraphQL handler
@@ -149,8 +248,12 @@ func (m *GraphQLController) GraphiQL() gin.HandlerFunc {
 
 // Register is function to register all controller's endpoint handler
 func (m *GraphQLController) Register(r *gin.Engine) {
+	// OPTIONS preflight — no auth required, must return CORS headers
+	r.OPTIONS("/v1/graphql", CORSMiddleware())
+
 	// Single route with conditional authentication
 	r.POST("/v1/graphql",
+		CORSMiddleware(),
 		m.auth.Middleware(),
 		m.postgre.Middleware(),
 		m.Middleware(),
