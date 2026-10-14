@@ -313,6 +313,9 @@ type StringEdge struct {
 	Node   string `json:"node"`
 }
 
+type Subscription struct {
+}
+
 type TopReleasesResult struct {
 	Success bool     `json:"success"`
 	Error   *string  `json:"error,omitempty"`

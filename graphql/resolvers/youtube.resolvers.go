@@ -232,3 +232,21 @@ func (r *queryResolver) ListDownloadTasks(ctx context.Context) ([]*model.Downloa
 	}
 	return items, nil
 }
+
+// DownloadProgress is the resolver for the downloadProgress field.
+func (r *subscriptionResolver) DownloadProgress(ctx context.Context, id string) (<-chan *model.DownloadTask, error) {
+	internalCh, err := r.YoutubeDownloadService.Subscribe(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(chan *model.DownloadTask, 16)
+	go func() {
+		defer close(out)
+		for task := range internalCh {
+			out <- convertDownloadTask(task)
+		}
+	}()
+
+	return out, nil
+}

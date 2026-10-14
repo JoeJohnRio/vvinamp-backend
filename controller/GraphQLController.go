@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/gorilla/websocket"
 
 	"vvinamp/controller/auth"
 	"vvinamp/database/postgre"
@@ -226,7 +230,14 @@ func (m *GraphQLController) GraphQL() gin.HandlerFunc {
 	srv.AddTransport(transport.GET{})           // Supports GET requests
 	srv.AddTransport(transport.POST{})          // Supports standard JSON POST requests
 	srv.AddTransport(transport.MultipartForm{}) // Supports file uploads
-	srv.AddTransport(transport.Websocket{})     // Supports GraphQL Subscriptions (if needed)
+	srv.AddTransport(transport.Websocket{
+		KeepAlivePingInterval: 10 * time.Second,
+		Upgrader: websocket.Upgrader{
+			CheckOrigin: func(r *http.Request) bool {
+				return true
+			},
+		},
+	})
 
 	// Note: You can also use handler.NewDefaultServer() for a simpler (but less customizable)
 	// setup, but handler.New() is preferred for production.

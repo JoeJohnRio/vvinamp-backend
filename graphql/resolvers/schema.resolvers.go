@@ -20,11 +20,22 @@ func (r *queryResolver) Test(ctx context.Context) (*bool, error) {
 	panic(fmt.Errorf("not implemented: Test - test"))
 }
 
+// Test is the resolver for the test field.
+func (r *subscriptionResolver) Test(ctx context.Context) (<-chan *bool, error) {
+	ch := make(chan *bool)
+	close(ch)
+	return ch, nil
+}
+
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
 // Query returns generated.QueryResolver implementation.
 func (r *Resolver) Query() generated.QueryResolver { return &queryResolver{r} }
 
+// Subscription returns generated.SubscriptionResolver implementation.
+func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
+
 type mutationResolver struct{ *Resolver }
 type queryResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }

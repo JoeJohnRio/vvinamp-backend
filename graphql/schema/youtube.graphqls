@@ -11,6 +11,10 @@ extend type Mutation {
   playYoutube(youtubeUrl: String!): YoutubePlaybackInfo!
 }
 
+extend type Subscription {
+  downloadProgress(id: String!): DownloadTask!
+}
+
 type SearchResult {
   id: ID!
   title: String!
