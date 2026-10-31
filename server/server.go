@@ -43,42 +43,49 @@ func New(target Target) *gin.Engine {
 	r.Use(ginzap.Ginzap(target.Logger, time.RFC3339, true))
 	r.Use(ginzap.RecoveryWithZap(target.Logger, true))
 
-	if target.Environment != "local" {
-		host := ""
+	port := target.Port
+	if port == "" {
+		port = defaultPort
+	}
+
+	if os.Getenv("ENABLE_AUTOCERT") == "true" {
 		man = &autocert.Manager{
 			Prompt: autocert.AcceptTOS,
 			Cache:  autocert.DirCache("certs"),
 		}
 
 		server = &http.Server{
-			Addr:    host + ":443",
+			Addr:    ":443",
 			Handler: r,
 			TLSConfig: &tls.Config{
 				GetCertificate: man.GetCertificate,
 			},
 		}
 	} else {
-		host := "localhost"
 		server = &http.Server{
-			Addr:    host + ":" + target.Port,
+			Addr:    ":" + port,
 			Handler: r,
 		}
 	}
 
 	target.Lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
-			if target.Environment != "local" {
+			if os.Getenv("ENABLE_AUTOCERT") == "true" {
 				target.Logger.Info("Starting HTTPS server at " + server.Addr)
 				go server.ListenAndServeTLS("", "")
 				go http.ListenAndServe(":80", man.HTTPHandler(nil))
 			} else {
 				target.Logger.Info("Starting HTTP server at " + server.Addr)
-				go server.ListenAndServe()
+				go func() {
+					if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+						target.Logger.Error("HTTP server error", zap.Error(err))
+					}
+				}()
 			}
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			target.Logger.Info("Stopping HTTPS server.")
+			target.Logger.Info("Stopping HTTP server.")
 			return server.Shutdown(ctx)
 		},
 	})

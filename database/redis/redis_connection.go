@@ -22,12 +22,14 @@ type Connection struct {
 
 func New(t Target) (*Connection, error) {
 	if t.RedisURL == "" {
-		return nil, fmt.Errorf("redis_url is empty")
+		t.Logger.Warn("REDIS_URL is empty; caching disabled")
+		return &Connection{client: nil}, nil
 	}
 
 	opt, err := redis.ParseURL(t.RedisURL)
 	if err != nil {
-		return nil, fmt.Errorf("invalid redis url: %w", err)
+		t.Logger.Warn("invalid redis url; caching disabled", zap.Error(err))
+		return &Connection{client: nil}, nil
 	}
 
 	client := redis.NewClient(opt)
@@ -35,7 +37,8 @@ func New(t Target) (*Connection, error) {
 	t.Lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			if err := client.Ping(ctx).Err(); err != nil {
-				return fmt.Errorf("redis ping: %w", err)
+				t.Logger.Warn("redis ping failed; caching disabled", zap.Error(err))
+				return nil
 			}
 			t.Logger.Info("Redis connected", zap.String("url", t.RedisURL))
 			return nil
