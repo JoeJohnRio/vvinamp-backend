@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,7 +55,13 @@ func NewDownloadService(storagePath, ytDlpPath string, timeoutSec int, maxSizeMB
 	}
 
 	if err := os.MkdirAll(storagePath, 0o755); err != nil {
-		panic(fmt.Errorf("failed to create download storage folder: %w", err))
+		fallback := filepath.Join(os.TempDir(), "vvinamp", "youtube")
+		if errFallback := os.MkdirAll(fallback, 0o755); errFallback == nil {
+			log.Printf("Warning: cannot use storage path %s (%v), using fallback: %s", storagePath, err, fallback)
+			storagePath = fallback
+		} else {
+			log.Printf("Warning: failed to create download storage folder: %v", err)
+		}
 	}
 
 	return &DownloadService{
