@@ -45,6 +45,10 @@ func isOriginAllowed(origin string, allowedOrigins []string) bool {
 	if strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:") || origin == "http://localhost" || origin == "http://127.0.0.1" {
 		return true
 	}
+	// Allow any Vercel or cirio.my.id origin for web deployments
+	if strings.HasSuffix(origin, ".vercel.app") || strings.HasSuffix(origin, ".cirio.my.id") || origin == "https://cirio.my.id" {
+		return true
+	}
 	return false
 }
 

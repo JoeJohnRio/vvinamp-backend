@@ -15,6 +15,7 @@ import (
 	"vvinamp/graphql/generated"
 	"vvinamp/graphql/model"
 	"vvinamp/internal/pkg/session"
+	"vvinamp/internal/pkg/supabase"
 	dbModel "vvinamp/model"
 	playlistpkg "vvinamp/package/playlist"
 
@@ -315,6 +316,23 @@ func (r *mutationResolver) UploadPlaylistCover(ctx context.Context, playlistID s
 		ext = ".jpg"
 	}
 
+	storageClient := supabase.NewStorageClient()
+	if storageClient.ServiceKey != "" {
+		relPath := fmt.Sprintf("Mobile/Playlist/%s/playlist%s", playlistID, ext)
+		url, err := storageClient.Upload(relPath, file.File, supabase.ContentTypeByExt(ext))
+		if err != nil {
+			return "", fmt.Errorf("failed to upload cover to supabase storage: %w", err)
+		}
+
+		p, err := playlistSvc.GetPlaylistByID(ctx, playlistID)
+		if err == nil && p != nil {
+			p.CoverImage = &url
+			_, _ = playlistSvc.UpdatePlaylist(ctx, p)
+		}
+
+		return url, nil
+	}
+
 	base := os.Getenv("STORAGE_PATH")
 	if base == "" {
 		base = os.Getenv("BASE_STORAGE_PATH")
@@ -373,6 +391,25 @@ func (r *mutationResolver) DeletePlaylistCoverImage(ctx context.Context, playlis
 	}
 	if !isOwner {
 		return false, fmt.Errorf("unauthorized: you are not the owner of this playlist")
+	}
+
+	storageClient := supabase.NewStorageClient()
+	if storageClient.ServiceKey != "" {
+		targets := []string{
+			fmt.Sprintf("Mobile/Playlist/%s/playlist.jpg", playlistID),
+			fmt.Sprintf("Mobile/Playlist/%s/playlist.jpeg", playlistID),
+			fmt.Sprintf("Mobile/Playlist/%s/playlist.png", playlistID),
+			fmt.Sprintf("Mobile/Playlist/%s/playlist.webp", playlistID),
+		}
+		_ = storageClient.Delete(targets...)
+
+		p, err := playlistSvc.GetPlaylistByID(ctx, playlistID)
+		if err == nil && p != nil {
+			empty := ""
+			p.CoverImage = &empty
+			_, _ = playlistSvc.UpdatePlaylist(ctx, p)
+		}
+		return true, nil
 	}
 
 	base := os.Getenv("STORAGE_PATH")

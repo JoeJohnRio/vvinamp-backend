@@ -8,6 +8,8 @@ import (
     "strings"
     "time"
 
+    "vvinamp/internal/pkg/supabase"
+
     "github.com/gin-gonic/gin"
     "go.uber.org/fx"
 )
@@ -75,6 +77,30 @@ func (u *UploadController) UploadPlaylistCover(c *gin.Context) {
         ext = ".jpg"
     }
 
+    storageClient := supabase.NewStorageClient()
+    if storageClient.ServiceKey != "" {
+        src, err := file.Open()
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open uploaded file"})
+            return
+        }
+        defer src.Close()
+
+        relPath := fmt.Sprintf("Mobile/Playlist/%s/playlist%s", playlistID, ext)
+        url, err := storageClient.Upload(relPath, src, supabase.ContentTypeByExt(ext))
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+            return
+        }
+
+        c.JSON(http.StatusOK, gin.H{
+            "success": true,
+            "url":     url,
+            "path":    relPath,
+        })
+        return
+    }
+
     basePath := u.getBaseStoragePath()
     destDir := filepath.Join(basePath, "Mobile", "Playlist", playlistID)
     if err := os.MkdirAll(destDir, 0755); err != nil {
@@ -105,6 +131,19 @@ func (u *UploadController) DeletePlaylistCover(c *gin.Context) {
     playlistID := c.Query("playlistId")
     if playlistID == "" {
         c.JSON(http.StatusBadRequest, gin.H{"error": "playlistId is required"})
+        return
+    }
+
+    storageClient := supabase.NewStorageClient()
+    if storageClient.ServiceKey != "" {
+        targets := []string{
+            fmt.Sprintf("Mobile/Playlist/%s/playlist.jpg", playlistID),
+            fmt.Sprintf("Mobile/Playlist/%s/playlist.jpeg", playlistID),
+            fmt.Sprintf("Mobile/Playlist/%s/playlist.png", playlistID),
+            fmt.Sprintf("Mobile/Playlist/%s/playlist.webp", playlistID),
+        }
+        _ = storageClient.Delete(targets...)
+        c.JSON(http.StatusOK, gin.H{"success": true})
         return
     }
 

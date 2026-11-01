@@ -130,6 +130,8 @@ func parseAllowedOrigins(env string) []string {
 			"http://127.0.0.1:8080",
 			"http://127.0.0.1:8081",
 			"https://cirio.my.id",
+			"https://vvinamp.cirio.my.id",
+			"https://vvinamp-project.vercel.app",
 		}
 	}
 	parts := strings.Split(env, ",")
@@ -171,6 +173,9 @@ func (m *GraphQLController) CORSMiddleware() gin.HandlerFunc {
 				allowed = true
 				break
 			}
+		}
+		if !allowed && (strings.HasSuffix(origin, ".vercel.app") || strings.HasSuffix(origin, ".cirio.my.id") || origin == "https://cirio.my.id") {
+			allowed = true
 		}
 
 		if allowed {
