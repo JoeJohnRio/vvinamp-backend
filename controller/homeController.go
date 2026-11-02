@@ -17,6 +17,7 @@ func NewHomeController() Result {
 // Register is function to register all controller's endpoint handler
 func (h *HomeController) Register(r *gin.Engine) {
 	r.GET("/", h.HomePage)
+	r.HEAD("/", h.HomePage)
 	r.GET("/youtube", h.RedirectToYouTube)
 }
 
