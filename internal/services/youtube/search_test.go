@@ -1,6 +1,9 @@
 package youtube
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestPaginateSearchResultsSkipsDuplicates(t *testing.T) {
 	results := []SearchResult{
@@ -17,5 +20,70 @@ func TestPaginateSearchResultsSkipsDuplicates(t *testing.T) {
 	}
 	if got[0].ID != "1" || got[1].ID != "3" {
 		t.Fatalf("expected page to contain IDs [1 3], got [%s %s]", got[0].ID, got[1].ID)
+	}
+}
+
+func TestIsQuotaExceeded(t *testing.T) {
+	quotaJSON := []byte(`{
+		"error": {
+			"code": 403,
+			"message": "The request cannot be completed because you have exceeded your quota.",
+			"errors": [
+				{
+					"message": "The request cannot be completed because you have exceeded your quota.",
+					"domain": "youtube.quota",
+					"reason": "quotaExceeded"
+				}
+			]
+		}
+	}`)
+
+	if !isQuotaExceeded(quotaJSON) {
+		t.Fatalf("expected isQuotaExceeded to return true for standard quotaExceeded JSON")
+	}
+
+	rawText := []byte(`403 Forbidden: quotaExceeded limit reached`)
+	if !isQuotaExceeded(rawText) {
+		t.Fatalf("expected isQuotaExceeded to return true for plain text containing quotaExceeded")
+	}
+
+	otherForbidden := []byte(`{
+		"error": {
+			"code": 403,
+			"message": "Access denied.",
+			"errors": [
+				{
+					"reason": "accessDenied"
+				}
+			]
+		}
+	}`)
+	if isQuotaExceeded(otherForbidden) {
+		t.Fatalf("expected isQuotaExceeded to return false for accessDenied")
+	}
+}
+
+func TestIsQuotaExceededError(t *testing.T) {
+	if !isQuotaExceededError(fmt.Errorf("youtube api returned 403: quotaExceeded")) {
+		t.Fatalf("expected isQuotaExceededError to return true")
+	}
+	if isQuotaExceededError(fmt.Errorf("generic network timeout")) {
+		t.Fatalf("expected isQuotaExceededError to return false")
+	}
+	if isQuotaExceededError(nil) {
+		t.Fatalf("expected isQuotaExceededError to return false for nil error")
+	}
+}
+
+func TestMarkFallbackResults(t *testing.T) {
+	results := []SearchResult{
+		{ID: "vid1", Title: "Title 1"},
+		{ID: "vid2", Title: "Title 2", UploaderID: "original"},
+	}
+	markFallbackResults(results)
+	for i, r := range results {
+		if r.UploaderID != "fallback:yt-dlp" {
+			t.Fatalf("result[%d] UploaderID expected 'fallback:yt-dlp', got '%s'", i, r.UploaderID)
+		}
 	}
 }

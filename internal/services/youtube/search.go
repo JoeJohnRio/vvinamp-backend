@@ -206,6 +206,15 @@ func (s *SearchService) searchWithYouTubeAPIWithMax(ctx context.Context, query s
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode == http.StatusForbidden && isQuotaExceeded(body) {
+			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
+			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, maxResults)
+			if fallbackErr != nil {
+				return nil, fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
+			}
+			markFallbackResults(fallbackResults)
+			return fallbackResults, nil
+		}
 		return nil, fmt.Errorf("youtube api returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
@@ -253,7 +262,21 @@ func (s *SearchService) searchWithYouTubeAPIWithMax(ctx context.Context, query s
 		return []SearchResult{}, nil
 	}
 
-	return s.fetchVideoDetails(ctx, ids)
+	results, err := s.fetchVideoDetails(ctx, ids)
+	if err != nil {
+		if isQuotaExceededError(err) {
+			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
+			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, maxResults)
+			if fallbackErr != nil {
+				return nil, fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
+			}
+			markFallbackResults(fallbackResults)
+			return fallbackResults, nil
+		}
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func (s *SearchService) SearchYoutubeFromYtDlp(ctx context.Context, query string) ([]SearchResult, error) {
@@ -292,6 +315,15 @@ func (s *SearchService) searchWithYouTubeAPIWithPageToken(ctx context.Context, q
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode == http.StatusForbidden && isQuotaExceeded(body) {
+			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
+			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, maxResults)
+			if fallbackErr != nil {
+				return nil, "", fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
+			}
+			markFallbackResults(fallbackResults)
+			return fallbackResults, "", nil
+		}
 		return nil, "", fmt.Errorf("youtube api returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
@@ -342,6 +374,15 @@ func (s *SearchService) searchWithYouTubeAPIWithPageToken(ctx context.Context, q
 
 	results, err := s.fetchVideoDetails(ctx, ids)
 	if err != nil {
+		if isQuotaExceededError(err) {
+			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
+			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, maxResults)
+			if fallbackErr != nil {
+				return nil, "", fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
+			}
+			markFallbackResults(fallbackResults)
+			return fallbackResults, "", nil
+		}
 		return nil, "", err
 	}
 
@@ -386,6 +427,15 @@ func (s *SearchService) searchWithYouTubeAPI(ctx context.Context, query string) 
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode == http.StatusForbidden && isQuotaExceeded(body) {
+			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
+			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, 5)
+			if fallbackErr != nil {
+				return nil, fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
+			}
+			markFallbackResults(fallbackResults)
+			return fallbackResults, nil
+		}
 		return nil, fmt.Errorf("youtube api returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
@@ -424,7 +474,21 @@ func (s *SearchService) searchWithYouTubeAPI(ctx context.Context, query string) 
 		return []SearchResult{}, nil
 	}
 
-	return s.fetchVideoDetails(ctx, ids)
+	results, err := s.fetchVideoDetails(ctx, ids)
+	if err != nil {
+		if isQuotaExceededError(err) {
+			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
+			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, 5)
+			if fallbackErr != nil {
+				return nil, fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
+			}
+			markFallbackResults(fallbackResults)
+			return fallbackResults, nil
+		}
+		return nil, err
+	}
+
+	return results, nil
 }
 
 func (s *SearchService) fetchVideoDetails(ctx context.Context, ids []string) ([]SearchResult, error) {
@@ -447,6 +511,9 @@ func (s *SearchService) fetchVideoDetails(ctx context.Context, ids []string) ([]
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		if resp.StatusCode == http.StatusForbidden && isQuotaExceeded(body) {
+			return nil, fmt.Errorf("quotaExceeded: %s", strings.TrimSpace(string(body)))
+		}
 		return nil, fmt.Errorf("youtube api details returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
@@ -548,6 +615,42 @@ func defaultString(value, fallback string) string {
 	return value
 }
 
+type googleAPIErrorResponse struct {
+	Error struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+		Errors  []struct {
+			Reason  string `json:"reason"`
+			Message string `json:"message"`
+		} `json:"errors"`
+	} `json:"error"`
+}
+
+func isQuotaExceeded(body []byte) bool {
+	var errResp googleAPIErrorResponse
+	if err := json.Unmarshal(body, &errResp); err == nil {
+		for _, e := range errResp.Error.Errors {
+			if e.Reason == "quotaExceeded" {
+				return true
+			}
+		}
+	}
+	return strings.Contains(string(body), "quotaExceeded")
+}
+
+func isQuotaExceededError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "quotaExceeded")
+}
+
+func markFallbackResults(results []SearchResult) {
+	for i := range results {
+		results[i].UploaderID = "fallback:yt-dlp"
+	}
+}
+
 func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offset, limit int) ([]SearchResult, error) {
 	// If cached in Redis, read and slice
 	log.Printf("joel123 Performing yt-dlp search for query: %s", query)
@@ -570,14 +673,27 @@ func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offse
 		}
 	}
 
-	// Not cached: run yt-dlp search (ytsearch50) and stream results.
+	// Calculate target count for dynamic limit
+	targetLimit := offset + limit
+	if targetLimit <= 0 {
+		targetLimit = limit
+	}
+	if targetLimit <= 0 {
+		targetLimit = 10
+	}
+	if targetLimit > 50 {
+		targetLimit = 50
+	}
+
+	// Not cached: run yt-dlp search (--flat-playlist, dynamic limit) and stream results.
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, s.ytDlpPath,
 		"--dump-json",
+		"--flat-playlist",
 		"--skip-download",
-		fmt.Sprintf("ytsearch50:%s", query),
+		fmt.Sprintf("ytsearch%d:%s", targetLimit, query),
 	)
 
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -594,7 +710,7 @@ func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offse
 	deliverCh := make(chan SearchResult, 128)
 	errCh := make(chan error, 1)
 
-	results := make([]SearchResult, 0, 50)
+	results := make([]SearchResult, 0, targetLimit)
 	var mu sync.Mutex
 
 	// Single goroutine: scan, append to results, send to deliverCh for immediate consumption,
@@ -609,16 +725,32 @@ func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offse
 			if strings.TrimSpace(line) == "" {
 				continue
 			}
-			var r SearchResult
-			if err := json.Unmarshal([]byte(line), &r); err != nil {
+			var raw struct {
+				SearchResult
+				ChannelName string `json:"channel"`
+				Thumbnails  []struct {
+					URL string `json:"url"`
+				} `json:"thumbnails"`
+			}
+			if err := json.Unmarshal([]byte(line), &raw); err != nil {
 				// skip malformed lines
 				continue
+			}
+			r := raw.SearchResult
+			if r.Channel == "" && raw.ChannelName != "" {
+				r.Channel = raw.ChannelName
+			}
+			if r.Thumbnail == "" && len(raw.Thumbnails) > 0 {
+				r.Thumbnail = raw.Thumbnails[0].URL
 			}
 			if r.WebpageURL == "" && r.ID != "" {
 				r.WebpageURL = fmt.Sprintf("https://www.youtube.com/watch?v=%s", r.ID)
 			}
 			if r.URL == "" {
 				r.URL = r.WebpageURL
+			}
+			if r.Thumbnail == "" && r.ID != "" {
+				r.Thumbnail = fmt.Sprintf("https://i.ytimg.com/vi/%s/hqdefault.jpg", r.ID)
 			}
 
 			mu.Lock()

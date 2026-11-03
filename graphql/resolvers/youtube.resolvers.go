@@ -40,9 +40,12 @@ func (r *mutationResolver) PlayYoutube(ctx context.Context, youtubeURL string) (
 
 	hlsURL := fmt.Sprintf("/hls/%s/playlist.m3u8", result.ID)
 	if !r.StreamingService.FileController.HLSExists(result.ID) {
-		hlsURL, err = r.StreamingService.FileController.ConvertToHLS(ctx, result.FilePath, result.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create hls stream: %w", err)
+		converted, convErr := r.StreamingService.FileController.ConvertToHLS(ctx, result.FilePath, result.ID)
+		if convErr != nil {
+			log.Printf("ConvertToHLS failed, falling back to direct audio file: %v", convErr)
+			hlsURL = ""
+		} else {
+			hlsURL = converted
 		}
 	}
 

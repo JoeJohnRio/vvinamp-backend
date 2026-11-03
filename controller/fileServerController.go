@@ -344,7 +344,19 @@ func (f *FileServerController) ConvertToHLS(ctx context.Context, sourcePath, tra
 
 	ffmpegCmd := os.Getenv("FFMPEG_PATH")
 	if ffmpegCmd == "" {
-		ffmpegCmd = "ffmpeg"
+		for _, candidate := range []string{"ffmpeg", "/usr/bin/ffmpeg", "/usr/local/bin/ffmpeg", "./bin/ffmpeg", "bin/ffmpeg"} {
+			if _, err := exec.LookPath(candidate); err == nil {
+				ffmpegCmd = candidate
+				break
+			}
+			if _, err := os.Stat(candidate); err == nil {
+				ffmpegCmd = candidate
+				break
+			}
+		}
+		if ffmpegCmd == "" {
+			ffmpegCmd = "ffmpeg"
+		}
 	}
 
 	if _, err := exec.LookPath(ffmpegCmd); err != nil {

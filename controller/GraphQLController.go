@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -76,7 +77,19 @@ type GraphQLControllerTarget struct {
 func NewGraphQLController(target GraphQLControllerTarget) Result {
 	ytDlpPath := os.Getenv("YT_DLP_PATH")
 	if ytDlpPath == "" {
-		ytDlpPath = "yt-dlp"
+		for _, candidate := range []string{"yt-dlp", "/usr/bin/yt-dlp", "/usr/local/bin/yt-dlp", "./bin/yt-dlp", "bin/yt-dlp"} {
+			if _, err := exec.LookPath(candidate); err == nil {
+				ytDlpPath = candidate
+				break
+			}
+			if _, err := os.Stat(candidate); err == nil {
+				ytDlpPath = candidate
+				break
+			}
+		}
+		if ytDlpPath == "" {
+			ytDlpPath = "yt-dlp"
+		}
 	}
 
 	storagePath := os.Getenv("STORAGE_PATH")
