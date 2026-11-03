@@ -32,6 +32,7 @@ func New(t Target) (*Connection, error) {
 		return &Connection{client: nil}, nil
 	}
 
+	conn := &Connection{client: nil}
 	client := redis.NewClient(opt)
 
 	t.Lc.Append(fx.Hook{
@@ -40,16 +41,20 @@ func New(t Target) (*Connection, error) {
 				t.Logger.Warn("redis ping failed; caching disabled", zap.Error(err))
 				return nil
 			}
+			conn.client = client
 			t.Logger.Info("Redis connected", zap.String("url", t.RedisURL))
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
-			t.Logger.Info("Redis disconnect")
-			return client.Close()
+			if conn.client != nil {
+				t.Logger.Info("Redis disconnect")
+				return conn.client.Close()
+			}
+			return nil
 		},
 	})
 
-	return &Connection{client: client}, nil
+	return conn, nil
 }
 
 func (c *Connection) Client() (*redis.Client, error) {
