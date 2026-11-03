@@ -9,4 +9,4 @@ if [ ! -f bin/yt-dlp ]; then
   chmod a+rx bin/yt-dlp
 fi
 
-go build -o vvinamp-server main.go
+go build -tags netgo -ldflags '-s -w' -o app main.go
