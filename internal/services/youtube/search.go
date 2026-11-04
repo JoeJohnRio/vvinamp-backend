@@ -690,6 +690,8 @@ func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offse
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, s.ytDlpPath,
+		"-4",
+		"--extractor-args", "youtube:player_client=android,web",
 		"--dump-json",
 		"--flat-playlist",
 		"--skip-download",

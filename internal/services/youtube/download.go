@@ -143,6 +143,8 @@ func parseProgressPercent(line string) (int, bool) {
 
 func (d *DownloadService) runYtDlpDownload(ctx context.Context, outputPath, youtubeURL string, onProgress func(int)) error {
 	cmd := exec.CommandContext(ctx, d.ytDlpPath,
+		"-4",
+		"--extractor-args", "youtube:player_client=android,web",
 		"--no-playlist",
 		"--extract-audio",
 		"--audio-format", "mp3",
@@ -280,6 +282,8 @@ func (d *DownloadService) EnsureDownloaded(ctx context.Context, youtubeURL strin
 
 func (d *DownloadService) fetchMetadata(ctx context.Context, youtubeURL string) (*DownloadTask, error) {
 	cmd := exec.CommandContext(ctx, d.ytDlpPath,
+		"-4",
+		"--extractor-args", "youtube:player_client=android,web",
 		"--skip-download",
 		"--print-json",
 		youtubeURL,

@@ -21,8 +21,8 @@ FROM alpine:latest
 
 WORKDIR /app
 
-# Install runtime dependencies (ffmpeg, yt-dlp, ca-certificates, tzdata)
-RUN apk add --no-cache ffmpeg yt-dlp ca-certificates tzdata
+# Install runtime dependencies (ffmpeg, yt-dlp, nodejs for challenge solving, ca-certificates, tzdata)
+RUN apk add --no-cache ffmpeg yt-dlp nodejs ca-certificates tzdata
 
 # Set default media storage paths
 RUN mkdir -p /app/media/downloads /app/media/hls
