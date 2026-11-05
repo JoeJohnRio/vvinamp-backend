@@ -93,7 +93,7 @@ func (r *sqlRepository) GetTopSongsByArtist(ctx context.Context, artistID string
 	// Also join to get album cover and artist name
 	err := r.DB(ctx).
 		Table("tracks").
-		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name").
+		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name, artists.bio as artist_bio, artists.profile_image as artist_profile_image_url, artists.monthly_listeners as artist_monthly_listeners").
 		Joins("JOIN albums ON tracks.album_id = albums.id").
 		Joins("JOIN artists ON albums.artist_id = artists.id"). // Added to get artist name
 		Where("albums.artist_id::text = ?", artistID).

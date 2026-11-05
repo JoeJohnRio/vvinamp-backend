@@ -13,6 +13,9 @@ type TrackWithDetails struct {
 	Lyrics        string
 	ReleaseDate   string
 	// Additional fields from JOINs
-	AlbumCoverURL string // From albums.cover_art
-	ArtistName    string // From artists.name
+	AlbumCoverURL          string  // From albums.cover_art
+	ArtistName             string  // From artists.name
+	ArtistBio              *string // From artists.bio
+	ArtistProfileImageUrl  *string // From artists.profile_image
+	ArtistMonthlyListeners *int    // From artists.monthly_listeners
 }

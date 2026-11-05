@@ -71,10 +71,14 @@ func (s *sqlRepository) Search(ctx context.Context, query search.SearchQuery) (*
 				if err := s.DB(ctx).Where("id = ?", track.AlbumID).First(&album).Error; err == nil {
 					tracksWithDetails[i].AlbumCoverURL = album.CoverArt
 					
-					// Fetch artist name for this album
+					// Fetch artist details for this album
 					var artist dbModel.Artist
 					if err := s.DB(ctx).Where("id = ?", album.ArtistID).First(&artist).Error; err == nil {
 						tracksWithDetails[i].ArtistName = artist.Name
+						tracksWithDetails[i].ArtistBio = artist.Bio
+						tracksWithDetails[i].ArtistProfileImage = artist.ProfileImage
+						monthly := int(artist.MonthlyListeners)
+						tracksWithDetails[i].ArtistMonthlyListeners = &monthly
 					}
 				}
 			}

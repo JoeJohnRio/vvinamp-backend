@@ -28,8 +28,11 @@ type AlbumWithArtist struct {
 // TrackWithDetails extends dbModel.Track to include album cover and artist name for search results
 type TrackWithDetails struct {
 	dbModel.Track
-	AlbumCoverURL string
-	ArtistName    string
+	AlbumCoverURL          string
+	ArtistName             string
+	ArtistBio              *string
+	ArtistProfileImage     *string
+	ArtistMonthlyListeners *int
 }
 
 type SearchResult struct {

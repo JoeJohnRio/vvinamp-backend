@@ -73,10 +73,13 @@ func (s *Service) AddToQueue(ctx context.Context, userId string, trackIds []stri
 		coverUrl := t.AlbumCoverURL
 
 		minimalTrack := &model.TrackMinimal{
-			TrackID:       t.ID.String(),
-			Title:         &title,
-			Artist:        &artistName,
-			CoverImageURL: &coverUrl,
+			TrackID:                t.ID.String(),
+			Title:                  &title,
+			Artist:                 &artistName,
+			CoverImageURL:          &coverUrl,
+			ArtistBio:              t.ArtistBio,
+			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
+			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
 		}
 
 		queue.UpcomingTrack = append(queue.UpcomingTrack, minimalTrack)

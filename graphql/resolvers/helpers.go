@@ -40,7 +40,10 @@ func convertToSearchItems(
 				}
 				return &t.Lyrics
 			}(),
-			ReleaseDate: t.ReleaseDate,
+			ReleaseDate:            t.ReleaseDate,
+			ArtistBio:              t.ArtistBio,
+			ArtistProfileImageURL:  t.ArtistProfileImage,
+			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
 		})
 	}
 

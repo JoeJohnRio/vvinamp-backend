@@ -322,6 +322,9 @@ func getPlaylistTracks(ctx context.Context, resolver *Resolver, playlistID strin
 		album, err := songSvc.GetAlbumByID(ctx, track.AlbumID.String())
 		albumCoverURL := ""
 		artistName := "Unknown Artist"
+		var artistBio *string
+		var artistProfileImage *string
+		var artistMonthlyListeners *int
 
 		if err == nil && album != nil {
 			albumCoverURL = album.CoverArt
@@ -330,21 +333,28 @@ func getPlaylistTracks(ctx context.Context, resolver *Resolver, playlistID strin
 			artist, artistErr := resolver.ArtistService.GetArtistByID(ctx, album.ArtistID.String())
 			if artistErr == nil && artist != nil {
 				artistName = artist.Name
+				artistBio = artist.Bio
+				artistProfileImage = artist.ProfileImage
+				monthly := int(artist.MonthlyListeners)
+				artistMonthlyListeners = &monthly
 			}
 		}
 
 		graphqlTrack := &model.PlaylistTrack{
 			Track: &model.Track{
-				ID:            track.ID.String(),
-				Title:         track.Title,
-				Duration:      track.Duration,
-				StreamCount:   track.StreamCount,
-				AudioFileURL:  track.AudioFileURL,
-				AlbumCoverURL: albumCoverURL,
-				ArtistName:    artistName,
-				Explicit:      track.Explicit,
-				Lyrics:        &track.Lyrics,
-				ReleaseDate:   track.ReleaseDate,
+				ID:                     track.ID.String(),
+				Title:                  track.Title,
+				Duration:               track.Duration,
+				StreamCount:            track.StreamCount,
+				AudioFileURL:           track.AudioFileURL,
+				AlbumCoverURL:          albumCoverURL,
+				ArtistName:             artistName,
+				Explicit:               track.Explicit,
+				Lyrics:                 &track.Lyrics,
+				ReleaseDate:            track.ReleaseDate,
+				ArtistBio:              artistBio,
+				ArtistProfileImageURL:  artistProfileImage,
+				ArtistMonthlyListeners: artistMonthlyListeners,
 			},
 			Position: pt.Position,
 			AddedAt:  pt.AddedAt.Format(time.RFC3339),

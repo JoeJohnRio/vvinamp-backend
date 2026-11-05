@@ -49,7 +49,7 @@ func (m *sqlRepository) GetTracksByAlbumIDWithDetails(ctx context.Context, album
 
 	err := m.DB(ctx).
 		Table("tracks").
-		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name").
+		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name, artists.bio as artist_bio, artists.profile_image as artist_profile_image_url, artists.monthly_listeners as artist_monthly_listeners").
 		Joins("JOIN albums ON tracks.album_id = albums.id").
 		Joins("JOIN artists ON albums.artist_id = artists.id").
 		Where("tracks.album_id = ?", albumId).
@@ -65,7 +65,7 @@ func (m *sqlRepository) GetTracksByGenres(ctx context.Context, genreIds []string
 
 	query := m.DB(ctx).
 		Table("tracks").
-		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name").
+		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name, artists.bio as artist_bio, artists.profile_image as artist_profile_image_url, artists.monthly_listeners as artist_monthly_listeners").
 		Joins("JOIN albums ON tracks.album_id = albums.id").
 		Joins("JOIN artists ON albums.artist_id = artists.id")
 
@@ -87,7 +87,7 @@ func (m *sqlRepository) GetRandomTracks(ctx context.Context, limit int, excludeI
 
 	query := m.DB(ctx).
 		Table("tracks").
-		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name").
+		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name, artists.bio as artist_bio, artists.profile_image as artist_profile_image_url, artists.monthly_listeners as artist_monthly_listeners").
 		Joins("JOIN albums ON tracks.album_id = albums.id").
 		Joins("JOIN artists ON albums.artist_id = artists.id")
 
@@ -106,7 +106,7 @@ func (r *sqlRepository) GetTracksWithDetails(ctx context.Context, trackIds []str
 
 	err := r.DB(ctx).
 		Table("tracks").
-		Select("tracks.id, tracks.title, albums.cover_art as album_cover_url, artists.name as artist_name").
+		Select("tracks.id, tracks.title, albums.cover_art as album_cover_url, artists.name as artist_name, artists.bio as artist_bio, artists.profile_image as artist_profile_image_url, artists.monthly_listeners as artist_monthly_listeners").
 		Joins("JOIN albums ON tracks.album_id = albums.id").
 		Joins("JOIN artists ON albums.artist_id = artists.id").
 		Where("tracks.id IN ?", trackIds). // Uses WHERE id IN ('id1', 'id2')

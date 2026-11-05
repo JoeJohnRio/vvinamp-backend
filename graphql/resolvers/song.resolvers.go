@@ -90,7 +90,10 @@ func (r *queryResolver) Album(ctx context.Context, id string) (*model.AlbumDetai
 				}
 				return &t.Lyrics
 			}(),
-			ReleaseDate: t.ReleaseDate,
+			ReleaseDate:            t.ReleaseDate,
+			ArtistBio:              t.ArtistBio,
+			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
+			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
 		}
 		totalDuration += t.Duration
 	}
@@ -151,7 +154,10 @@ func (r *queryResolver) RecommendedTracks(ctx context.Context, limit int) ([]*mo
 				}
 				return &t.Lyrics
 			}(),
-			ReleaseDate: t.ReleaseDate,
+			ReleaseDate:            t.ReleaseDate,
+			ArtistBio:              t.ArtistBio,
+			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
+			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
 		}
 	}
 	return graphqlTracks, nil
@@ -182,7 +188,10 @@ func (r *queryResolver) RandomTracks(ctx context.Context, limit int, excludeIds 
 				}
 				return &t.Lyrics
 			}(),
-			ReleaseDate: t.ReleaseDate,
+			ReleaseDate:            t.ReleaseDate,
+			ArtistBio:              t.ArtistBio,
+			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
+			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
 		}
 	}
 	return graphqlTracks, nil

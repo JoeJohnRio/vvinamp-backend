@@ -329,16 +329,19 @@ type TopSongsResult struct {
 }
 
 type Track struct {
-	ID            string  `json:"id"`
-	Title         string  `json:"title"`
-	Duration      int     `json:"duration"`
-	StreamCount   int     `json:"streamCount"`
-	AudioFileURL  string  `json:"audioFileUrl"`
-	AlbumCoverURL string  `json:"albumCoverUrl"`
-	ArtistName    string  `json:"artistName"`
-	Explicit      bool    `json:"explicit"`
-	Lyrics        *string `json:"lyrics,omitempty"`
-	ReleaseDate   string  `json:"releaseDate"`
+	ID                     string  `json:"id"`
+	Title                  string  `json:"title"`
+	Duration               int     `json:"duration"`
+	StreamCount            int     `json:"streamCount"`
+	AudioFileURL           string  `json:"audioFileUrl"`
+	AlbumCoverURL          string  `json:"albumCoverUrl"`
+	ArtistName             string  `json:"artistName"`
+	Explicit               bool    `json:"explicit"`
+	Lyrics                 *string `json:"lyrics,omitempty"`
+	ReleaseDate            string  `json:"releaseDate"`
+	ArtistBio              *string `json:"artistBio,omitempty"`
+	ArtistProfileImageURL  *string `json:"artistProfileImageUrl,omitempty"`
+	ArtistMonthlyListeners *int    `json:"artistMonthlyListeners,omitempty"`
 }
 
 func (Track) IsSearchItem() {}
@@ -350,10 +353,13 @@ type TrackArtist struct {
 }
 
 type TrackMinimal struct {
-	TrackID       string  `json:"trackId"`
-	Title         *string `json:"title,omitempty"`
-	Artist        *string `json:"artist,omitempty"`
-	CoverImageURL *string `json:"coverImageUrl,omitempty"`
+	TrackID                string  `json:"trackId"`
+	Title                  *string `json:"title,omitempty"`
+	Artist                 *string `json:"artist,omitempty"`
+	CoverImageURL          *string `json:"coverImageUrl,omitempty"`
+	ArtistBio              *string `json:"artistBio,omitempty"`
+	ArtistProfileImageURL  *string `json:"artistProfileImageUrl,omitempty"`
+	ArtistMonthlyListeners *int    `json:"artistMonthlyListeners,omitempty"`
 }
 
 type UnsavePlaylistInput struct {

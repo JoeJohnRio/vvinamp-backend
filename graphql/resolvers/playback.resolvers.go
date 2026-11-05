@@ -87,10 +87,13 @@ func (r *mutationResolver) PlayContext(ctx context.Context, context model.Playba
 	for _, t := range trackDetails {
 		trackID := t.ID.String()
 		trackMap[trackID] = &model.TrackMinimal{
-			TrackID:       trackID,
-			Title:         &t.Title,
-			Artist:        &t.ArtistName,
-			CoverImageURL: &t.AlbumCoverURL,
+			TrackID:                trackID,
+			Title:                  &t.Title,
+			Artist:                 &t.ArtistName,
+			CoverImageURL:          &t.AlbumCoverURL,
+			ArtistBio:              t.ArtistBio,
+			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
+			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
 		}
 	}
 

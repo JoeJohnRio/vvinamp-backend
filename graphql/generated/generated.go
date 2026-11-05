@@ -355,16 +355,19 @@ type ComplexityRoot struct {
 	}
 
 	Track struct {
-		AlbumCoverURL func(childComplexity int) int
-		ArtistName    func(childComplexity int) int
-		AudioFileURL  func(childComplexity int) int
-		Duration      func(childComplexity int) int
-		Explicit      func(childComplexity int) int
-		ID            func(childComplexity int) int
-		Lyrics        func(childComplexity int) int
-		ReleaseDate   func(childComplexity int) int
-		StreamCount   func(childComplexity int) int
-		Title         func(childComplexity int) int
+		AlbumCoverURL          func(childComplexity int) int
+		ArtistBio              func(childComplexity int) int
+		ArtistMonthlyListeners func(childComplexity int) int
+		ArtistName             func(childComplexity int) int
+		ArtistProfileImageURL  func(childComplexity int) int
+		AudioFileURL           func(childComplexity int) int
+		Duration               func(childComplexity int) int
+		Explicit               func(childComplexity int) int
+		ID                     func(childComplexity int) int
+		Lyrics                 func(childComplexity int) int
+		ReleaseDate            func(childComplexity int) int
+		StreamCount            func(childComplexity int) int
+		Title                  func(childComplexity int) int
 	}
 
 	TrackArtist struct {
@@ -374,10 +377,13 @@ type ComplexityRoot struct {
 	}
 
 	TrackMinimal struct {
-		Artist        func(childComplexity int) int
-		CoverImageURL func(childComplexity int) int
-		Title         func(childComplexity int) int
-		TrackID       func(childComplexity int) int
+		Artist                 func(childComplexity int) int
+		ArtistBio              func(childComplexity int) int
+		ArtistMonthlyListeners func(childComplexity int) int
+		ArtistProfileImageURL  func(childComplexity int) int
+		CoverImageURL          func(childComplexity int) int
+		Title                  func(childComplexity int) int
+		TrackID                func(childComplexity int) int
 	}
 
 	User struct {
@@ -2066,12 +2072,33 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Track.AlbumCoverURL(childComplexity), true
 
+	case "Track.artistBio":
+		if e.complexity.Track.ArtistBio == nil {
+			break
+		}
+
+		return e.complexity.Track.ArtistBio(childComplexity), true
+
+	case "Track.artistMonthlyListeners":
+		if e.complexity.Track.ArtistMonthlyListeners == nil {
+			break
+		}
+
+		return e.complexity.Track.ArtistMonthlyListeners(childComplexity), true
+
 	case "Track.artistName":
 		if e.complexity.Track.ArtistName == nil {
 			break
 		}
 
 		return e.complexity.Track.ArtistName(childComplexity), true
+
+	case "Track.artistProfileImageUrl":
+		if e.complexity.Track.ArtistProfileImageURL == nil {
+			break
+		}
+
+		return e.complexity.Track.ArtistProfileImageURL(childComplexity), true
 
 	case "Track.audioFileUrl":
 		if e.complexity.Track.AudioFileURL == nil {
@@ -2156,6 +2183,27 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.TrackMinimal.Artist(childComplexity), true
+
+	case "TrackMinimal.artistBio":
+		if e.complexity.TrackMinimal.ArtistBio == nil {
+			break
+		}
+
+		return e.complexity.TrackMinimal.ArtistBio(childComplexity), true
+
+	case "TrackMinimal.artistMonthlyListeners":
+		if e.complexity.TrackMinimal.ArtistMonthlyListeners == nil {
+			break
+		}
+
+		return e.complexity.TrackMinimal.ArtistMonthlyListeners(childComplexity), true
+
+	case "TrackMinimal.artistProfileImageUrl":
+		if e.complexity.TrackMinimal.ArtistProfileImageURL == nil {
+			break
+		}
+
+		return e.complexity.TrackMinimal.ArtistProfileImageURL(childComplexity), true
 
 	case "TrackMinimal.coverImageUrl":
 		if e.complexity.TrackMinimal.CoverImageURL == nil {
@@ -2684,6 +2732,9 @@ type TrackMinimal {
   title: String
   artist: String
   coverImageUrl: String
+  artistBio: String
+  artistProfileImageUrl: String
+  artistMonthlyListeners: Int
 }
 
 type PlayerQueue {
@@ -2943,6 +2994,9 @@ type Track {
   explicit: Boolean!
   lyrics: String
   releaseDate: String!
+  artistBio: String
+  artistProfileImageUrl: String
+  artistMonthlyListeners: Int
 }
 
 type TrackArtist {
@@ -5333,6 +5387,12 @@ func (ec *executionContext) fieldContext_Album_tracks(_ context.Context, field g
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_Track_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -5657,6 +5717,12 @@ func (ec *executionContext) fieldContext_AlbumDetail_tracks(_ context.Context, f
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_Track_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -6129,6 +6195,12 @@ func (ec *executionContext) fieldContext_Artist_tracks(_ context.Context, field 
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_Track_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -9442,6 +9514,12 @@ func (ec *executionContext) fieldContext_PlayerQueue_currentTrack(_ context.Cont
 				return ec.fieldContext_TrackMinimal_artist(ctx, field)
 			case "coverImageUrl":
 				return ec.fieldContext_TrackMinimal_coverImageUrl(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_TrackMinimal_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_TrackMinimal_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_TrackMinimal_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type TrackMinimal", field.Name)
 		},
@@ -9496,6 +9574,12 @@ func (ec *executionContext) fieldContext_PlayerQueue_previousTrack(_ context.Con
 				return ec.fieldContext_TrackMinimal_artist(ctx, field)
 			case "coverImageUrl":
 				return ec.fieldContext_TrackMinimal_coverImageUrl(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_TrackMinimal_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_TrackMinimal_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_TrackMinimal_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type TrackMinimal", field.Name)
 		},
@@ -9550,6 +9634,12 @@ func (ec *executionContext) fieldContext_PlayerQueue_upcomingTrack(_ context.Con
 				return ec.fieldContext_TrackMinimal_artist(ctx, field)
 			case "coverImageUrl":
 				return ec.fieldContext_TrackMinimal_coverImageUrl(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_TrackMinimal_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_TrackMinimal_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_TrackMinimal_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type TrackMinimal", field.Name)
 		},
@@ -10490,6 +10580,12 @@ func (ec *executionContext) fieldContext_PlaylistTrack_track(_ context.Context, 
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_Track_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -12589,6 +12685,12 @@ func (ec *executionContext) fieldContext_Query_recommendedTracks(ctx context.Con
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_Track_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -12666,6 +12768,12 @@ func (ec *executionContext) fieldContext_Query_randomTracks(ctx context.Context,
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_Track_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -14980,6 +15088,12 @@ func (ec *executionContext) fieldContext_TopSongsResult_tracks(_ context.Context
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_Track_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -15424,6 +15538,129 @@ func (ec *executionContext) fieldContext_Track_releaseDate(_ context.Context, fi
 	return fc, nil
 }
 
+func (ec *executionContext) _Track_artistBio(ctx context.Context, field graphql.CollectedField, obj *model.Track) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Track_artistBio(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ArtistBio, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Track_artistBio(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Track",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Track_artistProfileImageUrl(ctx context.Context, field graphql.CollectedField, obj *model.Track) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ArtistProfileImageURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Track_artistProfileImageUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Track",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Track_artistMonthlyListeners(ctx context.Context, field graphql.CollectedField, obj *model.Track) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ArtistMonthlyListeners, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Track_artistMonthlyListeners(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Track",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _TrackArtist_track(ctx context.Context, field graphql.CollectedField, obj *model.TrackArtist) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_TrackArtist_track(ctx, field)
 	if err != nil {
@@ -15483,6 +15720,12 @@ func (ec *executionContext) fieldContext_TrackArtist_track(_ context.Context, fi
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_Track_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -15755,6 +15998,129 @@ func (ec *executionContext) fieldContext_TrackMinimal_coverImageUrl(_ context.Co
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TrackMinimal_artistBio(ctx context.Context, field graphql.CollectedField, obj *model.TrackMinimal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TrackMinimal_artistBio(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ArtistBio, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TrackMinimal_artistBio(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TrackMinimal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TrackMinimal_artistProfileImageUrl(ctx context.Context, field graphql.CollectedField, obj *model.TrackMinimal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TrackMinimal_artistProfileImageUrl(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ArtistProfileImageURL, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TrackMinimal_artistProfileImageUrl(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TrackMinimal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TrackMinimal_artistMonthlyListeners(ctx context.Context, field graphql.CollectedField, obj *model.TrackMinimal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TrackMinimal_artistMonthlyListeners(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ArtistMonthlyListeners, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*int)
+	fc.Result = res
+	return ec.marshalOInt2ᚖint(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TrackMinimal_artistMonthlyListeners(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TrackMinimal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -16820,6 +17186,12 @@ func (ec *executionContext) fieldContext_UserLike_track(_ context.Context, field
 				return ec.fieldContext_Track_lyrics(ctx, field)
 			case "releaseDate":
 				return ec.fieldContext_Track_releaseDate(ctx, field)
+			case "artistBio":
+				return ec.fieldContext_Track_artistBio(ctx, field)
+			case "artistProfileImageUrl":
+				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
+			case "artistMonthlyListeners":
+				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -22672,6 +23044,12 @@ func (ec *executionContext) _Track(ctx context.Context, sel ast.SelectionSet, ob
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "artistBio":
+			out.Values[i] = ec._Track_artistBio(ctx, field, obj)
+		case "artistProfileImageUrl":
+			out.Values[i] = ec._Track_artistProfileImageUrl(ctx, field, obj)
+		case "artistMonthlyListeners":
+			out.Values[i] = ec._Track_artistMonthlyListeners(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -22763,6 +23141,12 @@ func (ec *executionContext) _TrackMinimal(ctx context.Context, sel ast.Selection
 			out.Values[i] = ec._TrackMinimal_artist(ctx, field, obj)
 		case "coverImageUrl":
 			out.Values[i] = ec._TrackMinimal_coverImageUrl(ctx, field, obj)
+		case "artistBio":
+			out.Values[i] = ec._TrackMinimal_artistBio(ctx, field, obj)
+		case "artistProfileImageUrl":
+			out.Values[i] = ec._TrackMinimal_artistProfileImageUrl(ctx, field, obj)
+		case "artistMonthlyListeners":
+			out.Values[i] = ec._TrackMinimal_artistMonthlyListeners(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

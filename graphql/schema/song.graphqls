@@ -10,6 +10,9 @@ type Track {
   explicit: Boolean!
   lyrics: String
   releaseDate: String!
+  artistBio: String
+  artistProfileImageUrl: String
+  artistMonthlyListeners: Int
 }
 
 type TrackArtist {

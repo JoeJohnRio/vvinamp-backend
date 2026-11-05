@@ -28,6 +28,9 @@ type TrackMinimal {
   title: String
   artist: String
   coverImageUrl: String
+  artistBio: String
+  artistProfileImageUrl: String
+  artistMonthlyListeners: Int
 }
 
 type PlayerQueue {
