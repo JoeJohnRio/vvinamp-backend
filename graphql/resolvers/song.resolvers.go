@@ -19,11 +19,29 @@ func (r *albumResolver) Artist(ctx context.Context, obj *model.Album) (*model.Ar
 		return obj.Artist, nil
 	}
 
-	// If not populated, this is not from search results
-	// Return nil or handle as needed for non-search album queries
-	// This would typically require fetching from database using album ID
-	// For now, return nil if artist is not set
-	return nil, nil
+	// Fallback: If not populated, fetch album and artist from DB
+	songSvc := song.ForContext(ctx)
+	artistSvc := artist.ForContext(ctx)
+	album, err := songSvc.GetAlbumByID(ctx, obj.ID)
+	if err == nil && album != nil {
+		art, err := artistSvc.GetArtistByID(ctx, album.ArtistID.String())
+		if err == nil && art != nil {
+			return &model.Artist{
+				ID:               art.ID,
+				Name:             art.Name,
+				Bio:              art.Bio,
+				ProfileImage:     art.ProfileImage,
+				Verified:         art.Verified,
+				MonthlyListeners: int(art.MonthlyListeners),
+			}, nil
+		}
+	}
+
+	// Safety fallback to satisfy non-null GraphQL schema (artist: Artist!)
+	return &model.Artist{
+		ID:   "unknown",
+		Name: "Unknown Artist",
+	}, nil
 }
 
 // Tracks is the resolver for the tracks field.

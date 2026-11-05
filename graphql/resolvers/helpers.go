@@ -45,9 +45,21 @@ func convertToSearchItems(
 	}
 
 	for _, a := range albums {
+		var artistModel *model.Artist
+		if a.Artist != nil {
+			artistModel = &model.Artist{
+				ID:               a.Artist.ID,
+				Name:             a.Artist.Name,
+				Bio:              a.Artist.Bio,
+				ProfileImage:     a.Artist.ProfileImage,
+				Verified:         a.Artist.Verified,
+				MonthlyListeners: int(a.Artist.MonthlyListeners),
+			}
+		}
 		items = append(items, &model.Album{
 			ID:          a.ID.String(),
 			Title:       a.Title,
+			Artist:      artistModel,
 			ReleaseDate: a.ReleaseDate,
 			CoverArt: func() *string {
 				if a.CoverArt == "" {
