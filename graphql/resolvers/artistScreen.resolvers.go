@@ -61,6 +61,7 @@ func (r *queryResolver) GetArtistScreenData(ctx context.Context, artistID string
 				ArtistBio:              artist.Bio,
 				ArtistProfileImageURL:  artist.ProfileImage,
 				ArtistMonthlyListeners: &artistMonthlyListeners,
+				YoutubeID:              track.YoutubeID,
 				// Note: We're not populating Album and Artists here to avoid circular dependencies
 				// These would be resolved by their respective resolvers
 			}

@@ -173,6 +173,50 @@ func (r *mutationResolver) AddSongToPlaylist(ctx context.Context, input model.Ad
 	return convertPlaylistToGraphQL(ctx, r.Resolver, playlist)
 }
 
+// AddYoutubeTrackToPlaylist is the resolver for the addYoutubeTrackToPlaylist field.
+func (r *mutationResolver) AddYoutubeTrackToPlaylist(ctx context.Context, input model.AddYoutubeTrackToPlaylistInput) (*model.Playlist, error) {
+	// Require authentication
+	sessionHelper := session.NewGraphQLSessionHelper()
+	userID, err := sessionHelper.RequireSessionForResolver(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("unauthorized: %v", err)
+	}
+
+	playlistSvc := r.PlaylistService
+
+	// Check if user is the owner
+	isOwner, err := playlistSvc.IsPlaylistOwner(ctx, input.PlaylistID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check ownership: %w", err)
+	}
+
+	if !isOwner {
+		return nil, fmt.Errorf("unauthorized: you are not the owner of this playlist")
+	}
+
+	position := -1
+	if input.Position != nil {
+		position = *input.Position
+	}
+	thumbnailURL := ""
+	if input.ThumbnailURL != nil {
+		thumbnailURL = *input.ThumbnailURL
+	}
+
+	err = playlistSvc.AddYoutubeTrackToPlaylist(ctx, input.PlaylistID, input.YoutubeID, input.Title, input.ArtistName, thumbnailURL, input.Duration, position)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add youtube track to playlist: %w", err)
+	}
+
+	// Return updated playlist
+	playlist, err := playlistSvc.GetPlaylistByID(ctx, input.PlaylistID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get playlist: %w", err)
+	}
+
+	return convertPlaylistToGraphQL(ctx, r.Resolver, playlist)
+}
+
 // RemoveSongFromPlaylist is the resolver for the removeSongFromPlaylist field.
 func (r *mutationResolver) RemoveSongFromPlaylist(ctx context.Context, input model.RemoveSongFromPlaylistInput) (bool, error) {
 	// Require authentication

@@ -13,4 +13,5 @@ type Track struct {
 	Explicit    bool
 	Lyrics      string
 	ReleaseDate string
+	YoutubeID   *string `gorm:"column:youtube_id"`
 }

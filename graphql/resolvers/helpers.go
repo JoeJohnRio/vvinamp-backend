@@ -44,6 +44,7 @@ func convertToSearchItems(
 			ArtistBio:              t.ArtistBio,
 			ArtistProfileImageURL:  t.ArtistProfileImage,
 			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
+			YoutubeID:              t.YoutubeID,
 		})
 	}
 

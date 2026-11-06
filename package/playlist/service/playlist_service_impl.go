@@ -92,6 +92,11 @@ func (s *service) AddSongToPlaylist(ctx context.Context, playlistID, trackID str
 	return s.repo.AddSong(ctx, playlistID, trackID, position)
 }
 
+// AddYoutubeTrackToPlaylist adds a YouTube track to a playlist
+func (s *service) AddYoutubeTrackToPlaylist(ctx context.Context, playlistID, youtubeID, title, artistName, thumbnailURL string, duration int, position int) error {
+	return s.repo.AddYoutubeTrack(ctx, playlistID, youtubeID, title, artistName, thumbnailURL, duration, position)
+}
+
 // RemoveSongFromPlaylist removes a song from a playlist
 func (s *service) RemoveSongFromPlaylist(ctx context.Context, playlistID, trackID string) error {
 	return s.repo.RemoveSong(ctx, playlistID, trackID)

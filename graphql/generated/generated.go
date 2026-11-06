@@ -146,26 +146,27 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		AddSongToPlaylist        func(childComplexity int, input model.AddSongToPlaylistInput) int
-		AddToQueue               func(childComplexity int, trackIds []string) int
-		ClearQueue               func(childComplexity int) int
-		CreatePlaylist           func(childComplexity int, input model.CreatePlaylistInput) int
-		DeletePlaylist           func(childComplexity int, id string) int
-		DeletePlaylistCoverImage func(childComplexity int, playlistID string) int
-		EditPlaylist             func(childComplexity int, input model.EditPlaylistInput) int
-		PlayContext              func(childComplexity int, context model.PlaybackContextInput, offsetTrackID string) int
-		PlayYoutube              func(childComplexity int, youtubeURL string) int
-		RefreshToken             func(childComplexity int, refreshToken string) int
-		Register                 func(childComplexity int, input model.RegisterInput) int
-		RemoveSongFromPlaylist   func(childComplexity int, input model.RemoveSongFromPlaylistInput) int
-		SavePlaylist             func(childComplexity int, input model.SavePlaylistInput) int
-		SkipToNext               func(childComplexity int) int
-		SkipToPrevious           func(childComplexity int) int
-		StartDownload            func(childComplexity int, input model.DownloadInput) int
-		Test                     func(childComplexity int) int
-		UnsavePlaylist           func(childComplexity int, input model.UnsavePlaylistInput) int
-		UpdatePlaylist           func(childComplexity int, id string, input model.UpdatePlaylistInput) int
-		UploadPlaylistCover      func(childComplexity int, playlistID string, file graphql.Upload) int
+		AddSongToPlaylist         func(childComplexity int, input model.AddSongToPlaylistInput) int
+		AddToQueue                func(childComplexity int, trackIds []string) int
+		AddYoutubeTrackToPlaylist func(childComplexity int, input model.AddYoutubeTrackToPlaylistInput) int
+		ClearQueue                func(childComplexity int) int
+		CreatePlaylist            func(childComplexity int, input model.CreatePlaylistInput) int
+		DeletePlaylist            func(childComplexity int, id string) int
+		DeletePlaylistCoverImage  func(childComplexity int, playlistID string) int
+		EditPlaylist              func(childComplexity int, input model.EditPlaylistInput) int
+		PlayContext               func(childComplexity int, context model.PlaybackContextInput, offsetTrackID string) int
+		PlayYoutube               func(childComplexity int, youtubeURL string) int
+		RefreshToken              func(childComplexity int, refreshToken string) int
+		Register                  func(childComplexity int, input model.RegisterInput) int
+		RemoveSongFromPlaylist    func(childComplexity int, input model.RemoveSongFromPlaylistInput) int
+		SavePlaylist              func(childComplexity int, input model.SavePlaylistInput) int
+		SkipToNext                func(childComplexity int) int
+		SkipToPrevious            func(childComplexity int) int
+		StartDownload             func(childComplexity int, input model.DownloadInput) int
+		Test                      func(childComplexity int) int
+		UnsavePlaylist            func(childComplexity int, input model.UnsavePlaylistInput) int
+		UpdatePlaylist            func(childComplexity int, id string, input model.UpdatePlaylistInput) int
+		UploadPlaylistCover       func(childComplexity int, playlistID string, file graphql.Upload) int
 	}
 
 	PageInfo struct {
@@ -368,6 +369,7 @@ type ComplexityRoot struct {
 		ReleaseDate            func(childComplexity int) int
 		StreamCount            func(childComplexity int) int
 		Title                  func(childComplexity int) int
+		YoutubeID              func(childComplexity int) int
 	}
 
 	TrackArtist struct {
@@ -384,6 +386,7 @@ type ComplexityRoot struct {
 		CoverImageURL          func(childComplexity int) int
 		Title                  func(childComplexity int) int
 		TrackID                func(childComplexity int) int
+		YoutubeID              func(childComplexity int) int
 	}
 
 	User struct {
@@ -459,6 +462,7 @@ type MutationResolver interface {
 	UpdatePlaylist(ctx context.Context, id string, input model.UpdatePlaylistInput) (*model.Playlist, error)
 	DeletePlaylist(ctx context.Context, id string) (bool, error)
 	AddSongToPlaylist(ctx context.Context, input model.AddSongToPlaylistInput) (*model.Playlist, error)
+	AddYoutubeTrackToPlaylist(ctx context.Context, input model.AddYoutubeTrackToPlaylistInput) (*model.Playlist, error)
 	RemoveSongFromPlaylist(ctx context.Context, input model.RemoveSongFromPlaylistInput) (bool, error)
 	SavePlaylist(ctx context.Context, input model.SavePlaylistInput) (*model.Playlist, error)
 	UnsavePlaylist(ctx context.Context, input model.UnsavePlaylistInput) (bool, error)
@@ -975,6 +979,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.Mutation.AddToQueue(childComplexity, args["trackIds"].([]string)), true
+
+	case "Mutation.addYoutubeTrackToPlaylist":
+		if e.complexity.Mutation.AddYoutubeTrackToPlaylist == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_addYoutubeTrackToPlaylist_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Mutation.AddYoutubeTrackToPlaylist(childComplexity, args["input"].(model.AddYoutubeTrackToPlaylistInput)), true
 
 	case "Mutation.clearQueue":
 		if e.complexity.Mutation.ClearQueue == nil {
@@ -2156,6 +2172,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Track.Title(childComplexity), true
 
+	case "Track.youtubeId":
+		if e.complexity.Track.YoutubeID == nil {
+			break
+		}
+
+		return e.complexity.Track.YoutubeID(childComplexity), true
+
 	case "TrackArtist.artist":
 		if e.complexity.TrackArtist.Artist == nil {
 			break
@@ -2225,6 +2248,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.TrackMinimal.TrackID(childComplexity), true
+
+	case "TrackMinimal.youtubeId":
+		if e.complexity.TrackMinimal.YoutubeID == nil {
+			break
+		}
+
+		return e.complexity.TrackMinimal.YoutubeID(childComplexity), true
 
 	case "User.email":
 		if e.complexity.User.Email == nil {
@@ -2431,6 +2461,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 	ec := executionContext{opCtx, e, 0, 0, make(chan graphql.DeferredResult)}
 	inputUnmarshalMap := graphql.BuildUnmarshalerMap(
 		ec.unmarshalInputAddSongToPlaylistInput,
+		ec.unmarshalInputAddYoutubeTrackToPlaylistInput,
 		ec.unmarshalInputCreatePlaylistInput,
 		ec.unmarshalInputDateRangeInput,
 		ec.unmarshalInputDownloadInput,
@@ -2735,6 +2766,7 @@ type TrackMinimal {
   artistBio: String
   artistProfileImageUrl: String
   artistMonthlyListeners: Int
+  youtubeId: String
 }
 
 type PlayerQueue {
@@ -2815,6 +2847,16 @@ input AddSongToPlaylistInput {
   position: Int 
 }
 
+input AddYoutubeTrackToPlaylistInput {
+  playlistId: ID!
+  youtubeId: String!
+  title: String!
+  artistName: String!
+  thumbnailUrl: String
+  duration: Int!
+  position: Int
+}
+
 input RemoveSongFromPlaylistInput {
   playlistId: ID!
   trackId: ID!
@@ -2884,6 +2926,8 @@ extend type Mutation {
   deletePlaylist(id: ID!): Boolean!
   
   addSongToPlaylist(input: AddSongToPlaylistInput!): Playlist!
+  
+  addYoutubeTrackToPlaylist(input: AddYoutubeTrackToPlaylistInput!): Playlist!
   
   removeSongFromPlaylist(input: RemoveSongFromPlaylistInput!): Boolean!
   
@@ -2997,6 +3041,7 @@ type Track {
   artistBio: String
   artistProfileImageUrl: String
   artistMonthlyListeners: Int
+  youtubeId: String
 }
 
 type TrackArtist {
@@ -3208,6 +3253,34 @@ func (ec *executionContext) field_Mutation_addToQueue_argsTrackIds(
 	}
 
 	var zeroVal []string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Mutation_addYoutubeTrackToPlaylist_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := ec.field_Mutation_addYoutubeTrackToPlaylist_argsInput(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Mutation_addYoutubeTrackToPlaylist_argsInput(
+	ctx context.Context,
+	rawArgs map[string]any,
+) (model.AddYoutubeTrackToPlaylistInput, error) {
+	if _, ok := rawArgs["input"]; !ok {
+		var zeroVal model.AddYoutubeTrackToPlaylistInput
+		return zeroVal, nil
+	}
+
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("input"))
+	if tmp, ok := rawArgs["input"]; ok {
+		return ec.unmarshalNAddYoutubeTrackToPlaylistInput2vvinampᚋgraphqlᚋmodelᚐAddYoutubeTrackToPlaylistInput(ctx, tmp)
+	}
+
+	var zeroVal model.AddYoutubeTrackToPlaylistInput
 	return zeroVal, nil
 }
 
@@ -5393,6 +5466,8 @@ func (ec *executionContext) fieldContext_Album_tracks(_ context.Context, field g
 				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_Track_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -5723,6 +5798,8 @@ func (ec *executionContext) fieldContext_AlbumDetail_tracks(_ context.Context, f
 				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_Track_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -6201,6 +6278,8 @@ func (ec *executionContext) fieldContext_Artist_tracks(_ context.Context, field 
 				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_Track_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -8570,6 +8649,87 @@ func (ec *executionContext) fieldContext_Mutation_addSongToPlaylist(ctx context.
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_addYoutubeTrackToPlaylist(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Mutation_addYoutubeTrackToPlaylist(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.Mutation().AddYoutubeTrackToPlaylist(rctx, fc.Args["input"].(model.AddYoutubeTrackToPlaylistInput))
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*model.Playlist)
+	fc.Result = res
+	return ec.marshalNPlaylist2ᚖvvinampᚋgraphqlᚋmodelᚐPlaylist(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Mutation_addYoutubeTrackToPlaylist(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			switch field.Name {
+			case "id":
+				return ec.fieldContext_Playlist_id(ctx, field)
+			case "title":
+				return ec.fieldContext_Playlist_title(ctx, field)
+			case "description":
+				return ec.fieldContext_Playlist_description(ctx, field)
+			case "creator":
+				return ec.fieldContext_Playlist_creator(ctx, field)
+			case "createdAt":
+				return ec.fieldContext_Playlist_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Playlist_updatedAt(ctx, field)
+			case "isPublic":
+				return ec.fieldContext_Playlist_isPublic(ctx, field)
+			case "coverImage":
+				return ec.fieldContext_Playlist_coverImage(ctx, field)
+			case "albumCovers":
+				return ec.fieldContext_Playlist_albumCovers(ctx, field)
+			case "savedCount":
+				return ec.fieldContext_Playlist_savedCount(ctx, field)
+			case "totalDuration":
+				return ec.fieldContext_Playlist_totalDuration(ctx, field)
+			case "isSavedByMe":
+				return ec.fieldContext_Playlist_isSavedByMe(ctx, field)
+			}
+			return nil, fmt.Errorf("no field named %q was found under type Playlist", field.Name)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_addYoutubeTrackToPlaylist_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_removeSongFromPlaylist(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Mutation_removeSongFromPlaylist(ctx, field)
 	if err != nil {
@@ -9520,6 +9680,8 @@ func (ec *executionContext) fieldContext_PlayerQueue_currentTrack(_ context.Cont
 				return ec.fieldContext_TrackMinimal_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_TrackMinimal_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_TrackMinimal_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type TrackMinimal", field.Name)
 		},
@@ -9580,6 +9742,8 @@ func (ec *executionContext) fieldContext_PlayerQueue_previousTrack(_ context.Con
 				return ec.fieldContext_TrackMinimal_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_TrackMinimal_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_TrackMinimal_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type TrackMinimal", field.Name)
 		},
@@ -9640,6 +9804,8 @@ func (ec *executionContext) fieldContext_PlayerQueue_upcomingTrack(_ context.Con
 				return ec.fieldContext_TrackMinimal_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_TrackMinimal_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_TrackMinimal_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type TrackMinimal", field.Name)
 		},
@@ -10586,6 +10752,8 @@ func (ec *executionContext) fieldContext_PlaylistTrack_track(_ context.Context, 
 				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_Track_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -12691,6 +12859,8 @@ func (ec *executionContext) fieldContext_Query_recommendedTracks(ctx context.Con
 				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_Track_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -12774,6 +12944,8 @@ func (ec *executionContext) fieldContext_Query_randomTracks(ctx context.Context,
 				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_Track_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -15094,6 +15266,8 @@ func (ec *executionContext) fieldContext_TopSongsResult_tracks(_ context.Context
 				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_Track_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -15661,6 +15835,47 @@ func (ec *executionContext) fieldContext_Track_artistMonthlyListeners(_ context.
 	return fc, nil
 }
 
+func (ec *executionContext) _Track_youtubeId(ctx context.Context, field graphql.CollectedField, obj *model.Track) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Track_youtubeId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.YoutubeID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Track_youtubeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Track",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _TrackArtist_track(ctx context.Context, field graphql.CollectedField, obj *model.TrackArtist) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_TrackArtist_track(ctx, field)
 	if err != nil {
@@ -15726,6 +15941,8 @@ func (ec *executionContext) fieldContext_TrackArtist_track(_ context.Context, fi
 				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_Track_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -16121,6 +16338,47 @@ func (ec *executionContext) fieldContext_TrackMinimal_artistMonthlyListeners(_ c
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type Int does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TrackMinimal_youtubeId(ctx context.Context, field graphql.CollectedField, obj *model.TrackMinimal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TrackMinimal_youtubeId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.YoutubeID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TrackMinimal_youtubeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TrackMinimal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -17192,6 +17450,8 @@ func (ec *executionContext) fieldContext_UserLike_track(_ context.Context, field
 				return ec.fieldContext_Track_artistProfileImageUrl(ctx, field)
 			case "artistMonthlyListeners":
 				return ec.fieldContext_Track_artistMonthlyListeners(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_Track_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Track", field.Name)
 		},
@@ -19496,6 +19756,75 @@ func (ec *executionContext) unmarshalInputAddSongToPlaylistInput(ctx context.Con
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputAddYoutubeTrackToPlaylistInput(ctx context.Context, obj any) (model.AddYoutubeTrackToPlaylistInput, error) {
+	var it model.AddYoutubeTrackToPlaylistInput
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"playlistId", "youtubeId", "title", "artistName", "thumbnailUrl", "duration", "position"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "playlistId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("playlistId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.PlaylistID = data
+		case "youtubeId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("youtubeId"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.YoutubeID = data
+		case "title":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Title = data
+		case "artistName":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("artistName"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ArtistName = data
+		case "thumbnailUrl":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("thumbnailUrl"))
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ThumbnailURL = data
+		case "duration":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("duration"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Duration = data
+		case "position":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("position"))
+			data, err := ec.unmarshalOInt2ᚖint(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Position = data
+		}
+	}
+
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputCreatePlaylistInput(ctx context.Context, obj any) (model.CreatePlaylistInput, error) {
 	var it model.CreatePlaylistInput
 	asMap := map[string]any{}
@@ -21056,6 +21385,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "addSongToPlaylist":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_addSongToPlaylist(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "addYoutubeTrackToPlaylist":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_addYoutubeTrackToPlaylist(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -23050,6 +23386,8 @@ func (ec *executionContext) _Track(ctx context.Context, sel ast.SelectionSet, ob
 			out.Values[i] = ec._Track_artistProfileImageUrl(ctx, field, obj)
 		case "artistMonthlyListeners":
 			out.Values[i] = ec._Track_artistMonthlyListeners(ctx, field, obj)
+		case "youtubeId":
+			out.Values[i] = ec._Track_youtubeId(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -23147,6 +23485,8 @@ func (ec *executionContext) _TrackMinimal(ctx context.Context, sel ast.Selection
 			out.Values[i] = ec._TrackMinimal_artistProfileImageUrl(ctx, field, obj)
 		case "artistMonthlyListeners":
 			out.Values[i] = ec._TrackMinimal_artistMonthlyListeners(ctx, field, obj)
+		case "youtubeId":
+			out.Values[i] = ec._TrackMinimal_youtubeId(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -23929,6 +24269,11 @@ func (ec *executionContext) ___Type(ctx context.Context, sel ast.SelectionSet, o
 
 func (ec *executionContext) unmarshalNAddSongToPlaylistInput2vvinampᚋgraphqlᚋmodelᚐAddSongToPlaylistInput(ctx context.Context, v any) (model.AddSongToPlaylistInput, error) {
 	res, err := ec.unmarshalInputAddSongToPlaylistInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalNAddYoutubeTrackToPlaylistInput2vvinampᚋgraphqlᚋmodelᚐAddYoutubeTrackToPlaylistInput(ctx context.Context, v any) (model.AddYoutubeTrackToPlaylistInput, error) {
+	res, err := ec.unmarshalInputAddYoutubeTrackToPlaylistInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 

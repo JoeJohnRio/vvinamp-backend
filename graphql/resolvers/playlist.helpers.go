@@ -355,6 +355,7 @@ func getPlaylistTracks(ctx context.Context, resolver *Resolver, playlistID strin
 				ArtistBio:              artistBio,
 				ArtistProfileImageURL:  artistProfileImage,
 				ArtistMonthlyListeners: artistMonthlyListeners,
+				YoutubeID:              track.YoutubeID,
 			},
 			Position: pt.Position,
 			AddedAt:  pt.AddedAt.Format(time.RFC3339),

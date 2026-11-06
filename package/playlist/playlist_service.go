@@ -27,6 +27,7 @@ type Service interface {
 	UpdatePlaylist(ctx context.Context, playlist *dbModel.Playlist) (*dbModel.Playlist, error)
 	DeletePlaylist(ctx context.Context, id string) error
 	AddSongToPlaylist(ctx context.Context, playlistID, trackID string, position int) error
+	AddYoutubeTrackToPlaylist(ctx context.Context, playlistID, youtubeID, title, artistName, thumbnailURL string, duration int, position int) error
 	RemoveSongFromPlaylist(ctx context.Context, playlistID, trackID string) error
 	EditPlaylist(ctx context.Context, playlistID string, deletedTrackIds []string, repositionedSongs []RepositionSong) error
 	GetPlaylistSongs(ctx context.Context, playlistID string) ([]*dbModel.PlaylistTrack, error)

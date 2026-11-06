@@ -18,6 +18,7 @@ type Repository interface {
 	// Playlist songs
 	GetSongsByPlaylistID(ctx context.Context, playlistID string) ([]*dbModel.PlaylistTrack, error)
 	AddSong(ctx context.Context, playlistID, trackID string, position int) error
+	AddYoutubeTrack(ctx context.Context, playlistID, youtubeID, title, artistName, thumbnailURL string, duration int, position int) error
 	RemoveSong(ctx context.Context, playlistID, trackID string) error
 	EditPlaylist(ctx context.Context, playlistID string, deletedTrackIds []string, repositionedSongs []RepositionSong) error
 

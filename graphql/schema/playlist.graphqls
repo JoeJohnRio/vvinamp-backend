@@ -53,6 +53,16 @@ input AddSongToPlaylistInput {
   position: Int 
 }
 
+input AddYoutubeTrackToPlaylistInput {
+  playlistId: ID!
+  youtubeId: String!
+  title: String!
+  artistName: String!
+  thumbnailUrl: String
+  duration: Int!
+  position: Int
+}
+
 input RemoveSongFromPlaylistInput {
   playlistId: ID!
   trackId: ID!
@@ -122,6 +132,8 @@ extend type Mutation {
   deletePlaylist(id: ID!): Boolean!
   
   addSongToPlaylist(input: AddSongToPlaylistInput!): Playlist!
+  
+  addYoutubeTrackToPlaylist(input: AddYoutubeTrackToPlaylistInput!): Playlist!
   
   removeSongFromPlaylist(input: RemoveSongFromPlaylistInput!): Boolean!
   

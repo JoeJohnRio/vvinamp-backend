@@ -94,6 +94,7 @@ func (r *mutationResolver) PlayContext(ctx context.Context, context model.Playba
 			ArtistBio:              t.ArtistBio,
 			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
 			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
+			YoutubeID:              t.YoutubeID,
 		}
 	}
 

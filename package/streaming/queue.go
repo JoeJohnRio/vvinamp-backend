@@ -80,6 +80,7 @@ func (s *Service) AddToQueue(ctx context.Context, userId string, trackIds []stri
 			ArtistBio:              t.ArtistBio,
 			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
 			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
+			YoutubeID:              t.YoutubeID,
 		}
 
 		queue.UpcomingTrack = append(queue.UpcomingTrack, minimalTrack)

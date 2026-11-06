@@ -94,6 +94,7 @@ func (r *queryResolver) Album(ctx context.Context, id string) (*model.AlbumDetai
 			ArtistBio:              t.ArtistBio,
 			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
 			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
+			YoutubeID:              t.YoutubeID,
 		}
 		totalDuration += t.Duration
 	}
@@ -158,6 +159,7 @@ func (r *queryResolver) RecommendedTracks(ctx context.Context, limit int) ([]*mo
 			ArtistBio:              t.ArtistBio,
 			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
 			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
+			YoutubeID:              t.YoutubeID,
 		}
 	}
 	return graphqlTracks, nil
@@ -192,6 +194,7 @@ func (r *queryResolver) RandomTracks(ctx context.Context, limit int, excludeIds 
 			ArtistBio:              t.ArtistBio,
 			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
 			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
+			YoutubeID:              t.YoutubeID,
 		}
 	}
 	return graphqlTracks, nil

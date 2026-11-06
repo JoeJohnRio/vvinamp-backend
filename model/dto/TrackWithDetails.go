@@ -12,6 +12,7 @@ type TrackWithDetails struct {
 	Explicit      bool
 	Lyrics        string
 	ReleaseDate   string
+	YoutubeID     *string
 	// Additional fields from JOINs
 	AlbumCoverURL          string  // From albums.cover_art
 	ArtistName             string  // From artists.name

@@ -20,6 +20,16 @@ type AddSongToPlaylistInput struct {
 	Position   *int   `json:"position,omitempty"`
 }
 
+type AddYoutubeTrackToPlaylistInput struct {
+	PlaylistID   string  `json:"playlistId"`
+	YoutubeID    string  `json:"youtubeId"`
+	Title        string  `json:"title"`
+	ArtistName   string  `json:"artistName"`
+	ThumbnailURL *string `json:"thumbnailUrl,omitempty"`
+	Duration     int     `json:"duration"`
+	Position     *int    `json:"position,omitempty"`
+}
+
 type AlbumDetail struct {
 	ID            string   `json:"id"`
 	Title         string   `json:"title"`
@@ -342,6 +352,7 @@ type Track struct {
 	ArtistBio              *string `json:"artistBio,omitempty"`
 	ArtistProfileImageURL  *string `json:"artistProfileImageUrl,omitempty"`
 	ArtistMonthlyListeners *int    `json:"artistMonthlyListeners,omitempty"`
+	YoutubeID              *string `json:"youtubeId,omitempty"`
 }
 
 func (Track) IsSearchItem() {}
@@ -360,6 +371,7 @@ type TrackMinimal struct {
 	ArtistBio              *string `json:"artistBio,omitempty"`
 	ArtistProfileImageURL  *string `json:"artistProfileImageUrl,omitempty"`
 	ArtistMonthlyListeners *int    `json:"artistMonthlyListeners,omitempty"`
+	YoutubeID              *string `json:"youtubeId,omitempty"`
 }
 
 type UnsavePlaylistInput struct {

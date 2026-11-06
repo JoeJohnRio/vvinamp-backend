@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"vvinamp/database/postgre"
 	dbModel "vvinamp/model"
 	"vvinamp/package/playlist"
@@ -247,6 +248,91 @@ func (r *sqlRepository) AddSong(ctx context.Context, playlistID, trackID string,
 	}
 
 	return r.DB(ctx).Create(playlistTrack).Error
+}
+
+// AddYoutubeTrack registers or finds a track by youtube_id and adds it to the playlist
+func (r *sqlRepository) AddYoutubeTrack(ctx context.Context, playlistID, youtubeID, title, artistName, thumbnailURL string, duration int, position int) error {
+	var trackID string
+
+	if artistName == "" {
+		artistName = "Unknown Artist"
+	}
+	if duration <= 0 {
+		duration = 180
+	}
+
+	// 1. Check if track already exists with this youtube_id
+	var existingTrack dbModel.Track
+	err := r.DB(ctx).Where("youtube_id = ?", youtubeID).First(&existingTrack).Error
+	if err == nil {
+		trackID = existingTrack.ID.String()
+	} else if errors.Is(err, gorm.ErrRecordNotFound) {
+		// 2. Resolve or create Artist
+		var artist dbModel.Artist
+		err := r.DB(ctx).Where("LOWER(name) = LOWER(?)", artistName).First(&artist).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			artist = dbModel.Artist{
+				ID:           uuid.New().String(),
+				Name:         artistName,
+				ProfileImage: &thumbnailURL,
+				CreatedAt:    time.Now().UTC(),
+				UpdatedAt:    time.Now().UTC(),
+			}
+			if err := r.DB(ctx).Create(&artist).Error; err != nil {
+				return fmt.Errorf("failed to create artist for youtube track: %w", err)
+			}
+		} else if err != nil {
+			return fmt.Errorf("failed to lookup artist: %w", err)
+		}
+
+		artistUUID, err := uuid.Parse(artist.ID)
+		if err != nil {
+			artistUUID = uuid.New()
+		}
+
+		// 3. Create Album representing the YouTube track/single
+		albumID := uuid.New()
+		album := dbModel.Album{
+			ID:          albumID,
+			Title:       title,
+			ArtistID:    artistUUID,
+			CoverArt:    thumbnailURL,
+			ReleaseDate: time.Now().Format("2006-01-02"),
+		}
+		if err := r.DB(ctx).Create(&album).Error; err != nil {
+			return fmt.Errorf("failed to create album for youtube track: %w", err)
+		}
+
+		// 4. Create Track with youtube_id
+		newTrackID := uuid.New()
+		newTrack := dbModel.Track{
+			ID:           newTrackID,
+			Title:        title,
+			Duration:     duration,
+			AudioFileURL: "",
+			AlbumID:      albumID,
+			ReleaseDate:  time.Now().Format("2006-01-02"),
+			YoutubeID:    &youtubeID,
+		}
+		if err := r.DB(ctx).Create(&newTrack).Error; err != nil {
+			return fmt.Errorf("failed to create track: %w", err)
+		}
+
+		// 5. Link track_artist junction
+		trackArtist := dbModel.TrackArtist{
+			TrackID:  newTrackID.String(),
+			ArtistID: artist.ID,
+			Role:     "MAIN",
+		}
+		_ = r.DB(ctx).Create(&trackArtist).Error
+
+		trackID = newTrackID.String()
+	} else {
+		return fmt.Errorf("failed to check existing track: %w", err)
+	}
+
+	// 6. Add to playlist
+	return r.AddSong(ctx, playlistID, trackID, position)
 }
 
 // RemoveSong removes a song from a playlist
