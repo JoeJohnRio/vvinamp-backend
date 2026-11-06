@@ -1,9 +1,13 @@
 package streaming
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
+	"sync"
 	"time"
 	"vvinamp/constant"
 	"vvinamp/database/postgre"
@@ -24,11 +28,17 @@ type HLSConverter interface {
 	HLSExists(trackId string) bool
 }
 
+type cachedStream struct {
+	url       string
+	expiresAt time.Time
+}
+
 // Service handles streaming-related operations
 type Service struct {
 	Repo           song.Repository
 	FileController HLSConverter
 	Redis          *redis.Client
+	memoryCache    sync.Map
 }
 
 // ServiceTarget is parameter object for getting all Service's dependencies
@@ -36,7 +46,7 @@ type ServiceTarget struct {
 	fx.In
 	FileController HLSConverter `name:"hlsConverter"`
 	RedisConn      *redisDb.Connection
-	Repo           song.Repository // Add this line!
+	Repo           song.Repository
 }
 
 // NewService creates a new streaming service
@@ -45,41 +55,215 @@ func NewService(target ServiceTarget) *Service {
 	return &Service{
 		FileController: target.FileController,
 		Redis:          redisClient,
-		Repo:           target.Repo, // Add this line!
+		Repo:           target.Repo,
 	}
 }
 
-// GetPlaybackInfo returns the HLS or cloud audio URL for a given track
+// GetPlaybackInfo returns the playable audio URL (Supabase CDN, live on-demand YouTube stream, or local HLS)
 func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, contentType string, contentId string) (*PlaybackInfoResult, error) {
-	trackIdUuid, err := uuid.Parse(sourcePath)
-	if err != nil {
-		return nil, fmt.Errorf("invalid track id: %w", err)
+	// 1. Try to find track in Postgres database (by UUID)
+	var track *model.Track
+	if _, err := uuid.Parse(sourcePath); err == nil {
+		track, _ = s.Repo.GetTrackByID(ctx, sourcePath)
 	}
 
-	// 1. If the track has a cloud audio URL in the database (e.g. Supabase Storage CDN), serve it directly
-	track, err := s.Repo.GetTrackByID(ctx, sourcePath)
-	if err == nil && track != nil && track.AudioFileURL != "" && strings.HasPrefix(track.AudioFileURL, "http") {
+	// 2. Dual-Engine Option A: Pre-hosted Supabase MP3 CDN URL
+	if track != nil && track.AudioFileURL != "" && strings.HasPrefix(track.AudioFileURL, "http") {
 		s.recordListeningHistory(ctx, sourcePath, contentType, contentId)
+		durationMs := track.Duration * 1000
 		return &PlaybackInfoResult{
 			HlsURL:      track.AudioFileURL,
 			Mp3Fallback: track.AudioFileURL,
+			DurationMs:  &durationMs,
 		}, nil
 	}
 
-	// 2. Fall back to local HLS conversion if running locally with disk files
-	mp3Path, err := s.FileController.GetTrackPath(ctx, trackIdUuid)
-	if err == nil && !s.FileController.HLSExists(sourcePath) {
-		_, _ = s.FileController.ConvertToHLS(ctx, mp3Path, sourcePath)
+	// 3. Dual-Engine Option B: On-Demand YouTube 192 kbps Live Stream
+	youtubeID := ""
+	if track != nil && track.YoutubeID != nil && *track.YoutubeID != "" {
+		youtubeID = *track.YoutubeID
+	} else if track == nil && (len(sourcePath) == 11 || strings.Contains(sourcePath, "youtu")) {
+		// sourcePath is itself a raw YouTube ID / URL
+		youtubeID = sourcePath
 	}
 
-	s.recordListeningHistory(ctx, sourcePath, contentType, contentId)
+	if youtubeID != "" {
+		streamURL, err := s.resolveYoutubeStreamURL(ctx, youtubeID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve on-demand youtube stream: %w", err)
+		}
 
-	return &PlaybackInfoResult{
-		HlsURL: fmt.Sprintf("/hls/%s/playlist.m3u8", sourcePath),
-	}, nil
+		if track != nil {
+			s.recordListeningHistory(ctx, sourcePath, contentType, contentId)
+		}
+
+		var durationMs *int
+		if track != nil && track.Duration > 0 {
+			d := track.Duration * 1000
+			durationMs = &d
+		}
+
+		return &PlaybackInfoResult{
+			HlsURL:      streamURL,
+			Mp3Fallback: streamURL,
+			DurationMs:  durationMs,
+		}, nil
+	}
+
+	// 4. Fall back to local HLS conversion if running locally with disk files
+	if trackIdUuid, err := uuid.Parse(sourcePath); err == nil {
+		mp3Path, err := s.FileController.GetTrackPath(ctx, trackIdUuid)
+		if err == nil && !s.FileController.HLSExists(sourcePath) {
+			_, _ = s.FileController.ConvertToHLS(ctx, mp3Path, sourcePath)
+		}
+
+		s.recordListeningHistory(ctx, sourcePath, contentType, contentId)
+
+		return &PlaybackInfoResult{
+			HlsURL: fmt.Sprintf("/hls/%s/playlist.m3u8", sourcePath),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("track not found or unplayable: %s", sourcePath)
+}
+
+// resolveYoutubeStreamURL extracts or fetches a cached live 192kbps audio stream URL for a given YouTube ID
+func (s *Service) resolveYoutubeStreamURL(ctx context.Context, rawYoutubeID string) (string, error) {
+	youtubeID := extractYoutubeID(rawYoutubeID)
+	if youtubeID == "" {
+		return "", fmt.Errorf("empty or invalid youtube id")
+	}
+
+	cacheKey := fmt.Sprintf("stream:yt:%s", youtubeID)
+
+	// 1. Check L1 in-memory cache (< 0.1ms)
+	if val, ok := s.memoryCache.Load(cacheKey); ok {
+		if entry, ok := val.(cachedStream); ok {
+			if time.Now().Before(entry.expiresAt) {
+				return entry.url, nil
+			}
+			s.memoryCache.Delete(cacheKey)
+		}
+	}
+
+	// 2. Check L2 Redis cache (< 5ms)
+	if s.Redis != nil {
+		if cachedURL, err := s.Redis.Get(ctx, cacheKey).Result(); err == nil && cachedURL != "" {
+			s.memoryCache.Store(cacheKey, cachedStream{
+				url:       cachedURL,
+				expiresAt: time.Now().Add(4 * time.Hour),
+			})
+			return cachedURL, nil
+		}
+	}
+
+	// 3. Resolve on-demand using yt-dlp
+	ytDlp := resolveYtDlpPath()
+
+	execCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(execCtx, ytDlp,
+		"-g",
+		"-f", "bestaudio[abr<=192]/bestaudio/best",
+		"--extractor-args", "youtube:player_client=android,web",
+		"--no-warnings",
+		youtubeID,
+	)
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("yt-dlp extract stream failed: %w: %s", err, stderr.String())
+	}
+
+	rawOutput := strings.TrimSpace(stdout.String())
+	if rawOutput == "" {
+		return "", fmt.Errorf("yt-dlp returned empty stream url: %s", stderr.String())
+	}
+
+	lines := strings.Split(rawOutput, "\n")
+	streamURL := strings.TrimSpace(lines[0])
+
+	// 4. Cache for 4 hours (YouTube signed CDN URLs expire after ~6 hours)
+	ttl := 4 * time.Hour
+	s.memoryCache.Store(cacheKey, cachedStream{
+		url:       streamURL,
+		expiresAt: time.Now().Add(ttl),
+	})
+
+	if s.Redis != nil {
+		_ = s.Redis.Set(ctx, cacheKey, streamURL, ttl).Err()
+	}
+
+	return streamURL, nil
+}
+
+// extractYoutubeID sanitizes an input that may be a raw 11-char ID or a YouTube URL
+func extractYoutubeID(input string) string {
+	input = strings.TrimSpace(input)
+	if len(input) == 11 && !strings.Contains(input, "/") && !strings.Contains(input, "?") {
+		return input
+	}
+	if strings.Contains(input, "v=") {
+		parts := strings.Split(input, "v=")
+		if len(parts) > 1 {
+			id := parts[1]
+			if idx := strings.IndexAny(id, "&?/#"); idx != -1 {
+				id = id[:idx]
+			}
+			return id
+		}
+	}
+	if strings.Contains(input, "youtu.be/") {
+		parts := strings.Split(input, "youtu.be/")
+		if len(parts) > 1 {
+			id := parts[1]
+			if idx := strings.IndexAny(id, "&?/#"); idx != -1 {
+				id = id[:idx]
+			}
+			return id
+		}
+	}
+	return input
+}
+
+// resolveYtDlpPath checks environment and candidate system paths for yt-dlp
+func resolveYtDlpPath() string {
+	if envVal := os.Getenv("YT_DLP_PATH"); envVal != "" {
+		if path, err := exec.LookPath(envVal); err == nil {
+			return path
+		}
+		if fi, err := os.Stat(envVal); err == nil && !fi.IsDir() {
+			return envVal
+		}
+	}
+	candidates := []string{
+		"yt-dlp",
+		"/opt/homebrew/bin/yt-dlp",
+		"/usr/local/bin/yt-dlp",
+		"/usr/bin/yt-dlp",
+		"./bin/yt-dlp",
+		"bin/yt-dlp",
+	}
+	for _, cand := range candidates {
+		if path, err := exec.LookPath(cand); err == nil {
+			return path
+		}
+		if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
+			return cand
+		}
+	}
+	return "yt-dlp"
 }
 
 func (s *Service) recordListeningHistory(ctx context.Context, sourcePath, contentType, contentId string) {
+	if _, err := uuid.Parse(sourcePath); err != nil {
+		return
+	}
+
 	userId, _ := ctx.Value(constant.Session).(string)
 	if userId == "" {
 		return
