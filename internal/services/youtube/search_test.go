@@ -87,3 +87,28 @@ func TestMarkFallbackResults(t *testing.T) {
 		}
 	}
 }
+
+func TestIsPlayableYoutubeVideo(t *testing.T) {
+	tests := []struct {
+		name     string
+		ieKey    string
+		id       string
+		expected bool
+	}{
+		{"valid video", "Youtube", "dQw4w9WgXcQ", true},
+		{"valid video empty ieKey", "", "dQw4w9WgXcQ", true},
+		{"channel tab", "YoutubeTab", "UCcBYgbqKS2l0xkbI2nawDOA", false},
+		{"channel with Youtube ieKey", "Youtube", "UCcBYgbqKS2l0xkbI2nawDOA", false},
+		{"playlist", "YoutubePlaylist", "PL1234567890", false},
+		{"short id", "Youtube", "short", false},
+		{"long id", "Youtube", "123456789012", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isPlayableYoutubeVideo(tt.ieKey, tt.id); got != tt.expected {
+				t.Errorf("isPlayableYoutubeVideo(%q, %q) = %v, expected %v", tt.ieKey, tt.id, got, tt.expected)
+			}
+		})
+	}
+}

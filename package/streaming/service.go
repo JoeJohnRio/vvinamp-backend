@@ -82,9 +82,11 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, conten
 	youtubeID := ""
 	if track != nil && track.YoutubeID != nil && *track.YoutubeID != "" {
 		youtubeID = *track.YoutubeID
-	} else if track == nil && (len(sourcePath) == 11 || strings.Contains(sourcePath, "youtu")) {
-		// sourcePath is itself a raw YouTube ID / URL
-		youtubeID = sourcePath
+	} else if track == nil {
+		cleanedID := extractYoutubeID(sourcePath)
+		if len(cleanedID) == 11 {
+			youtubeID = cleanedID
+		}
 	}
 
 	if youtubeID != "" {

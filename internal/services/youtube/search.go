@@ -638,6 +638,16 @@ func isQuotaExceeded(body []byte) bool {
 	return strings.Contains(string(body), "quotaExceeded")
 }
 
+func isPlayableYoutubeVideo(ieKey, id string) bool {
+	if ieKey != "" && ieKey != "Youtube" {
+		return false
+	}
+	if len(id) != 11 || strings.HasPrefix(id, "UC") {
+		return false
+	}
+	return true
+}
+
 func isQuotaExceededError(err error) bool {
 	if err == nil {
 		return false
@@ -673,7 +683,7 @@ func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offse
 		}
 	}
 
-	// Calculate target count for dynamic limit
+	// Calculate target count for dynamic limit with extra buffer for filtered non-video items
 	targetLimit := offset + limit
 	if targetLimit <= 0 {
 		targetLimit = limit
@@ -683,6 +693,10 @@ func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offse
 	}
 	if targetLimit > 50 {
 		targetLimit = 50
+	}
+	fetchCount := targetLimit + 5
+	if fetchCount > 50 {
+		fetchCount = 50
 	}
 
 	// Not cached: run yt-dlp search (--flat-playlist, dynamic limit) and stream results.
@@ -695,7 +709,7 @@ func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offse
 		"--dump-json",
 		"--flat-playlist",
 		"--skip-download",
-		fmt.Sprintf("ytsearch%d:%s", targetLimit, query),
+		fmt.Sprintf("ytsearch%d:%s", fetchCount, query),
 	)
 
 	stdoutPipe, err := cmd.StdoutPipe()
@@ -733,11 +747,18 @@ func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offse
 				Thumbnails  []struct {
 					URL string `json:"url"`
 				} `json:"thumbnails"`
+				IEKey string `json:"ie_key"`
 			}
 			if err := json.Unmarshal([]byte(line), &raw); err != nil {
 				// skip malformed lines
 				continue
 			}
+
+			// Filter out non-video entries (e.g. channels, tabs, playlists, or channel IDs starting with UC)
+			if !isPlayableYoutubeVideo(raw.IEKey, raw.SearchResult.ID) {
+				continue
+			}
+
 			r := raw.SearchResult
 			if r.Channel == "" && raw.ChannelName != "" {
 				r.Channel = raw.ChannelName
