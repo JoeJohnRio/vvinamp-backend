@@ -57,3 +57,20 @@ func TestMemoryCacheHits(t *testing.T) {
 		t.Errorf("expected cached url %q, got %q", expectedURL, resolved)
 	}
 }
+
+func TestResolveYoutubeStreamURL_Live(t *testing.T) {
+	svc := &Service{}
+	// Test on Michael Jackson track ID
+	url, err := svc.resolveYoutubeStreamURL(context.Background(), "pAyKJAtDNCw")
+	if err != nil {
+		t.Fatalf("resolveYoutubeStreamURL failed: %v", err)
+	}
+	if url == "" {
+		t.Fatalf("expected non-empty stream URL")
+	}
+	// Verify cache was populated
+	cached, ok := svc.memoryCache.Load("stream:yt:pAyKJAtDNCw")
+	if !ok || cached.(cachedStream).url != url {
+		t.Fatalf("expected stream to be cached in memory")
+	}
+}

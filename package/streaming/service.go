@@ -166,9 +166,10 @@ func (s *Service) resolveYoutubeStreamURL(ctx context.Context, rawYoutubeID stri
 	defer cancel()
 
 	cmd := exec.CommandContext(execCtx, ytDlp,
+		"-4",
 		"-g",
 		"-f", "bestaudio[abr<=192]/bestaudio/best",
-		"--extractor-args", "youtube:player_client=android,web",
+		"--extractor-args", "youtube:player_client=android,web_embedded,mweb",
 		"--no-warnings",
 		youtubeID,
 	)
