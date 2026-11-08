@@ -3,9 +3,11 @@ package streaming
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -158,17 +160,25 @@ func (s *Service) ResolveYoutubeStreamURL(ctx context.Context, rawYoutubeID stri
 	// 3. Resolve on-demand using yt-dlp
 	ytDlp := resolveYtDlpPath()
 
-	execCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	args := []string{
 		"-4",
 		"-g",
+		"--no-playlist",
+		"--socket-timeout", "10",
 		"-f", "bestaudio[abr<=192]/bestaudio/best",
-		"--extractor-args", "youtube:player_client=tv_downgraded,android_vr,android",
+		"--extractor-args", "youtube:player_client=android,mweb,web_embedded",
 		"--no-warnings",
 	}
-	if cookiesPath := os.Getenv("YOUTUBE_COOKIES_PATH"); cookiesPath != "" {
+	if cookiesB64 := os.Getenv("YOUTUBE_COOKIES_BASE64"); cookiesB64 != "" {
+		cookieFile := filepath.Join(os.TempDir(), "yt_cookies.txt")
+		if data, err := base64.StdEncoding.DecodeString(cookiesB64); err == nil {
+			_ = os.WriteFile(cookieFile, data, 0o600)
+			args = append(args, "--cookies", cookieFile)
+		}
+	} else if cookiesPath := os.Getenv("YOUTUBE_COOKIES_PATH"); cookiesPath != "" {
 		args = append(args, "--cookies", cookiesPath)
 	} else if _, err := os.Stat("cookies.txt"); err == nil {
 		args = append(args, "--cookies", "cookies.txt")
