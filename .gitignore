@@ -3,3 +3,8 @@
 */*/.DS_Store
 */*/*/.DS_Store
 vvinamp
+
+# Secrets
+.env
+.env.*
+!.env.example
