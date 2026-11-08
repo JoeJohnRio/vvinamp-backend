@@ -102,10 +102,11 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, conten
 			durationMs = &d
 		}
 
-		proxyURL := fmt.Sprintf("/v1/stream/youtube/%s", youtubeID)
+		hlsURL := fmt.Sprintf("/v1/stream/youtube/%s.m3u8", youtubeID)
+		mp3URL := fmt.Sprintf("/v1/stream/youtube/%s", youtubeID)
 		return &PlaybackInfoResult{
-			HlsURL:      proxyURL,
-			Mp3Fallback: proxyURL,
+			HlsURL:      hlsURL,
+			Mp3Fallback: mp3URL,
 			DurationMs:  durationMs,
 		}, nil
 	}
@@ -269,6 +270,7 @@ func ExtractYoutubeID(input string) string {
 // extractYoutubeID sanitizes an input that may be a raw 11-char ID or a YouTube URL
 func extractYoutubeID(input string) string {
 	input = strings.TrimSpace(input)
+	input = strings.TrimSuffix(input, ".m3u8")
 	if len(input) == 11 && !strings.Contains(input, "/") && !strings.Contains(input, "?") {
 		return input
 	}

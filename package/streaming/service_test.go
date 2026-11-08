@@ -20,6 +20,7 @@ func TestExtractYoutubeID(t *testing.T) {
 		{"youtu.be short URL", "https://youtu.be/dQw4w9WgXcQ", "dQw4w9WgXcQ"},
 		{"youtu.be with query", "https://youtu.be/dQw4w9WgXcQ?t=42", "dQw4w9WgXcQ"},
 		{"whitespace padded", "  dQw4w9WgXcQ  ", "dQw4w9WgXcQ"},
+		{"m3u8 suffixed ID", "dQw4w9WgXcQ.m3u8", "dQw4w9WgXcQ"},
 	}
 
 	for _, tt := range tests {
