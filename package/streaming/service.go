@@ -160,29 +160,55 @@ func (s *Service) ResolveYoutubeStreamURL(ctx context.Context, rawYoutubeID stri
 	// 3. Resolve on-demand using yt-dlp
 	ytDlp := resolveYtDlpPath()
 
-	execCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	execCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
 
 	args := []string{
 		"-4",
 		"-g",
 		"--no-playlist",
-		"--socket-timeout", "10",
+		"--socket-timeout", "15",
 		"-f", "bestaudio[abr<=192]/bestaudio/best",
-		"--extractor-args", "youtube:player_client=android,mweb,web_embedded",
 		"--no-warnings",
 	}
+
+	var hasCookies bool
 	if cookiesB64 := os.Getenv("YOUTUBE_COOKIES_BASE64"); cookiesB64 != "" {
 		cookieFile := filepath.Join(os.TempDir(), "yt_cookies.txt")
-		if data, err := base64.StdEncoding.DecodeString(cookiesB64); err == nil {
-			_ = os.WriteFile(cookieFile, data, 0o600)
-			args = append(args, "--cookies", cookieFile)
+		clean := strings.TrimSpace(cookiesB64)
+		clean = strings.ReplaceAll(clean, " ", "")
+		clean = strings.ReplaceAll(clean, "\n", "")
+		clean = strings.ReplaceAll(clean, "\r", "")
+		clean = strings.ReplaceAll(clean, "\t", "")
+		data, err := base64.StdEncoding.DecodeString(clean)
+		if err != nil {
+			data, err = base64.RawStdEncoding.DecodeString(clean)
+		}
+		if err != nil {
+			fmt.Printf("[STREAM] error decoding YOUTUBE_COOKIES_BASE64: %v\n", err)
+		} else if len(data) > 0 {
+			if writeErr := os.WriteFile(cookieFile, data, 0o600); writeErr == nil {
+				args = append(args, "--cookies", cookieFile)
+				hasCookies = true
+				fmt.Printf("[STREAM] successfully loaded %d bytes of YouTube cookies to %s\n", len(data), cookieFile)
+			} else {
+				fmt.Printf("[STREAM] failed to write cookie file: %v\n", writeErr)
+			}
 		}
 	} else if cookiesPath := os.Getenv("YOUTUBE_COOKIES_PATH"); cookiesPath != "" {
 		args = append(args, "--cookies", cookiesPath)
+		hasCookies = true
 	} else if _, err := os.Stat("cookies.txt"); err == nil {
 		args = append(args, "--cookies", "cookies.txt")
+		hasCookies = true
 	}
+
+	if hasCookies {
+		args = append(args, "--extractor-args", "youtube:player_client=mweb,web_embedded")
+	} else {
+		args = append(args, "--extractor-args", "youtube:player_client=android,mweb,web_embedded")
+	}
+
 	args = append(args, youtubeID)
 
 	cmd := exec.CommandContext(execCtx, ytDlp, args...)

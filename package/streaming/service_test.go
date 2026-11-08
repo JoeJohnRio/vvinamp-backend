@@ -2,6 +2,8 @@ package streaming
 
 import (
 	"context"
+	"encoding/base64"
+	"strings"
 	"testing"
 	"time"
 )
@@ -72,5 +74,23 @@ func TestResolveYoutubeStreamURL_Live(t *testing.T) {
 	cached, ok := svc.memoryCache.Load("stream:yt:pAyKJAtDNCw")
 	if !ok || cached.(cachedStream).url != url {
 		t.Fatalf("expected stream to be cached in memory")
+	}
+}
+
+func TestCookieBase64Sanitization(t *testing.T) {
+	raw := "test-cookie-content"
+	b64WithJunk := "  \n\r  dGVzdC1jb29raWUtY29udGVudA== \n\t "
+	clean := strings.TrimSpace(b64WithJunk)
+	clean = strings.ReplaceAll(clean, " ", "")
+	clean = strings.ReplaceAll(clean, "\n", "")
+	clean = strings.ReplaceAll(clean, "\r", "")
+	clean = strings.ReplaceAll(clean, "\t", "")
+
+	data, err := base64.StdEncoding.DecodeString(clean)
+	if err != nil {
+		t.Fatalf("failed to decode sanitized base64: %v", err)
+	}
+	if string(data) != raw {
+		t.Fatalf("expected %q, got %q", raw, string(data))
 	}
 }
