@@ -90,11 +90,6 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, conten
 	}
 
 	if youtubeID != "" {
-		streamURL, err := s.resolveYoutubeStreamURL(ctx, youtubeID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to resolve on-demand youtube stream: %w", err)
-		}
-
 		if track != nil {
 			s.recordListeningHistory(ctx, sourcePath, contentType, contentId)
 		}
@@ -105,9 +100,10 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, conten
 			durationMs = &d
 		}
 
+		proxyURL := fmt.Sprintf("/v1/stream/youtube/%s", youtubeID)
 		return &PlaybackInfoResult{
-			HlsURL:      streamURL,
-			Mp3Fallback: streamURL,
+			HlsURL:      proxyURL,
+			Mp3Fallback: proxyURL,
 			DurationMs:  durationMs,
 		}, nil
 	}
@@ -129,8 +125,8 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, conten
 	return nil, fmt.Errorf("track not found or unplayable: %s", sourcePath)
 }
 
-// resolveYoutubeStreamURL extracts or fetches a cached live 192kbps audio stream URL for a given YouTube ID
-func (s *Service) resolveYoutubeStreamURL(ctx context.Context, rawYoutubeID string) (string, error) {
+// ResolveYoutubeStreamURL extracts or fetches a cached live 192kbps audio stream URL for a given YouTube ID
+func (s *Service) ResolveYoutubeStreamURL(ctx context.Context, rawYoutubeID string) (string, error) {
 	youtubeID := extractYoutubeID(rawYoutubeID)
 	if youtubeID == "" {
 		return "", fmt.Errorf("empty or invalid youtube id")
@@ -165,14 +161,21 @@ func (s *Service) resolveYoutubeStreamURL(ctx context.Context, rawYoutubeID stri
 	execCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(execCtx, ytDlp,
+	args := []string{
 		"-4",
 		"-g",
 		"-f", "bestaudio[abr<=192]/bestaudio/best",
-		"--extractor-args", "youtube:player_client=android,web_embedded,mweb",
+		"--extractor-args", "youtube:player_client=tv_downgraded,android_vr,android",
 		"--no-warnings",
-		youtubeID,
-	)
+	}
+	if cookiesPath := os.Getenv("YOUTUBE_COOKIES_PATH"); cookiesPath != "" {
+		args = append(args, "--cookies", cookiesPath)
+	} else if _, err := os.Stat("cookies.txt"); err == nil {
+		args = append(args, "--cookies", "cookies.txt")
+	}
+	args = append(args, youtubeID)
+
+	cmd := exec.CommandContext(execCtx, ytDlp, args...)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -202,6 +205,29 @@ func (s *Service) resolveYoutubeStreamURL(ctx context.Context, rawYoutubeID stri
 	}
 
 	return streamURL, nil
+}
+
+func (s *Service) resolveYoutubeStreamURL(ctx context.Context, rawYoutubeID string) (string, error) {
+	return s.ResolveYoutubeStreamURL(ctx, rawYoutubeID)
+}
+
+// InvalidateYoutubeStreamURL purges the cached stream URL for a given YouTube ID
+func (s *Service) InvalidateYoutubeStreamURL(ctx context.Context, rawYoutubeID string) {
+	youtubeID := extractYoutubeID(rawYoutubeID)
+	if youtubeID == "" {
+		return
+	}
+
+	cacheKey := fmt.Sprintf("stream:yt:%s", youtubeID)
+	s.memoryCache.Delete(cacheKey)
+	if s.Redis != nil {
+		_ = s.Redis.Del(ctx, cacheKey).Err()
+	}
+}
+
+// ExtractYoutubeID sanitizes an input that may be a raw 11-char ID or a YouTube URL
+func ExtractYoutubeID(input string) string {
+	return extractYoutubeID(input)
 }
 
 // extractYoutubeID sanitizes an input that may be a raw 11-char ID or a YouTube URL

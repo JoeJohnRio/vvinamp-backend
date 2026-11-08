@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -334,6 +335,74 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 
 	if !m.graphiQLEnable {
 		r.GET("/v1/graphiql", m.GraphiQL())
+	}
+
+	// YouTube Audio Streaming Proxy with CORS and Range support
+	r.OPTIONS("/v1/stream/youtube/:id", StaticMediaCORSMiddleware())
+	r.GET("/v1/stream/youtube/:id", StaticMediaCORSMiddleware(), m.StreamYoutubeHandler)
+	r.HEAD("/v1/stream/youtube/:id", StaticMediaCORSMiddleware(), m.StreamYoutubeHandler)
+}
+
+// StreamYoutubeHandler handles on-demand audio streaming for YouTube tracks with full Range support
+func (m *GraphQLController) StreamYoutubeHandler(c *gin.Context) {
+	rawYoutubeID := c.Param("id")
+	youtubeID := streaming.ExtractYoutubeID(rawYoutubeID)
+	if youtubeID == "" {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid or empty youtube id"})
+		return
+	}
+
+	ctx := c.Request.Context()
+	streamURL, err := m.streaming.ResolveYoutubeStreamURL(ctx, youtubeID)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("failed to resolve audio stream: %v", err)})
+		return
+	}
+
+	proxyRequest := func(targetURL string) (*http.Response, error) {
+		req, err := http.NewRequestWithContext(ctx, c.Request.Method, targetURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		if rangeHeader := c.Request.Header.Get("Range"); rangeHeader != "" {
+			req.Header.Set("Range", rangeHeader)
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+		return http.DefaultClient.Do(req)
+	}
+
+	resp, err := proxyRequest(streamURL)
+	// If upstream returned 401 or 403, cached URL might be expired. Invalidate and retry once.
+	if err == nil && (resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusUnauthorized) {
+		resp.Body.Close()
+		m.streaming.InvalidateYoutubeStreamURL(ctx, youtubeID)
+		freshURL, retryErr := m.streaming.ResolveYoutubeStreamURL(ctx, youtubeID)
+		if retryErr == nil {
+			streamURL = freshURL
+			resp, err = proxyRequest(streamURL)
+		}
+	}
+
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("upstream stream connection failed: %v", err)})
+		return
+	}
+	defer resp.Body.Close()
+
+	// Forward relevant headers from Google CDN
+	for _, headerName := range []string{"Content-Type", "Content-Length", "Content-Range", "Accept-Ranges", "Content-Disposition"} {
+		if val := resp.Header.Get(headerName); val != "" {
+			c.Header(headerName, val)
+		}
+	}
+	if c.Writer.Header().Get("Accept-Ranges") == "" {
+		c.Header("Accept-Ranges", "bytes")
+	}
+
+	c.Status(resp.StatusCode)
+
+	if c.Request.Method != http.MethodHead {
+		_, _ = io.Copy(c.Writer, resp.Body)
 	}
 }
 

@@ -398,7 +398,16 @@ func (s *SearchService) SearchYoutubeFromYtDlpPaginated(ctx context.Context, que
 		limit = 5
 	}
 
-	return s.searchWithYtDlp(ctx, query, offset, limit)
+	results, err := s.searchWithYtDlp(ctx, query, offset, limit)
+	if err != nil && s.apiKey != "" && (strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "Forbidden")) {
+		log.Printf("yt-dlp search hit 403 Forbidden on datacenter IP; auto-fallback to YouTube Data API: %v", err)
+		apiResults, apiErr := s.SearchYoutubeFromAPIPaginated(ctx, query, offset, limit)
+		if apiErr == nil {
+			return apiResults, nil
+		}
+	}
+
+	return results, err
 }
 
 func (s *SearchService) searchWithYouTubeAPI(ctx context.Context, query string) ([]SearchResult, error) {
@@ -705,7 +714,7 @@ func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offse
 
 	cmd := exec.CommandContext(ctx, s.ytDlpPath,
 		"-4",
-		"--extractor-args", "youtube:player_client=android,web",
+		"--extractor-args", "youtube:player_client=tv_downgraded,android_vr,android",
 		"--dump-json",
 		"--flat-playlist",
 		"--skip-download",
