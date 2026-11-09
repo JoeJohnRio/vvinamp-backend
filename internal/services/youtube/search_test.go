@@ -109,6 +109,14 @@ func TestNormalizeSearchQuery(t *testing.T) {
 	}
 }
 
+func TestFormatDuration(t *testing.T) {
+	for seconds, want := range map[int]string{0: "0:00", 206: "3:26", 3725: "1:02:05"} {
+		if got := formatDuration(seconds); got != want {
+			t.Errorf("formatDuration(%d) = %q, want %q", seconds, got, want)
+		}
+	}
+}
+
 func TestSearchPage(t *testing.T) {
 	results := make([]SearchResult, 12)
 	for _, tt := range []struct {

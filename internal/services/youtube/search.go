@@ -396,7 +396,7 @@ func (s *SearchService) fetchVideoDetails(ctx context.Context, ids []string) ([]
 			URL:            fmt.Sprintf("https://www.youtube.com/watch?v=%s", item.ID),
 			WebpageURL:     fmt.Sprintf("https://www.youtube.com/watch?v=%s", item.ID),
 			Duration:       duration,
-			DurationString: item.ContentDetails.Duration,
+			DurationString: formatDuration(duration),
 			ViewCount:      viewCount,
 			Channel:        item.Snippet.ChannelTitle,
 			ChannelID:      item.Snippet.ChannelID,
@@ -428,6 +428,14 @@ func parseISO8601Duration(value string) int {
 	minutes, _ := strconv.Atoi(defaultString(matches[2], "0"))
 	seconds, _ := strconv.Atoi(defaultString(matches[3], "0"))
 	return hours*3600 + minutes*60 + seconds
+}
+
+func formatDuration(totalSeconds int) string {
+	hours, minutes, seconds := totalSeconds/3600, totalSeconds%3600/60, totalSeconds%60
+	if hours > 0 {
+		return fmt.Sprintf("%d:%02d:%02d", hours, minutes, seconds)
+	}
+	return fmt.Sprintf("%d:%02d", minutes, seconds)
 }
 
 func defaultString(value, fallback string) string {

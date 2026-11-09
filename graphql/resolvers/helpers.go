@@ -3,6 +3,7 @@ package resolvers
 import (
 	"encoding/base64"
 	"fmt"
+	"math"
 	"time"
 
 	"vvinamp/graphql/model"
@@ -160,6 +161,15 @@ func convertDownloadTask(task *youtubeService.DownloadTask) *model.DownloadTask 
 	}
 }
 
+// shortcut: GraphQL Int is 32-bit and the app can't parse larger values, so the biggest videos report 2,147,483,647 views.
+// Add an Int64 scalar to show exact counts.
+func clampToInt32(value int64) int {
+	if value > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int(value)
+}
+
 func convertSearchResults(results []youtubeService.SearchResult) []*model.SearchResult {
 	items := make([]*model.SearchResult, 0, len(results))
 	for _, result := range results {
@@ -170,7 +180,7 @@ func convertSearchResults(results []youtubeService.SearchResult) []*model.Search
 			WebpageURL:     result.WebpageURL,
 			Duration:       intPtr(result.Duration),
 			DurationString: strPtr(result.DurationString),
-			ViewCount:      intPtr(int(result.ViewCount)),
+			ViewCount:      intPtr(clampToInt32(result.ViewCount)),
 			Channel:        strPtr(result.Channel),
 			ChannelID:      strPtr(result.ChannelID),
 			UploaderID:     strPtr(result.UploaderID),
