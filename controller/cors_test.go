@@ -101,27 +101,3 @@ func TestAPICORSMiddleware(t *testing.T) {
 		t.Errorf("expected reflected Access-Control-Allow-Headers, got '%s'", w3.Header().Get("Access-Control-Allow-Headers"))
 	}
 }
-
-func TestStreamYoutubeRoute_CORS(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := gin.New()
-	ctrl := &GraphQLController{}
-	r.OPTIONS("/v1/stream/youtube/:id", StaticMediaCORSMiddleware())
-	r.GET("/v1/stream/youtube/:id", StaticMediaCORSMiddleware(), ctrl.StreamYoutubeHandler)
-
-	// Test OPTIONS preflight for the streaming endpoint
-	req, _ := http.NewRequest(http.MethodOptions, "/v1/stream/youtube/dQw4w9WgXcQ", nil)
-	req.Header.Set("Origin", "https://vvinamp.cirio.my.id")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNoContent {
-		t.Fatalf("expected 204 for OPTIONS, got %d", w.Code)
-	}
-	if w.Header().Get("Access-Control-Allow-Origin") != "*" {
-		t.Errorf("expected Access-Control-Allow-Origin: *, got '%s'", w.Header().Get("Access-Control-Allow-Origin"))
-	}
-	if w.Header().Get("Access-Control-Expose-Headers") == "" {
-		t.Errorf("expected non-empty Access-Control-Expose-Headers for media seeking")
-	}
-}

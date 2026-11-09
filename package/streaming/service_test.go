@@ -2,10 +2,9 @@ package streaming
 
 import (
 	"context"
-	"encoding/base64"
-	"strings"
 	"testing"
-	"time"
+
+	"vvinamp/graphql/model"
 )
 
 func TestExtractYoutubeID(t *testing.T) {
@@ -33,65 +32,31 @@ func TestExtractYoutubeID(t *testing.T) {
 	}
 }
 
-func TestResolveYtDlpPath(t *testing.T) {
-	path := resolveYtDlpPath()
-	if path == "" {
-		t.Fatalf("expected non-empty yt-dlp path")
-	}
-}
-
-func TestMemoryCacheHits(t *testing.T) {
+func TestPlayerQueueWorksWithoutRedis(t *testing.T) {
 	svc := &Service{}
-	cacheKey := "stream:yt:dQw4w9WgXcQ"
-	expectedURL := "https://googlevideo.com/videoplayback/test123"
+	ctx := context.Background()
 
-	// 1. Prime cache with 1 hour TTL
-	svc.memoryCache.Store(cacheKey, cachedStream{
-		url:       expectedURL,
-		expiresAt: time.Now().Add(1 * time.Hour),
-	})
-
-	// 2. Fetch using resolveYoutubeStreamURL
-	resolved, err := svc.resolveYoutubeStreamURL(context.Background(), "dQw4w9WgXcQ")
+	empty, err := svc.GetPlayerQueue(ctx, "user")
 	if err != nil {
-		t.Fatalf("unexpected error on cache hit: %v", err)
+		t.Fatalf("expected an empty queue, got error: %v", err)
 	}
-	if resolved != expectedURL {
-		t.Errorf("expected cached url %q, got %q", expectedURL, resolved)
+	if len(empty.UpcomingTrack) != 0 {
+		t.Fatalf("expected no upcoming tracks, got %d", len(empty.UpcomingTrack))
 	}
-}
 
-func TestResolveYoutubeStreamURL_Live(t *testing.T) {
-	svc := &Service{}
-	// Test on Michael Jackson track ID
-	url, err := svc.resolveYoutubeStreamURL(context.Background(), "pAyKJAtDNCw")
+	queue := &model.PlayerQueue{
+		UpcomingTrack: []*model.TrackMinimal{{TrackID: "next"}},
+		PreviousTrack: []*model.TrackMinimal{},
+	}
+	if err := svc.SetPlayerQueue(ctx, "user", queue); err != nil {
+		t.Fatalf("failed to save queue: %v", err)
+	}
+
+	saved, err := svc.GetPlayerQueue(ctx, "user")
 	if err != nil {
-		t.Fatalf("resolveYoutubeStreamURL failed: %v", err)
+		t.Fatalf("failed to load queue: %v", err)
 	}
-	if url == "" {
-		t.Fatalf("expected non-empty stream URL")
-	}
-	// Verify cache was populated
-	cached, ok := svc.memoryCache.Load("stream:yt:pAyKJAtDNCw")
-	if !ok || cached.(cachedStream).url != url {
-		t.Fatalf("expected stream to be cached in memory")
-	}
-}
-
-func TestCookieBase64Sanitization(t *testing.T) {
-	raw := "test-cookie-content"
-	b64WithJunk := "  \n\r  dGVzdC1jb29raWUtY29udGVudA== \n\t "
-	clean := strings.TrimSpace(b64WithJunk)
-	clean = strings.ReplaceAll(clean, " ", "")
-	clean = strings.ReplaceAll(clean, "\n", "")
-	clean = strings.ReplaceAll(clean, "\r", "")
-	clean = strings.ReplaceAll(clean, "\t", "")
-
-	data, err := base64.StdEncoding.DecodeString(clean)
-	if err != nil {
-		t.Fatalf("failed to decode sanitized base64: %v", err)
-	}
-	if string(data) != raw {
-		t.Fatalf("expected %q, got %q", raw, string(data))
+	if len(saved.UpcomingTrack) != 1 || saved.UpcomingTrack[0].TrackID != "next" {
+		t.Fatalf("expected saved queue, got %+v", saved.UpcomingTrack)
 	}
 }

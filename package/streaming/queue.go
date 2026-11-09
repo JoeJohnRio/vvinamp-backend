@@ -14,7 +14,7 @@ func getQueueKey(userId string) string {
 }
 func (s *Service) GetPlayerQueue(ctx context.Context, userId string) (*model.PlayerQueue, error) {
 	key := getQueueKey(userId)
-	val, err := s.Redis.Get(ctx, key).Result()
+	val, err := s.loadQueue(ctx, key)
 
 	// If no queue exists in Redis, return a fresh one
 	if err == redis.Nil {
@@ -49,7 +49,29 @@ func (s *Service) savePlayerQueue(ctx context.Context, userId string, queue *mod
 		return fmt.Errorf("failed to marshal queue: %w", err)
 	}
 
-	return s.Redis.Set(ctx, key, string(data), 0).Err()
+	return s.storeQueue(ctx, key, string(data))
+}
+
+func (s *Service) loadQueue(ctx context.Context, key string) (string, error) {
+	if s.Redis != nil {
+		return s.Redis.Get(ctx, key).Result()
+	}
+
+	val, ok := s.memoryQueues.Load(key)
+	if !ok {
+		return "", redis.Nil
+	}
+	return val.(string), nil
+}
+
+func (s *Service) storeQueue(ctx context.Context, key, data string) error {
+	if s.Redis != nil {
+		return s.Redis.Set(ctx, key, data, 0).Err()
+	}
+
+	// shortcut: without Redis the queue lives in this instance's memory and is lost on restart. Set REDIS_URL to persist it.
+	s.memoryQueues.Store(key, data)
+	return nil
 }
 
 func (s *Service) SetPlayerQueue(ctx context.Context, userId string, queue *model.PlayerQueue) error {

@@ -1,13 +1,8 @@
 package streaming
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -30,17 +25,12 @@ type HLSConverter interface {
 	HLSExists(trackId string) bool
 }
 
-type cachedStream struct {
-	url       string
-	expiresAt time.Time
-}
-
 // Service handles streaming-related operations
 type Service struct {
 	Repo           song.Repository
 	FileController HLSConverter
 	Redis          *redis.Client
-	memoryCache    sync.Map
+	memoryQueues   sync.Map
 }
 
 // ServiceTarget is parameter object for getting all Service's dependencies
@@ -127,145 +117,6 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, conten
 	return nil, fmt.Errorf("track not found or unplayable: %s", sourcePath)
 }
 
-// ResolveYoutubeStreamURL extracts or fetches a cached live 192kbps audio stream URL for a given YouTube ID
-func (s *Service) ResolveYoutubeStreamURL(ctx context.Context, rawYoutubeID string) (string, error) {
-	youtubeID := extractYoutubeID(rawYoutubeID)
-	if youtubeID == "" {
-		return "", fmt.Errorf("empty or invalid youtube id")
-	}
-
-	cacheKey := fmt.Sprintf("stream:yt:%s", youtubeID)
-
-	// 1. Check L1 in-memory cache (< 0.1ms)
-	if val, ok := s.memoryCache.Load(cacheKey); ok {
-		if entry, ok := val.(cachedStream); ok {
-			if time.Now().Before(entry.expiresAt) {
-				return entry.url, nil
-			}
-			s.memoryCache.Delete(cacheKey)
-		}
-	}
-
-	// 2. Check L2 Redis cache (< 5ms)
-	if s.Redis != nil {
-		if cachedURL, err := s.Redis.Get(ctx, cacheKey).Result(); err == nil && cachedURL != "" {
-			s.memoryCache.Store(cacheKey, cachedStream{
-				url:       cachedURL,
-				expiresAt: time.Now().Add(4 * time.Hour),
-			})
-			return cachedURL, nil
-		}
-	}
-
-	// 3. Resolve on-demand using yt-dlp
-	ytDlp := resolveYtDlpPath()
-
-	execCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
-	defer cancel()
-
-	args := []string{
-		"-4",
-		"-g",
-		"--no-playlist",
-		"--socket-timeout", "15",
-		"-f", "bestaudio[abr<=192]/bestaudio/best",
-		"--no-warnings",
-	}
-
-	var hasCookies bool
-	if cookiesB64 := os.Getenv("YOUTUBE_COOKIES_BASE64"); cookiesB64 != "" {
-		cookieFile := filepath.Join(os.TempDir(), "yt_cookies.txt")
-		clean := strings.TrimSpace(cookiesB64)
-		clean = strings.ReplaceAll(clean, " ", "")
-		clean = strings.ReplaceAll(clean, "\n", "")
-		clean = strings.ReplaceAll(clean, "\r", "")
-		clean = strings.ReplaceAll(clean, "\t", "")
-		data, err := base64.StdEncoding.DecodeString(clean)
-		if err != nil {
-			data, err = base64.RawStdEncoding.DecodeString(clean)
-		}
-		if err != nil {
-			fmt.Printf("[STREAM] error decoding YOUTUBE_COOKIES_BASE64: %v\n", err)
-		} else if len(data) > 0 {
-			if writeErr := os.WriteFile(cookieFile, data, 0o600); writeErr == nil {
-				args = append(args, "--cookies", cookieFile)
-				hasCookies = true
-				fmt.Printf("[STREAM] successfully loaded %d bytes of YouTube cookies to %s\n", len(data), cookieFile)
-			} else {
-				fmt.Printf("[STREAM] failed to write cookie file: %v\n", writeErr)
-			}
-		}
-	} else if cookiesPath := os.Getenv("YOUTUBE_COOKIES_PATH"); cookiesPath != "" {
-		args = append(args, "--cookies", cookiesPath)
-		hasCookies = true
-	} else if _, err := os.Stat("cookies.txt"); err == nil {
-		args = append(args, "--cookies", "cookies.txt")
-		hasCookies = true
-	}
-
-	if hasCookies {
-		args = append(args, "--extractor-args", "youtube:player_client=mweb,web_embedded")
-	} else {
-		args = append(args, "--extractor-args", "youtube:player_client=android,mweb,web_embedded")
-	}
-
-	args = append(args, youtubeID)
-
-	cmd := exec.CommandContext(execCtx, ytDlp, args...)
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
-
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("yt-dlp extract stream failed: %w: %s", err, stderr.String())
-	}
-
-	rawOutput := strings.TrimSpace(stdout.String())
-	if rawOutput == "" {
-		return "", fmt.Errorf("yt-dlp returned empty stream url: %s", stderr.String())
-	}
-
-	lines := strings.Split(rawOutput, "\n")
-	streamURL := strings.TrimSpace(lines[0])
-
-	// 4. Cache for 4 hours (YouTube signed CDN URLs expire after ~6 hours)
-	ttl := 4 * time.Hour
-	s.memoryCache.Store(cacheKey, cachedStream{
-		url:       streamURL,
-		expiresAt: time.Now().Add(ttl),
-	})
-
-	if s.Redis != nil {
-		_ = s.Redis.Set(ctx, cacheKey, streamURL, ttl).Err()
-	}
-
-	return streamURL, nil
-}
-
-func (s *Service) resolveYoutubeStreamURL(ctx context.Context, rawYoutubeID string) (string, error) {
-	return s.ResolveYoutubeStreamURL(ctx, rawYoutubeID)
-}
-
-// InvalidateYoutubeStreamURL purges the cached stream URL for a given YouTube ID
-func (s *Service) InvalidateYoutubeStreamURL(ctx context.Context, rawYoutubeID string) {
-	youtubeID := extractYoutubeID(rawYoutubeID)
-	if youtubeID == "" {
-		return
-	}
-
-	cacheKey := fmt.Sprintf("stream:yt:%s", youtubeID)
-	s.memoryCache.Delete(cacheKey)
-	if s.Redis != nil {
-		_ = s.Redis.Del(ctx, cacheKey).Err()
-	}
-}
-
-// ExtractYoutubeID sanitizes an input that may be a raw 11-char ID or a YouTube URL
-func ExtractYoutubeID(input string) string {
-	return extractYoutubeID(input)
-}
-
 // extractYoutubeID sanitizes an input that may be a raw 11-char ID or a YouTube URL
 func extractYoutubeID(input string) string {
 	input = strings.TrimSpace(input)
@@ -294,35 +145,6 @@ func extractYoutubeID(input string) string {
 		}
 	}
 	return input
-}
-
-// resolveYtDlpPath checks environment and candidate system paths for yt-dlp
-func resolveYtDlpPath() string {
-	if envVal := os.Getenv("YT_DLP_PATH"); envVal != "" {
-		if path, err := exec.LookPath(envVal); err == nil {
-			return path
-		}
-		if fi, err := os.Stat(envVal); err == nil && !fi.IsDir() {
-			return envVal
-		}
-	}
-	candidates := []string{
-		"yt-dlp",
-		"/opt/homebrew/bin/yt-dlp",
-		"/usr/local/bin/yt-dlp",
-		"/usr/bin/yt-dlp",
-		"./bin/yt-dlp",
-		"bin/yt-dlp",
-	}
-	for _, cand := range candidates {
-		if path, err := exec.LookPath(cand); err == nil {
-			return path
-		}
-		if fi, err := os.Stat(cand); err == nil && !fi.IsDir() {
-			return cand
-		}
-	}
-	return "yt-dlp"
 }
 
 func (s *Service) recordListeningHistory(ctx context.Context, sourcePath, contentType, contentId string) {
