@@ -111,7 +111,7 @@ func NewGraphQLController(target GraphQLControllerTarget) Result {
 			search:          target.Search,
 			streaming:       target.Streaming,
 			playlist:        target.Playlist,
-			youtubeSearch:   youtubeService.NewSearchService(ytDlpPath, target.Redis),
+			youtubeSearch:   youtubeService.NewSearchService(ytDlpPath, target.Redis, target.Postgresql),
 			youtubeDownload: youtubeService.NewDownloadService(storagePath, ytDlpPath, downloadTimeout, maxDownloadSize),
 			logger:          target.Logger,
 			corsAllowOrigins:    parseAllowedOrigins(os.Getenv("CORS_ALLOW_ORIGINS")),

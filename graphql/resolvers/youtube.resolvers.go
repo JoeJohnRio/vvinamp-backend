@@ -83,19 +83,15 @@ func (r *queryResolver) SearchYoutubeFromAPI(ctx context.Context, query string, 
 	}
 
 	offset := 0
-	pageToken := ""
-	seenIDs := []string{}
 	if after != nil {
-		cursorOffset, cursorToken, cursorSeenIDs, err := decodeYouTubeCursor(*after)
+		cursorOffset, err := decodeCursor(*after)
 		if err != nil {
 			return nil, fmt.Errorf("invalid cursor: %w", err)
 		}
 		offset = cursorOffset + 1
-		pageToken = cursorToken
-		seenIDs = cursorSeenIDs
 	}
 	if before != nil {
-		cursorOffset, _, cursorSeenIDs, err := decodeYouTubeCursor(*before)
+		cursorOffset, err := decodeCursor(*before)
 		if err != nil {
 			return nil, fmt.Errorf("invalid cursor: %w", err)
 		}
@@ -103,25 +99,19 @@ func (r *queryResolver) SearchYoutubeFromAPI(ctx context.Context, query string, 
 		if offset < 0 {
 			offset = 0
 		}
-		seenIDs = cursorSeenIDs
 	}
 
-	fetchLimit := limit + 1
-	results, nextPageToken, nextSeenIDs, err := r.YoutubeSearchService.SearchYoutubeFromAPIPaginatedWithPageToken(ctx, query, offset, fetchLimit, pageToken, seenIDs)
+	results, err := r.YoutubeSearchService.SearchCached(ctx, query)
 	if err != nil {
 		return nil, err
 	}
+	page, hasNextPage := youtubeService.SearchPage(results, offset, limit)
 
-	hasNextPage := len(results) > limit
-	if hasNextPage {
-		results = results[:limit]
-	}
-
-	nodes := convertSearchResults(results)
+	nodes := convertSearchResults(page)
 	edges := make([]*model.SearchResultEdge, len(nodes))
 	for i, node := range nodes {
 		edges[i] = &model.SearchResultEdge{
-			Cursor: encodeYouTubeCursor(offset+i, nextPageToken, nextSeenIDs),
+			Cursor: encodeCursor(offset + i),
 			Node:   node,
 		}
 	}
@@ -137,12 +127,10 @@ func (r *queryResolver) SearchYoutubeFromAPI(ctx context.Context, query string, 
 		pageInfo.EndCursor = &endCursor
 	}
 
-	totalCount := offset + len(nodes)
-
 	return &model.SearchResultConnection{
 		Edges:      edges,
 		PageInfo:   pageInfo,
-		TotalCount: totalCount,
+		TotalCount: len(results),
 	}, nil
 }
 
@@ -176,7 +164,6 @@ func (r *queryResolver) SearchYoutubeFromYtDlp(ctx context.Context, query string
 	}
 
 	fetchLimit := limit + 1
-	log.Printf("joel123 Resolver: Searching YouTube with yt-dlp for query: %s, offset: %d, limit: %d", query, offset, fetchLimit)
 	results, err := r.YoutubeSearchService.SearchYoutubeFromYtDlpPaginated(ctx, query, offset, fetchLimit)
 	if err != nil {
 		return nil, err

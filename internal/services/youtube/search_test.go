@@ -1,89 +1,129 @@
 package youtube
 
 import (
-	"fmt"
+	"context"
+	"errors"
 	"testing"
+	"time"
 )
 
-func TestPaginateSearchResultsSkipsDuplicates(t *testing.T) {
-	results := []SearchResult{
-		{ID: "1", Title: "first"},
-		{ID: "2", Title: "second"},
-		{ID: "2", Title: "second duplicate"},
-		{ID: "3", Title: "third"},
-		{ID: "4", Title: "fourth"},
-	}
+type fakeSearchCache struct {
+	results   []SearchResult
+	fetchedAt time.Time
+	found     bool
+	saved     []SearchResult
+}
 
-	got := paginateSearchResults(results, 0, 2, map[string]struct{}{"2": {}})
-	if len(got) != 2 {
-		t.Fatalf("expected 2 unique results, got %d", len(got))
+func (c *fakeSearchCache) load(context.Context, string) ([]SearchResult, time.Time, bool) {
+	return c.results, c.fetchedAt, c.found
+}
+
+func (c *fakeSearchCache) save(_ context.Context, _ string, results []SearchResult) {
+	c.saved = results
+}
+
+func cachedAgo(age time.Duration) *fakeSearchCache {
+	return &fakeSearchCache{results: []SearchResult{{ID: "cached"}}, fetchedAt: time.Now().Add(-age), found: true}
+}
+
+type fetchStub struct {
+	calls   int
+	results []SearchResult
+	err     error
+}
+
+func (f *fetchStub) fetch(context.Context, string) ([]SearchResult, error) {
+	f.calls++
+	return f.results, f.err
+}
+
+func newTestSearchService(cache searchCache, api, ytDlp *fetchStub) *SearchService {
+	return &SearchService{apiKey: "test", cache: cache, fetchAPI: api.fetch, fetchYtDlp: ytDlp.fetch}
+}
+
+func TestSearchCachedUsesFreshCacheWithoutFetching(t *testing.T) {
+	api, ytDlp := &fetchStub{}, &fetchStub{}
+	got, err := newTestSearchService(cachedAgo(time.Hour), api, ytDlp).SearchCached(context.Background(), "song")
+	if err != nil || len(got) != 1 || got[0].ID != "cached" {
+		t.Fatalf("expected cached result, got %v, %v", got, err)
 	}
-	if got[0].ID != "1" || got[1].ID != "3" {
-		t.Fatalf("expected page to contain IDs [1 3], got [%s %s]", got[0].ID, got[1].ID)
+	if api.calls != 0 || ytDlp.calls != 0 {
+		t.Fatalf("expected no fetches, got api=%d ytDlp=%d", api.calls, ytDlp.calls)
 	}
 }
 
-func TestIsQuotaExceeded(t *testing.T) {
-	quotaJSON := []byte(`{
-		"error": {
-			"code": 403,
-			"message": "The request cannot be completed because you have exceeded your quota.",
-			"errors": [
-				{
-					"message": "The request cannot be completed because you have exceeded your quota.",
-					"domain": "youtube.quota",
-					"reason": "quotaExceeded"
-				}
-			]
-		}
-	}`)
-
-	if !isQuotaExceeded(quotaJSON) {
-		t.Fatalf("expected isQuotaExceeded to return true for standard quotaExceeded JSON")
+func TestSearchCachedSavesAPIResults(t *testing.T) {
+	cache := &fakeSearchCache{}
+	api, ytDlp := &fetchStub{results: []SearchResult{{ID: "api"}}}, &fetchStub{}
+	got, err := newTestSearchService(cache, api, ytDlp).SearchCached(context.Background(), "song")
+	if err != nil || got[0].ID != "api" {
+		t.Fatalf("expected api result, got %v, %v", got, err)
 	}
-
-	rawText := []byte(`403 Forbidden: quotaExceeded limit reached`)
-	if !isQuotaExceeded(rawText) {
-		t.Fatalf("expected isQuotaExceeded to return true for plain text containing quotaExceeded")
-	}
-
-	otherForbidden := []byte(`{
-		"error": {
-			"code": 403,
-			"message": "Access denied.",
-			"errors": [
-				{
-					"reason": "accessDenied"
-				}
-			]
-		}
-	}`)
-	if isQuotaExceeded(otherForbidden) {
-		t.Fatalf("expected isQuotaExceeded to return false for accessDenied")
+	if ytDlp.calls != 0 || len(cache.saved) != 1 {
+		t.Fatalf("expected api result saved without yt-dlp, got ytDlp=%d saved=%v", ytDlp.calls, cache.saved)
 	}
 }
 
-func TestIsQuotaExceededError(t *testing.T) {
-	if !isQuotaExceededError(fmt.Errorf("youtube api returned 403: quotaExceeded")) {
-		t.Fatalf("expected isQuotaExceededError to return true")
-	}
-	if isQuotaExceededError(fmt.Errorf("generic network timeout")) {
-		t.Fatalf("expected isQuotaExceededError to return false")
-	}
-	if isQuotaExceededError(nil) {
-		t.Fatalf("expected isQuotaExceededError to return false for nil error")
+func TestSearchCachedFallsBackToYtDlp(t *testing.T) {
+	api := &fetchStub{err: errors.New("quotaExceeded")}
+	ytDlp := &fetchStub{results: []SearchResult{{ID: "ytdlp"}}}
+	got, err := newTestSearchService(&fakeSearchCache{}, api, ytDlp).SearchCached(context.Background(), "song")
+	if err != nil || got[0].ID != "ytdlp" {
+		t.Fatalf("expected yt-dlp result, got %v, %v", got, err)
 	}
 }
 
-func TestMarkFallbackResults(t *testing.T) {
-	results := []SearchResult{
-		{ID: "vid1", Title: "Title 1"},
-		{ID: "vid2", Title: "Title 2", UploaderID: "original"},
+func TestSearchCachedServesStaleCacheWhenSourcesFail(t *testing.T) {
+	api, ytDlp := &fetchStub{err: errors.New("down")}, &fetchStub{err: errors.New("blocked")}
+	got, err := newTestSearchService(cachedAgo(10*24*time.Hour), api, ytDlp).SearchCached(context.Background(), "song")
+	if err != nil || got[0].ID != "cached" {
+		t.Fatalf("expected stale cache, got %v, %v", got, err)
 	}
-	markFallbackResults(results)
-	for i, r := range results {
-		if r.UploaderID != "fallback:yt-dlp" {
-			t.Fatalf("result[%d] UploaderID expected 'fallback:yt-dlp', got '%s'", i, r.UploaderID)
+}
+
+func TestSearchCachedIgnoresExpiredCache(t *testing.T) {
+	api, ytDlp := &fetchStub{err: errors.New("down")}, &fetchStub{err: errors.New("blocked")}
+	_, err := newTestSearchService(cachedAgo(31*24*time.Hour), api, ytDlp).SearchCached(context.Background(), "song")
+	if !errors.Is(err, errSearchUnavailable) {
+		t.Fatalf("expected errSearchUnavailable, got %v", err)
+	}
+}
+
+func TestSearchCachedHidesInternalErrors(t *testing.T) {
+	api, ytDlp := &fetchStub{err: errors.New("key=secret")}, &fetchStub{err: errors.New("stderr")}
+	_, err := newTestSearchService(&fakeSearchCache{}, api, ytDlp).SearchCached(context.Background(), "song")
+	if !errors.Is(err, errSearchUnavailable) {
+		t.Fatalf("expected errSearchUnavailable, got %v", err)
+	}
+}
+
+func TestSearchCachedRejectsEmptyQuery(t *testing.T) {
+	if _, err := newTestSearchService(&fakeSearchCache{}, &fetchStub{}, &fetchStub{}).SearchCached(context.Background(), "   "); err == nil {
+		t.Fatal("expected an error for an empty query")
+	}
+}
+
+func TestNormalizeSearchQuery(t *testing.T) {
+	if got := normalizeSearchQuery("  Michael   JACKSON "); got != "michael jackson" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestSearchPage(t *testing.T) {
+	results := make([]SearchResult, 12)
+	for _, tt := range []struct {
+		offset, limit, wantLen int
+		wantNext               bool
+	}{
+		{0, 5, 5, true},
+		{5, 5, 5, true},
+		{10, 5, 2, false},
+		{12, 5, 0, false},
+		{-1, 0, 5, true},
+	} {
+		page, next := SearchPage(results, tt.offset, tt.limit)
+		if len(page) != tt.wantLen || next != tt.wantNext {
+			t.Errorf("SearchPage(%d, %d) = %d, %v; want %d, %v", tt.offset, tt.limit, len(page), next, tt.wantLen, tt.wantNext)
 		}
 	}
 }

@@ -21,180 +21,217 @@ import (
 	"sync"
 	"time"
 
+	"vvinamp/database/postgre"
 	redisdb "vvinamp/database/redis"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-type SearchService struct {
-	ytDlpPath string
-	apiKey    string
-	redisConn *redisdb.Connection
+const (
+	searchCacheFreshFor = 7 * 24 * time.Hour
+	// YouTube's API policies require stored API data to be refreshed or removed within 30 days.
+	searchCacheMaxAge = 30 * 24 * time.Hour
+	apiSearchSize     = 50
+	ytDlpSearchSize   = 20
+	defaultPageSize   = 5
+)
+
+var errSearchUnavailable = errors.New("youtube search is unavailable right now")
+
+type searchCache interface {
+	load(ctx context.Context, key string) (results []SearchResult, fetchedAt time.Time, found bool)
+	save(ctx context.Context, key string, results []SearchResult)
 }
 
-func NewSearchService(ytDlpPath string, redisConn *redisdb.Connection) *SearchService {
-	return &SearchService{
+type SearchService struct {
+	ytDlpPath  string
+	apiKey     string
+	redisConn  *redisdb.Connection
+	cache      searchCache
+	fetchAPI   func(ctx context.Context, query string) ([]SearchResult, error)
+	fetchYtDlp func(ctx context.Context, query string) ([]SearchResult, error)
+}
+
+func NewSearchService(ytDlpPath string, redisConn *redisdb.Connection, postgres *postgre.Connection) *SearchService {
+	s := &SearchService{
 		ytDlpPath: ytDlpPath,
 		apiKey:    os.Getenv("YT_API_KEY"),
 		redisConn: redisConn,
+		cache:     newPostgresSearchCache(postgres),
 	}
+	s.fetchAPI = s.searchYouTubeAPI
+	s.fetchYtDlp = func(ctx context.Context, query string) ([]SearchResult, error) {
+		return s.searchWithYtDlp(ctx, query, 0, ytDlpSearchSize)
+	}
+	return s
 }
 
+// Search returns the first results for query.
 func (s *SearchService) Search(ctx context.Context, query string) ([]SearchResult, error) {
-	if strings.TrimSpace(query) == "" {
+	results, err := s.SearchCached(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	page, _ := SearchPage(results, 0, defaultPageSize)
+	return page, nil
+}
+
+// SearchCached returns the full result list for query, using the first source that has results:
+// fresh cache, YouTube API, yt-dlp, then stale cache.
+func (s *SearchService) SearchCached(ctx context.Context, query string) ([]SearchResult, error) {
+	key := normalizeSearchQuery(query)
+	if key == "" {
 		return nil, fmt.Errorf("search query cannot be empty")
 	}
 
-	if s.apiKey == "" {
-		return s.SearchYoutubeFromYtDlp(ctx, query)
+	cached, fetchedAt, found := s.cache.load(ctx, key)
+	age := time.Since(fetchedAt)
+	if found && age < searchCacheFreshFor {
+		return cached, nil
 	}
 
-	results, err := s.SearchYoutubeFromAPI(ctx, query)
-	if err == nil {
+	results, err := s.fetchFresh(ctx, query)
+	if len(results) > 0 {
+		s.cache.save(ctx, key, results)
 		return results, nil
 	}
 
-	return s.SearchYoutubeFromYtDlp(ctx, query)
-}
-
-func (s *SearchService) SearchYoutubeFromAPI(ctx context.Context, query string) ([]SearchResult, error) {
-	if strings.TrimSpace(query) == "" {
-		return nil, fmt.Errorf("search query cannot be empty")
+	if found && age < searchCacheMaxAge {
+		return cached, nil
 	}
-
-	// default to non-paginated (first page)
-	results, _, _, err := s.SearchYoutubeFromAPIPaginatedWithPageToken(ctx, query, 0, 5, "", nil)
 	return results, err
 }
 
-func (s *SearchService) SearchYoutubeFromAPIPaginated(ctx context.Context, query string, offset, limit int) ([]SearchResult, error) {
-	results, _, _, err := s.SearchYoutubeFromAPIPaginatedWithPageToken(ctx, query, offset, limit, "", nil)
-	return results, err
+func (s *SearchService) fetchFresh(ctx context.Context, query string) ([]SearchResult, error) {
+	var apiErr error
+	if s.apiKey != "" {
+		var results []SearchResult
+		results, apiErr = s.fetchAPI(ctx, query)
+		if len(results) > 0 {
+			return results, nil
+		}
+		if apiErr != nil {
+			log.Printf("youtube api search failed, trying yt-dlp: %v", apiErr)
+		}
+	}
+
+	results, ytDlpErr := s.fetchYtDlp(ctx, query)
+	if len(results) > 0 {
+		return results, nil
+	}
+	if ytDlpErr != nil {
+		log.Printf("yt-dlp search failed: %v", ytDlpErr)
+	}
+
+	if apiErr != nil || ytDlpErr != nil {
+		return nil, errSearchUnavailable
+	}
+	return []SearchResult{}, nil
 }
 
-func (s *SearchService) SearchYoutubeFromAPIPaginatedWithPageToken(ctx context.Context, query string, offset, limit int, pageToken string, seenIDs []string) ([]SearchResult, string, []string, error) {
-	if strings.TrimSpace(query) == "" {
-		return nil, "", nil, fmt.Errorf("search query cannot be empty")
-	}
-
-	if s.apiKey == "" {
-		return nil, "", nil, fmt.Errorf("YT_API_KEY is not configured; YouTube API search is required")
-	}
-
-	if limit <= 0 {
-		limit = 5
-	}
-	if limit > 50 {
-		limit = 50
-	}
-
-	seenSet := make(map[string]struct{}, len(seenIDs)+limit)
-	for _, id := range seenIDs {
-		if id == "" {
-			continue
-		}
-		seenSet[id] = struct{}{}
-	}
-
-	results := make([]SearchResult, 0, limit)
-	currentPageToken := pageToken
-	nextPageToken := ""
-	for len(results) < limit {
-		pageResults, token, err := s.searchWithYouTubeAPIWithPageToken(ctx, query, currentPageToken, limit)
-		if err != nil {
-			return nil, "", nil, err
-		}
-
-		pageSeen := make(map[string]struct{}, len(pageResults))
-		for _, result := range pageResults {
-			if result.ID == "" {
-				continue
-			}
-			if _, alreadySeen := seenSet[result.ID]; alreadySeen {
-				continue
-			}
-			if _, alreadyInPage := pageSeen[result.ID]; alreadyInPage {
-				continue
-			}
-			pageSeen[result.ID] = struct{}{}
-			results = append(results, result)
-			if len(results) >= limit {
-				break
-			}
-		}
-
-		nextPageToken = token
-		if token == "" || token == currentPageToken {
-			break
-		}
-		currentPageToken = token
-	}
-
-	filteredResults := paginateSearchResults(results, 0, limit, seenSet)
-	for _, result := range filteredResults {
-		seenSet[result.ID] = struct{}{}
-	}
-
-	return filteredResults, nextPageToken, collectSeenIDs(seenSet), nil
-}
-
-func collectSeenIDs(seenSet map[string]struct{}) []string {
-	ids := make([]string, 0, len(seenSet))
-	for id := range seenSet {
-		ids = append(ids, id)
-	}
-	return ids
-}
-
-func paginateSearchResults(results []SearchResult, offset, limit int, seenSet map[string]struct{}) []SearchResult {
-	if limit <= 0 {
-		limit = 5
-	}
+// SearchPage returns one page of results and whether more results follow it.
+func SearchPage(results []SearchResult, offset, limit int) ([]SearchResult, bool) {
 	if offset < 0 {
 		offset = 0
 	}
-
-	seen := make(map[string]struct{}, len(results))
-	uniqueResults := make([]SearchResult, 0, len(results))
-	for _, result := range results {
-		if result.ID == "" {
-			continue
-		}
-		if _, exists := seen[result.ID]; exists {
-			continue
-		}
-		if seenSet != nil {
-			if _, exists := seenSet[result.ID]; exists {
-				continue
-			}
-		}
-		seen[result.ID] = struct{}{}
-		uniqueResults = append(uniqueResults, result)
+	if limit <= 0 {
+		limit = defaultPageSize
 	}
-
-	if offset >= len(uniqueResults) {
-		return []SearchResult{}
+	if offset >= len(results) {
+		return []SearchResult{}, false
 	}
 
 	end := offset + limit
-	if end > len(uniqueResults) {
-		end = len(uniqueResults)
+	if end > len(results) {
+		end = len(results)
 	}
-
-	return uniqueResults[offset:end]
+	return results[offset:end], end < len(results)
 }
 
-func (s *SearchService) searchWithYouTubeAPIWithMax(ctx context.Context, query string, maxResults int) ([]SearchResult, error) {
+func normalizeSearchQuery(query string) string {
+	return strings.Join(strings.Fields(strings.ToLower(query)), " ")
+}
+
+type youtubeSearchCache struct {
+	QueryKey  string    `gorm:"primaryKey;column:query_key"`
+	Results   string    `gorm:"type:text;not null"`
+	FetchedAt time.Time `gorm:"not null"`
+}
+
+func (youtubeSearchCache) TableName() string {
+	return "youtube_search_cache"
+}
+
+type postgresSearchCache struct {
+	db *gorm.DB
+}
+
+func newPostgresSearchCache(postgres *postgre.Connection) *postgresSearchCache {
+	db, err := postgres.Client()
+	if err == nil {
+		err = db.AutoMigrate(&youtubeSearchCache{})
+	}
+	if err != nil {
+		log.Printf("youtube search cache disabled: %v", err)
+		return &postgresSearchCache{}
+	}
+	return &postgresSearchCache{db: db}
+}
+
+func (c *postgresSearchCache) load(ctx context.Context, key string) ([]SearchResult, time.Time, bool) {
+	if c.db == nil {
+		return nil, time.Time{}, false
+	}
+
+	var row youtubeSearchCache
+	if err := c.db.WithContext(ctx).First(&row, "query_key = ?", key).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Printf("youtube search cache read failed: %v", err)
+		}
+		return nil, time.Time{}, false
+	}
+
+	var results []SearchResult
+	if err := json.Unmarshal([]byte(row.Results), &results); err != nil {
+		log.Printf("youtube search cache decode failed: %v", err)
+		return nil, time.Time{}, false
+	}
+	return results, row.FetchedAt, true
+}
+
+func (c *postgresSearchCache) save(ctx context.Context, key string, results []SearchResult) {
+	if c.db == nil {
+		return
+	}
+
+	encoded, err := json.Marshal(results)
+	if err != nil {
+		log.Printf("youtube search cache encode failed: %v", err)
+		return
+	}
+
+	row := youtubeSearchCache{QueryKey: key, Results: string(encoded), FetchedAt: time.Now().UTC()}
+	if err := c.db.WithContext(ctx).Clauses(clause.OnConflict{UpdateAll: true}).Create(&row).Error; err != nil {
+		log.Printf("youtube search cache write failed: %v", err)
+	}
+}
+
+// searchYouTubeAPI spends one search.list call and fetches enough results to serve every page from the cache.
+func (s *SearchService) searchYouTubeAPI(ctx context.Context, query string) ([]SearchResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	endpoint := "https://www.googleapis.com/youtube/v3/search"
 	params := neturl.Values{}
-	params.Set("part", "snippet")
+	params.Set("part", "id")
 	params.Set("q", query)
 	params.Set("type", "video")
-	params.Set("maxResults", fmt.Sprintf("%d", maxResults))
+	params.Set("videoCategoryId", "10")
+	params.Set("videoEmbeddable", "true")
+	params.Set("maxResults", strconv.Itoa(apiSearchSize))
 	params.Set("key", s.apiKey)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://www.googleapis.com/youtube/v3/search?"+params.Encode(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("youtube api request creation failed: %w", redactURLError(err))
 	}
@@ -207,15 +244,6 @@ func (s *SearchService) searchWithYouTubeAPIWithMax(ctx context.Context, query s
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode == http.StatusForbidden && isQuotaExceeded(body) {
-			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
-			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, maxResults)
-			if fallbackErr != nil {
-				return nil, fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
-			}
-			markFallbackResults(fallbackResults)
-			return fallbackResults, nil
-		}
 		return nil, fmt.Errorf("youtube api returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
@@ -224,30 +252,8 @@ func (s *SearchService) searchWithYouTubeAPIWithMax(ctx context.Context, query s
 			ID struct {
 				VideoID string `json:"videoId"`
 			} `json:"id"`
-			Snippet struct {
-				Title        string `json:"title"`
-				ChannelTitle string `json:"channelTitle"`
-				Thumbnails   struct {
-					Default struct {
-						URL string `json:"url"`
-					} `json:"default"`
-					Medium struct {
-						URL string `json:"url"`
-					} `json:"medium"`
-					High struct {
-						URL string `json:"url"`
-					} `json:"high"`
-					Standard struct {
-						URL string `json:"url"`
-					} `json:"standard"`
-					Maxres struct {
-						URL string `json:"url"`
-					} `json:"maxres"`
-				} `json:"thumbnails"`
-			} `json:"snippet"`
 		} `json:"items"`
 	}
-
 	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
 		return nil, fmt.Errorf("youtube api response decode failed: %w", err)
 	}
@@ -258,25 +264,26 @@ func (s *SearchService) searchWithYouTubeAPIWithMax(ctx context.Context, query s
 			ids = append(ids, item.ID.VideoID)
 		}
 	}
-
 	if len(ids) == 0 {
 		return []SearchResult{}, nil
 	}
 
-	results, err := s.fetchVideoDetails(ctx, ids)
+	details, err := s.fetchVideoDetails(ctx, ids)
 	if err != nil {
-		if isQuotaExceededError(err) {
-			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
-			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, maxResults)
-			if fallbackErr != nil {
-				return nil, fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
-			}
-			markFallbackResults(fallbackResults)
-			return fallbackResults, nil
-		}
 		return nil, err
 	}
 
+	// videos.list doesn't promise to keep the relevance order from search.list.
+	byID := make(map[string]SearchResult, len(details))
+	for _, result := range details {
+		byID[result.ID] = result
+	}
+	results := make([]SearchResult, 0, len(details))
+	for _, id := range ids {
+		if result, ok := byID[id]; ok {
+			results = append(results, result)
+		}
+	}
 	return results, nil
 }
 
@@ -288,108 +295,6 @@ func (s *SearchService) SearchYoutubeFromYtDlp(ctx context.Context, query string
 	return s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, 5)
 }
 
-func (s *SearchService) searchWithYouTubeAPIWithPageToken(ctx context.Context, query, pageToken string, maxResults int) ([]SearchResult, string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	endpoint := "https://www.googleapis.com/youtube/v3/search"
-	params := neturl.Values{}
-	params.Set("part", "snippet")
-	params.Set("q", query)
-	params.Set("type", "video")
-	params.Set("maxResults", fmt.Sprintf("%d", maxResults))
-	params.Set("key", s.apiKey)
-	if pageToken != "" {
-		params.Set("pageToken", pageToken)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
-	if err != nil {
-		return nil, "", fmt.Errorf("youtube api request creation failed: %w", redactURLError(err))
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, "", fmt.Errorf("youtube api request failed: %w", redactURLError(err))
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode == http.StatusForbidden && isQuotaExceeded(body) {
-			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
-			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, maxResults)
-			if fallbackErr != nil {
-				return nil, "", fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
-			}
-			markFallbackResults(fallbackResults)
-			return fallbackResults, "", nil
-		}
-		return nil, "", fmt.Errorf("youtube api returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-	}
-
-	var searchResp struct {
-		Items []struct {
-			ID struct {
-				VideoID string `json:"videoId"`
-			} `json:"id"`
-			Snippet struct {
-				Title        string `json:"title"`
-				ChannelTitle string `json:"channelTitle"`
-				Thumbnails   struct {
-					Default struct {
-						URL string `json:"url"`
-					} `json:"default"`
-					Medium struct {
-						URL string `json:"url"`
-					} `json:"medium"`
-					High struct {
-						URL string `json:"url"`
-					} `json:"high"`
-					Standard struct {
-						URL string `json:"url"`
-					} `json:"standard"`
-					Maxres struct {
-						URL string `json:"url"`
-					} `json:"maxres"`
-				} `json:"thumbnails"`
-			} `json:"snippet"`
-		} `json:"items"`
-		NextPageToken string `json:"nextPageToken"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
-		return nil, "", fmt.Errorf("youtube api response decode failed: %w", err)
-	}
-
-	ids := make([]string, 0, len(searchResp.Items))
-	for _, item := range searchResp.Items {
-		if item.ID.VideoID != "" {
-			ids = append(ids, item.ID.VideoID)
-		}
-	}
-
-	if len(ids) == 0 {
-		return []SearchResult{}, searchResp.NextPageToken, nil
-	}
-
-	results, err := s.fetchVideoDetails(ctx, ids)
-	if err != nil {
-		if isQuotaExceededError(err) {
-			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
-			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, maxResults)
-			if fallbackErr != nil {
-				return nil, "", fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
-			}
-			markFallbackResults(fallbackResults)
-			return fallbackResults, "", nil
-		}
-		return nil, "", err
-	}
-
-	return results, searchResp.NextPageToken, nil
-}
-
 func (s *SearchService) SearchYoutubeFromYtDlpPaginated(ctx context.Context, query string, offset, limit int) ([]SearchResult, error) {
 	if strings.TrimSpace(query) == "" {
 		return nil, fmt.Errorf("search query cannot be empty")
@@ -399,106 +304,7 @@ func (s *SearchService) SearchYoutubeFromYtDlpPaginated(ctx context.Context, que
 		limit = 5
 	}
 
-	results, err := s.searchWithYtDlp(ctx, query, offset, limit)
-	if err != nil && s.apiKey != "" && (strings.Contains(err.Error(), "403") || strings.Contains(err.Error(), "Forbidden")) {
-		log.Printf("yt-dlp search hit 403 Forbidden on datacenter IP; auto-fallback to YouTube Data API: %v", err)
-		apiResults, apiErr := s.SearchYoutubeFromAPIPaginated(ctx, query, offset, limit)
-		if apiErr == nil {
-			return apiResults, nil
-		}
-	}
-
-	return results, err
-}
-
-func (s *SearchService) searchWithYouTubeAPI(ctx context.Context, query string) ([]SearchResult, error) {
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	endpoint := "https://www.googleapis.com/youtube/v3/search"
-	params := neturl.Values{}
-	params.Set("part", "snippet")
-	params.Set("q", query)
-	params.Set("type", "video")
-	// params.Set("videoCategoryId", "10")
-	params.Set("maxResults", "5")
-	params.Set("key", s.apiKey)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("youtube api request creation failed: %w", redactURLError(err))
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("youtube api request failed: %w", redactURLError(err))
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode == http.StatusForbidden && isQuotaExceeded(body) {
-			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
-			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, 5)
-			if fallbackErr != nil {
-				return nil, fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
-			}
-			markFallbackResults(fallbackResults)
-			return fallbackResults, nil
-		}
-		return nil, fmt.Errorf("youtube api returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
-	}
-
-	var searchResp struct {
-		Items []struct {
-			ID struct {
-				VideoID string `json:"videoId"`
-			} `json:"id"`
-			Snippet struct {
-				Title        string `json:"title"`
-				ChannelTitle string `json:"channelTitle"`
-				Thumbnails   struct {
-					Default struct {
-						URL string `json:"url"`
-					} `json:"default"`
-					Medium struct {
-						URL string `json:"url"`
-					} `json:"medium"`
-				} `json:"thumbnails"`
-			} `json:"snippet"`
-		} `json:"items"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&searchResp); err != nil {
-		return nil, fmt.Errorf("youtube api response decode failed: %w", err)
-	}
-
-	ids := make([]string, 0, len(searchResp.Items))
-	for _, item := range searchResp.Items {
-		if item.ID.VideoID != "" {
-			ids = append(ids, item.ID.VideoID)
-		}
-	}
-
-	if len(ids) == 0 {
-		return []SearchResult{}, nil
-	}
-
-	results, err := s.fetchVideoDetails(ctx, ids)
-	if err != nil {
-		if isQuotaExceededError(err) {
-			log.Println("YouTube Data API daily quota exceeded; auto-switching to optimized yt-dlp fallback")
-			fallbackResults, fallbackErr := s.SearchYoutubeFromYtDlpPaginated(ctx, query, 0, 5)
-			if fallbackErr != nil {
-				return nil, fmt.Errorf("yt-dlp fallback after quotaExceeded failed: %w", fallbackErr)
-			}
-			markFallbackResults(fallbackResults)
-			return fallbackResults, nil
-		}
-		return nil, err
-	}
-
-	return results, nil
+	return s.searchWithYtDlp(ctx, query, offset, limit)
 }
 
 func (s *SearchService) fetchVideoDetails(ctx context.Context, ids []string) ([]SearchResult, error) {
@@ -521,9 +327,6 @@ func (s *SearchService) fetchVideoDetails(ctx context.Context, ids []string) ([]
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode == http.StatusForbidden && isQuotaExceeded(body) {
-			return nil, fmt.Errorf("quotaExceeded: %s", strings.TrimSpace(string(body)))
-		}
 		return nil, fmt.Errorf("youtube api details returned status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
@@ -634,29 +437,6 @@ func defaultString(value, fallback string) string {
 	return value
 }
 
-type googleAPIErrorResponse struct {
-	Error struct {
-		Code    int    `json:"code"`
-		Message string `json:"message"`
-		Errors  []struct {
-			Reason  string `json:"reason"`
-			Message string `json:"message"`
-		} `json:"errors"`
-	} `json:"error"`
-}
-
-func isQuotaExceeded(body []byte) bool {
-	var errResp googleAPIErrorResponse
-	if err := json.Unmarshal(body, &errResp); err == nil {
-		for _, e := range errResp.Error.Errors {
-			if e.Reason == "quotaExceeded" {
-				return true
-			}
-		}
-	}
-	return strings.Contains(string(body), "quotaExceeded")
-}
-
 func isPlayableYoutubeVideo(ieKey, id string) bool {
 	if ieKey != "" && ieKey != "Youtube" {
 		return false
@@ -667,22 +447,8 @@ func isPlayableYoutubeVideo(ieKey, id string) bool {
 	return true
 }
 
-func isQuotaExceededError(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(err.Error(), "quotaExceeded")
-}
-
-func markFallbackResults(results []SearchResult) {
-	for i := range results {
-		results[i].UploaderID = "fallback:yt-dlp"
-	}
-}
-
 func (s *SearchService) searchWithYtDlp(ctx context.Context, query string, offset, limit int) ([]SearchResult, error) {
 	// If cached in Redis, read and slice
-	log.Printf("joel123 Performing yt-dlp search for query: %s", query)
 	key := fmt.Sprintf("ytsearch:%x", sha1.Sum([]byte(strings.ToLower(query))))
 	if s.redisConn != nil {
 		if client, err := s.redisConn.Client(); err == nil {

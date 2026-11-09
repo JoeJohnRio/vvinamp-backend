@@ -2,9 +2,7 @@ package resolvers
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"vvinamp/graphql/model"
@@ -141,44 +139,6 @@ func decodeCursor(cursor string) (int, error) {
 	var offset int
 	_, err = fmt.Sscanf(string(decoded), "cursor:%d", &offset)
 	return offset, err
-}
-
-type youtubeCursorPayload struct {
-	Offset    int      `json:"offset"`
-	PageToken string   `json:"pageToken"`
-	SeenIDs   []string `json:"seenIDs"`
-}
-
-func encodeYouTubeCursor(offset int, pageToken string, seenIDs []string) string {
-	payload := youtubeCursorPayload{Offset: offset, PageToken: pageToken, SeenIDs: seenIDs}
-	data, _ := json.Marshal(payload)
-	return base64.StdEncoding.EncodeToString(data)
-}
-
-func decodeYouTubeCursor(cursor string) (int, string, []string, error) {
-	decoded, err := base64.StdEncoding.DecodeString(cursor)
-	if err != nil {
-		return 0, "", nil, err
-	}
-
-	var payload youtubeCursorPayload
-	if err := json.Unmarshal(decoded, &payload); err == nil {
-		return payload.Offset, payload.PageToken, payload.SeenIDs, nil
-	}
-
-	parts := strings.SplitN(string(decoded), ":", 3)
-	if len(parts) == 3 && parts[0] == "cursor" {
-		var offset int
-		_, err = fmt.Sscanf(parts[1], "%d", &offset)
-		if err != nil {
-			return 0, "", nil, err
-		}
-		return offset, parts[2], nil, nil
-	}
-
-	var offset int
-	_, err = fmt.Sscanf(string(decoded), "cursor:%d", &offset)
-	return offset, "", nil, err
 }
 
 func intPtr(v int) *int       { return &v }
