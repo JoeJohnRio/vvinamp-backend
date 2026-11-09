@@ -144,7 +144,7 @@ Create a `.env` file in the root directory:
 PORT=8080
 ENV=local
 GIN_MODE=debug
-POSTGRE_URL="host=127.0.0.1 port=5432 user=vvinampadmin password=password dbname=vvinamp sslmode=disable"
+POSTGRE_URL="host=127.0.0.1 port=5432 user=your-user password=your-password dbname=vvinamp sslmode=disable"
 REDIS_URL="redis://127.0.0.1:6379/0"
 YT_API_KEY=your_youtube_data_api_key
 TOKEN_PASSWORD=your_jwt_secret_token

@@ -8,3 +8,14 @@ vvinamp
 .env
 .env.*
 !.env.example
+
+# Local-only tooling and artifacts
+*.exe
+*.log
+/backup*.sql
+/clean_backup.sql
+/supabase_ready.sql
+/$null
+/-p
+.claude/
+.codegraph/

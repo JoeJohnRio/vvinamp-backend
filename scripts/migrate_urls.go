@@ -4,12 +4,16 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func main() {
-	dsn := "host=aws-1-eu-west-3.pooler.supabase.com port=5432 user=postgres.bumcqqhbtmmrkeiwlsyy password=***REMOVED*** dbname=postgres sslmode=require"
+	dsn := os.Getenv("POSTGRE_URL")
+	if dsn == "" {
+		log.Fatal("POSTGRE_URL is not set")
+	}
 	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		log.Fatalf("sql.Open failed: %v", err)
