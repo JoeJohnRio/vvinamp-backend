@@ -48,7 +48,7 @@ func New(t Target) (*Connection, error) {
 
 	t.Lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			t.Logger.Info("PostgreSQL connected", zap.String("dsn", t.PostgresURL))
+			t.Logger.Info("PostgreSQL connected")
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {

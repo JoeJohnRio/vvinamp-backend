@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -195,12 +196,12 @@ func (s *SearchService) searchWithYouTubeAPIWithMax(ctx context.Context, query s
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("youtube api request creation failed: %w", err)
+		return nil, fmt.Errorf("youtube api request creation failed: %w", redactURLError(err))
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("youtube api request failed: %w", err)
+		return nil, fmt.Errorf("youtube api request failed: %w", redactURLError(err))
 	}
 	defer resp.Body.Close()
 
@@ -304,12 +305,12 @@ func (s *SearchService) searchWithYouTubeAPIWithPageToken(ctx context.Context, q
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
 	if err != nil {
-		return nil, "", fmt.Errorf("youtube api request creation failed: %w", err)
+		return nil, "", fmt.Errorf("youtube api request creation failed: %w", redactURLError(err))
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, "", fmt.Errorf("youtube api request failed: %w", err)
+		return nil, "", fmt.Errorf("youtube api request failed: %w", redactURLError(err))
 	}
 	defer resp.Body.Close()
 
@@ -425,12 +426,12 @@ func (s *SearchService) searchWithYouTubeAPI(ctx context.Context, query string) 
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("youtube api request creation failed: %w", err)
+		return nil, fmt.Errorf("youtube api request creation failed: %w", redactURLError(err))
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("youtube api request failed: %w", err)
+		return nil, fmt.Errorf("youtube api request failed: %w", redactURLError(err))
 	}
 	defer resp.Body.Close()
 
@@ -509,12 +510,12 @@ func (s *SearchService) fetchVideoDetails(ctx context.Context, ids []string) ([]
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"?"+params.Encode(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("youtube api details request failed: %w", err)
+		return nil, fmt.Errorf("youtube api details request failed: %w", redactURLError(err))
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("youtube api details request failed: %w", err)
+		return nil, fmt.Errorf("youtube api details request failed: %w", redactURLError(err))
 	}
 	defer resp.Body.Close()
 
@@ -602,6 +603,15 @@ func (s *SearchService) fetchVideoDetails(ctx context.Context, ids []string) ([]
 	}
 
 	return results, nil
+}
+
+// redactURLError drops the request URL, which contains the API key, from HTTP client errors.
+func redactURLError(err error) error {
+	var urlErr *neturl.Error
+	if errors.As(err, &urlErr) {
+		return urlErr.Err
+	}
+	return err
 }
 
 func parseISO8601Duration(value string) int {

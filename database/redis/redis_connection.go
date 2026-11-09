@@ -42,7 +42,7 @@ func New(t Target) (*Connection, error) {
 				return nil
 			}
 			conn.client = client
-			t.Logger.Info("Redis connected", zap.String("url", t.RedisURL))
+			t.Logger.Info("Redis connected")
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {

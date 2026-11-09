@@ -3,6 +3,7 @@ package controller
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -33,6 +34,8 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/transport" // New import for transports
 	oldHandler "github.com/99designs/gqlgen/handler"
 	"github.com/gin-gonic/gin"
+	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/vektah/gqlparser/v2/parser"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )
@@ -260,6 +263,40 @@ func (m *GraphQLController) GraphiQL() gin.HandlerFunc {
 	}
 }
 
+var publicRootFields = map[string]bool{
+	"login":        true,
+	"register":     true,
+	"refreshToken": true,
+	"__schema":     true,
+	"__type":       true,
+	"__typename":   true,
+}
+
+// isPublicOperation reports whether every root field in the request is callable without a session.
+func isPublicOperation(body []byte) bool {
+	var request struct {
+		Query string `json:"query"`
+	}
+	if err := json.Unmarshal(body, &request); err != nil {
+		return false
+	}
+
+	document, err := parser.ParseQuery(&ast.Source{Input: request.Query})
+	if err != nil || len(document.Operations) == 0 {
+		return false
+	}
+
+	for _, operation := range document.Operations {
+		for _, selection := range operation.SelectionSet {
+			field, ok := selection.(*ast.Field)
+			if !ok || !publicRootFields[field.Name] {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // Register is function to register all controller's endpoint handler
 func (m *GraphQLController) Register(r *gin.Engine) {
 	// OPTIONS preflight — no auth required, must return CORS headers
@@ -279,20 +316,12 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 				c.Next()
 				return
 			}
-			bodyStr := string(bodyBytes)
 
 			// Reset the body for further processing
 			c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-			// Check if this is a public operation (login, register, refreshToken, introspection, etc.)
-			isPublicOperation := strings.Contains(bodyStr, "login") ||
-				strings.Contains(bodyStr, "register") ||
-				strings.Contains(bodyStr, "refreshToken") ||
-				(strings.Contains(bodyStr, "__schema")) || // Allow schema introspection
-				(strings.Contains(bodyStr, "__type")) // Allow type introspection
-
 			// If this is NOT a public operation, validate session
-			if !isPublicOperation {
+			if !isPublicOperation(bodyBytes) {
 				// Validate session for protected operations
 				ctx := c.Request.Context()
 				sessionMgr := session.NewSessionManager()

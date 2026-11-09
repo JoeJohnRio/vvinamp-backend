@@ -7,7 +7,6 @@ package resolvers
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 	"vvinamp/controller/auth"
 	graphqlModel "vvinamp/graphql/model"
@@ -133,8 +132,6 @@ func (r *queryResolver) Login(ctx context.Context, email string, password string
 		if arw.GetAuth() != nil {
 			// Generate the tokens (logic centralized)
 			accessToken, refreshToken, err = arw.GetAuth().GenerateTokens(u.ID)
-			log.Println("joel123 access", accessToken)
-			log.Println("joel123 refresh", refreshToken)
 			if err != nil {
 				return nil, fmt.Errorf("internal: failed to generate tokens: %w", err)
 			}

@@ -121,7 +121,7 @@ func (m *sqlRepository) Create(ctx context.Context, user *model.User) (*model.Us
 	// Use proper time type
 	user.JoinDate = time.Now().UTC()
 
-	err = m.DB(ctx).Debug().Create(user).Error
+	err = m.DB(ctx).Create(user).Error
 
 	if err != nil {
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == "23505" {
