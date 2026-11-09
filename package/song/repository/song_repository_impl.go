@@ -25,6 +25,15 @@ func (m *sqlRepository) GetTrackByID(ctx context.Context, trackId string) (*dbMo
 	return track, err
 }
 
+// GetTrackByYoutubeID implements song.Repository.
+func (m *sqlRepository) GetTrackByYoutubeID(ctx context.Context, youtubeID string) (*dbModel.Track, error) {
+	var track *dbModel.Track
+
+	err := m.DB(ctx).Where("youtube_id = ?", youtubeID).First(&track).Error
+
+	return track, err
+}
+
 // GetAlbumByID implements song.Repository.
 func (m *sqlRepository) GetAlbumByID(ctx context.Context, albumId string) (*dbModel.Album, error) {
 	var album *dbModel.Album

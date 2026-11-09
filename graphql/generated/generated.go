@@ -180,6 +180,7 @@ type ComplexityRoot struct {
 		DurationMs  func(childComplexity int) int
 		HlsURL      func(childComplexity int) int
 		Mp3Fallback func(childComplexity int) int
+		YoutubeID   func(childComplexity int) int
 	}
 
 	PlaybackState struct {
@@ -1235,6 +1236,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.PlaybackInfo.Mp3Fallback(childComplexity), true
+
+	case "PlaybackInfo.youtubeId":
+		if e.complexity.PlaybackInfo.YoutubeID == nil {
+			break
+		}
+
+		return e.complexity.PlaybackInfo.YoutubeID(childComplexity), true
 
 	case "PlaybackState.playbackInfo":
 		if e.complexity.PlaybackState.PlaybackInfo == nil {
@@ -2729,6 +2737,7 @@ type StringEdge {
   hlsUrl: String!
   mp3Fallback: String
   durationMs: Int  
+  youtubeId: String
 }
 
 enum ContextType {
@@ -9515,6 +9524,47 @@ func (ec *executionContext) fieldContext_PlaybackInfo_durationMs(_ context.Conte
 	return fc, nil
 }
 
+func (ec *executionContext) _PlaybackInfo_youtubeId(ctx context.Context, field graphql.CollectedField, obj *model.PlaybackInfo) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_PlaybackInfo_youtubeId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.YoutubeID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_PlaybackInfo_youtubeId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PlaybackInfo",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _PlaybackState_queue(ctx context.Context, field graphql.CollectedField, obj *model.PlaybackState) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_PlaybackState_queue(ctx, field)
 	if err != nil {
@@ -9612,6 +9662,8 @@ func (ec *executionContext) fieldContext_PlaybackState_playbackInfo(_ context.Co
 				return ec.fieldContext_PlaybackInfo_mp3Fallback(ctx, field)
 			case "durationMs":
 				return ec.fieldContext_PlaybackInfo_durationMs(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_PlaybackInfo_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type PlaybackInfo", field.Name)
 		},
@@ -12246,6 +12298,8 @@ func (ec *executionContext) fieldContext_Query_playbackInfo(ctx context.Context,
 				return ec.fieldContext_PlaybackInfo_mp3Fallback(ctx, field)
 			case "durationMs":
 				return ec.fieldContext_PlaybackInfo_durationMs(ctx, field)
+			case "youtubeId":
+				return ec.fieldContext_PlaybackInfo_youtubeId(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type PlaybackInfo", field.Name)
 		},
@@ -21478,6 +21532,8 @@ func (ec *executionContext) _PlaybackInfo(ctx context.Context, sel ast.Selection
 			out.Values[i] = ec._PlaybackInfo_mp3Fallback(ctx, field, obj)
 		case "durationMs":
 			out.Values[i] = ec._PlaybackInfo_durationMs(ctx, field, obj)
+		case "youtubeId":
+			out.Values[i] = ec._PlaybackInfo_youtubeId(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}

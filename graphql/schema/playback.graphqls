@@ -2,6 +2,7 @@ type PlaybackInfo {
   hlsUrl: String!
   mp3Fallback: String
   durationMs: Int  
+  youtubeId: String
 }
 
 enum ContextType {

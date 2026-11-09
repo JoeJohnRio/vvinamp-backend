@@ -61,15 +61,20 @@ func NewService(target ServiceTarget) *Service {
 	}
 }
 
-// GetPlaybackInfo returns the playable audio URL (Supabase CDN, live on-demand YouTube stream, or local HLS)
+// GetPlaybackInfo returns the Supabase audio URL for saved tracks, or the YouTube ID for the embedded player.
 func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, contentType string, contentId string) (*PlaybackInfoResult, error) {
-	// 1. Try to find track in Postgres database (by UUID)
+	// 1. Find the saved track by UUID, or by YouTube ID for search results
 	var track *model.Track
+	cleanedID := extractYoutubeID(sourcePath)
 	if _, err := uuid.Parse(sourcePath); err == nil {
 		track, _ = s.Repo.GetTrackByID(ctx, sourcePath)
+	} else if len(cleanedID) == 11 {
+		if saved, err := s.Repo.GetTrackByYoutubeID(ctx, cleanedID); err == nil {
+			track = saved
+		}
 	}
 
-	// 2. Dual-Engine Option A: Pre-hosted Supabase MP3 CDN URL
+	// 2. Saved song: full player from the Supabase CDN
 	if track != nil && track.AudioFileURL != "" && strings.HasPrefix(track.AudioFileURL, "http") {
 		s.recordListeningHistory(ctx, sourcePath, contentType, contentId)
 		durationMs := track.Duration * 1000
@@ -80,15 +85,12 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, conten
 		}, nil
 	}
 
-	// 3. Dual-Engine Option B: On-Demand YouTube 192 kbps Live Stream
+	// 3. Not saved: the client plays it in YouTube's embedded player
 	youtubeID := ""
 	if track != nil && track.YoutubeID != nil && *track.YoutubeID != "" {
 		youtubeID = *track.YoutubeID
-	} else if track == nil {
-		cleanedID := extractYoutubeID(sourcePath)
-		if len(cleanedID) == 11 {
-			youtubeID = cleanedID
-		}
+	} else if track == nil && len(cleanedID) == 11 {
+		youtubeID = cleanedID
 	}
 
 	if youtubeID != "" {
@@ -102,12 +104,9 @@ func (s *Service) GetPlaybackInfo(ctx context.Context, sourcePath string, conten
 			durationMs = &d
 		}
 
-		hlsURL := fmt.Sprintf("/v1/stream/youtube/%s.m3u8", youtubeID)
-		mp3URL := fmt.Sprintf("/v1/stream/youtube/%s", youtubeID)
 		return &PlaybackInfoResult{
-			HlsURL:      hlsURL,
-			Mp3Fallback: mp3URL,
-			DurationMs:  durationMs,
+			YoutubeID:  youtubeID,
+			DurationMs: durationMs,
 		}, nil
 	}
 
@@ -373,4 +372,5 @@ type PlaybackInfoResult struct {
 	HlsURL      string
 	Mp3Fallback string
 	DurationMs  *int
+	YoutubeID   string
 }

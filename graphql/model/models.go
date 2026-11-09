@@ -139,6 +139,7 @@ type PlaybackInfo struct {
 	HlsURL      string  `json:"hlsUrl"`
 	Mp3Fallback *string `json:"mp3Fallback,omitempty"`
 	DurationMs  *int    `json:"durationMs,omitempty"`
+	YoutubeID   *string `json:"youtubeId,omitempty"`
 }
 
 type PlaybackInput struct {

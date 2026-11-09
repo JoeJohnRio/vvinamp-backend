@@ -147,6 +147,9 @@ func (r *mutationResolver) PlayContext(ctx context.Context, context model.Playba
 	playbackInfo := &model.PlaybackInfo{
 		HlsURL: playbackInfoResult.HlsURL,
 	}
+	if playbackInfoResult.YoutubeID != "" {
+		playbackInfo.YoutubeID = &playbackInfoResult.YoutubeID
+	}
 	if playbackInfoResult.Mp3Fallback != "" {
 		playbackInfo.Mp3Fallback = &playbackInfoResult.Mp3Fallback
 	}
@@ -206,6 +209,9 @@ func (r *mutationResolver) SkipToNext(ctx context.Context) (*model.PlaybackState
 	}
 
 	playbackInfo := &model.PlaybackInfo{HlsURL: pInfoResult.HlsURL}
+	if pInfoResult.YoutubeID != "" {
+		playbackInfo.YoutubeID = &pInfoResult.YoutubeID
+	}
 	if pInfoResult.Mp3Fallback != "" {
 		playbackInfo.Mp3Fallback = &pInfoResult.Mp3Fallback
 	}
@@ -241,6 +247,9 @@ func (r *mutationResolver) SkipToPrevious(ctx context.Context) (*model.PlaybackS
 	}
 
 	playbackInfo := &model.PlaybackInfo{HlsURL: pInfoResult.HlsURL}
+	if pInfoResult.YoutubeID != "" {
+		playbackInfo.YoutubeID = &pInfoResult.YoutubeID
+	}
 	if pInfoResult.Mp3Fallback != "" {
 		playbackInfo.Mp3Fallback = &pInfoResult.Mp3Fallback
 	}
@@ -276,6 +285,9 @@ func (r *queryResolver) PlaybackInfo(ctx context.Context, input model.PlaybackIn
 	// Construct the response model
 	playbackInfo := &model.PlaybackInfo{
 		HlsURL: result.HlsURL,
+	}
+	if result.YoutubeID != "" {
+		playbackInfo.YoutubeID = &result.YoutubeID
 	}
 
 	// Set Mp3Fallback if available

@@ -9,6 +9,7 @@ import (
 type Repository interface {
 	GetTracksWithDetails(ctx context.Context, trackIds []string) ([]*dto.TrackWithDetails, error)
 	GetTrackByID(ctx context.Context, trackId string) (*dbModel.Track, error)
+	GetTrackByYoutubeID(ctx context.Context, youtubeID string) (*dbModel.Track, error)
 	GetAlbumByID(ctx context.Context, albumId string) (*dbModel.Album, error)
 	GetTracksByAlbumID(ctx context.Context, albumId string) ([]*dbModel.Track, error)
 	GetTracksByAlbumIDWithDetails(ctx context.Context, albumId string) ([]*dto.TrackWithDetails, error)
