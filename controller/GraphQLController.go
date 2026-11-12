@@ -361,7 +361,7 @@ func (m *GraphQLController) Register(r *gin.Engine) {
 	r.POST("/v1/graphql", graphqlHandlers...)
 	r.POST("/query", graphqlHandlers...)
 
-	if !m.graphiQLEnable {
+	if m.graphiQLEnable {
 		r.GET("/v1/graphiql", m.GraphiQL())
 	}
 
