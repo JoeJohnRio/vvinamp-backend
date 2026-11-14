@@ -196,9 +196,20 @@ func (r *sqlRepository) Update(ctx context.Context, playlist *dbModel.Playlist) 
 	return playlist, nil
 }
 
-// Delete deletes a playlist by ID
+// Delete deletes a playlist and the rows that point at it.
+// playlist_track cascades in the database, but saved playlists and listening history
+// have no foreign key, so they are cleared here to keep the playlist out of Recently Played.
 func (r *sqlRepository) Delete(ctx context.Context, id string) error {
-	return r.DB(ctx).Delete(&dbModel.Playlist{}, id).Error
+	return r.DB(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM user_saved_playlists WHERE playlist_id = ?", id).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM listening_history WHERE content_id = ? AND content_type = ?", id, "PLAYLIST").Error; err != nil {
+			return err
+		}
+		// GORM reads a bare string ID as raw SQL, so a UUID needs an explicit condition.
+		return tx.Where("id = ?", id).Delete(&dbModel.Playlist{}).Error
+	})
 }
 
 // GetSongsByPlaylistID retrieves all songs in a playlist ordered by position

@@ -2,9 +2,12 @@ package resolvers
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"vvinamp/graphql/model"
 	youtubeService "vvinamp/internal/services/youtube"
@@ -188,4 +191,20 @@ func convertSearchResults(results []youtubeService.SearchResult) []*model.Search
 		})
 	}
 	return items
+}
+
+// maxPlaylistTitleLength matches the size of the playlists.title column.
+const maxPlaylistTitleLength = 100
+
+// cleanPlaylistTitle trims a playlist title and rejects blank or oversized ones.
+// The app used to save blank titles, which showed up as nameless playlists.
+func cleanPlaylistTitle(title string) (string, error) {
+	trimmed := strings.TrimSpace(title)
+	if trimmed == "" {
+		return "", errors.New("playlist title can't be empty")
+	}
+	if utf8.RuneCountInString(trimmed) > maxPlaylistTitleLength {
+		return "", fmt.Errorf("playlist title can be at most %d characters", maxPlaylistTitleLength)
+	}
+	return trimmed, nil
 }

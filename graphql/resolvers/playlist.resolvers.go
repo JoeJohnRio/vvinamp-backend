@@ -34,10 +34,15 @@ func (r *mutationResolver) CreatePlaylist(ctx context.Context, input model.Creat
 
 	playlistSvc := r.PlaylistService
 
+	title, err := cleanPlaylistTitle(input.Title)
+	if err != nil {
+		return nil, err
+	}
+
 	// Create playlist model with new UUID
 	playlist := &dbModel.Playlist{
 		ID:          uuid.New().String(),
-		Title:       input.Title,
+		Title:       title,
 		Description: input.Description,
 		CreatorID:   userID,
 		IsPublic:    *input.IsPublic,
@@ -83,7 +88,11 @@ func (r *mutationResolver) UpdatePlaylist(ctx context.Context, id string, input 
 
 	// Update fields if provided
 	if input.Title != nil {
-		playlist.Title = *input.Title
+		title, err := cleanPlaylistTitle(*input.Title)
+		if err != nil {
+			return nil, err
+		}
+		playlist.Title = title
 	}
 	if input.Description != nil {
 		playlist.Description = input.Description
