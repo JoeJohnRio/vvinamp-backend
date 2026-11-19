@@ -2890,6 +2890,7 @@ enum PlaylistSortOrder {
 }
 
 enum PlaylistTrackSortBy {
+  CUSTOM
   TITLE
   ARTIST_NAME
   ALBUM_NAME

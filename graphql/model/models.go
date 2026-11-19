@@ -598,6 +598,7 @@ func (e PlaylistSortOrder) MarshalJSON() ([]byte, error) {
 type PlaylistTrackSortBy string
 
 const (
+	PlaylistTrackSortByCustom        PlaylistTrackSortBy = "CUSTOM"
 	PlaylistTrackSortByTitle         PlaylistTrackSortBy = "TITLE"
 	PlaylistTrackSortByArtistName    PlaylistTrackSortBy = "ARTIST_NAME"
 	PlaylistTrackSortByAlbumName     PlaylistTrackSortBy = "ALBUM_NAME"
@@ -605,6 +606,7 @@ const (
 )
 
 var AllPlaylistTrackSortBy = []PlaylistTrackSortBy{
+	PlaylistTrackSortByCustom,
 	PlaylistTrackSortByTitle,
 	PlaylistTrackSortByArtistName,
 	PlaylistTrackSortByAlbumName,
@@ -613,7 +615,7 @@ var AllPlaylistTrackSortBy = []PlaylistTrackSortBy{
 
 func (e PlaylistTrackSortBy) IsValid() bool {
 	switch e {
-	case PlaylistTrackSortByTitle, PlaylistTrackSortByArtistName, PlaylistTrackSortByAlbumName, PlaylistTrackSortByRecentlyAdded:
+	case PlaylistTrackSortByCustom, PlaylistTrackSortByTitle, PlaylistTrackSortByArtistName, PlaylistTrackSortByAlbumName, PlaylistTrackSortByRecentlyAdded:
 		return true
 	}
 	return false

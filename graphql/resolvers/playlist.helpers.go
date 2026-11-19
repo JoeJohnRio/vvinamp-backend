@@ -239,6 +239,8 @@ func getPlaylistTracks(ctx context.Context, resolver *Resolver, playlistID strin
 	}
 
 	switch sortByValue {
+	case "CUSTOM":
+		// Keep the playlist's own order: the service returns tracks by position.
 	case "TITLE", "ARTIST_NAME", "ALBUM_NAME":
 		type sortKey struct {
 			track        *dbModel.Track
