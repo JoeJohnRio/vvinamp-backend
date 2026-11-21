@@ -138,11 +138,16 @@ func (r *mutationResolver) PlayContext(ctx context.Context, context model.Playba
 		return nil, fmt.Errorf("failed to save playback queue: %w", err)
 	}
 
-	contentID := ""
+	// History shows what was played. A playlist or an artist is worth listing, but a song list from an
+	// album, a search or Home has no ID of its own, so the song itself goes in history.
+	historyType, contentID := string(context.Type), ""
 	if context.ID != nil {
 		contentID = *context.ID
 	}
-	playbackInfoResult, err := r.StreamingService.GetPlaybackInfo(ctx, offsetTrackID, string(context.Type), contentID)
+	if context.Type == model.ContextTypeSearchResults {
+		historyType, contentID = "", ""
+	}
+	playbackInfoResult, err := r.StreamingService.GetPlaybackInfo(ctx, offsetTrackID, historyType, contentID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get playback info: %w", err)
 	}

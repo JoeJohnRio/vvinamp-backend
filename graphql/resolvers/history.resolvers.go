@@ -54,7 +54,9 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 		// Inline the mapContentType logic
 		var contentType graphqlModel.ContentType
 		switch strings.ToUpper(raw.ContentType) {
-		case "TRACK":
+		// SEARCH_RESULTS rows were saved with the song's ID before plays from song lists were recorded as
+		// TRACK, so they read back as songs instead of an album that doesn't exist.
+		case "TRACK", "SEARCH_RESULTS":
 			contentType = graphqlModel.ContentTypeTrack
 		case "PODCAST_EPISODE":
 			contentType = graphqlModel.ContentTypePodcastEpisode
