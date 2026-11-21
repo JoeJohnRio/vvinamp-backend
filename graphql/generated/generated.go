@@ -380,8 +380,10 @@ type ComplexityRoot struct {
 	}
 
 	TrackMinimal struct {
+		AlbumID                func(childComplexity int) int
 		Artist                 func(childComplexity int) int
 		ArtistBio              func(childComplexity int) int
+		ArtistID               func(childComplexity int) int
 		ArtistMonthlyListeners func(childComplexity int) int
 		ArtistProfileImageURL  func(childComplexity int) int
 		CoverImageURL          func(childComplexity int) int
@@ -2207,6 +2209,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.TrackArtist.Track(childComplexity), true
 
+	case "TrackMinimal.albumId":
+		if e.complexity.TrackMinimal.AlbumID == nil {
+			break
+		}
+
+		return e.complexity.TrackMinimal.AlbumID(childComplexity), true
+
 	case "TrackMinimal.artist":
 		if e.complexity.TrackMinimal.Artist == nil {
 			break
@@ -2220,6 +2229,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.TrackMinimal.ArtistBio(childComplexity), true
+
+	case "TrackMinimal.artistId":
+		if e.complexity.TrackMinimal.ArtistID == nil {
+			break
+		}
+
+		return e.complexity.TrackMinimal.ArtistID(childComplexity), true
 
 	case "TrackMinimal.artistMonthlyListeners":
 		if e.complexity.TrackMinimal.ArtistMonthlyListeners == nil {
@@ -2763,6 +2779,8 @@ type TrackMinimal {
   trackId: ID!
   title: String
   artist: String
+  artistId: ID
+  albumId: ID
   coverImageUrl: String
   artistBio: String
   artistProfileImageUrl: String
@@ -9714,6 +9732,10 @@ func (ec *executionContext) fieldContext_PlayerQueue_currentTrack(_ context.Cont
 				return ec.fieldContext_TrackMinimal_title(ctx, field)
 			case "artist":
 				return ec.fieldContext_TrackMinimal_artist(ctx, field)
+			case "artistId":
+				return ec.fieldContext_TrackMinimal_artistId(ctx, field)
+			case "albumId":
+				return ec.fieldContext_TrackMinimal_albumId(ctx, field)
 			case "coverImageUrl":
 				return ec.fieldContext_TrackMinimal_coverImageUrl(ctx, field)
 			case "artistBio":
@@ -9776,6 +9798,10 @@ func (ec *executionContext) fieldContext_PlayerQueue_previousTrack(_ context.Con
 				return ec.fieldContext_TrackMinimal_title(ctx, field)
 			case "artist":
 				return ec.fieldContext_TrackMinimal_artist(ctx, field)
+			case "artistId":
+				return ec.fieldContext_TrackMinimal_artistId(ctx, field)
+			case "albumId":
+				return ec.fieldContext_TrackMinimal_albumId(ctx, field)
 			case "coverImageUrl":
 				return ec.fieldContext_TrackMinimal_coverImageUrl(ctx, field)
 			case "artistBio":
@@ -9838,6 +9864,10 @@ func (ec *executionContext) fieldContext_PlayerQueue_upcomingTrack(_ context.Con
 				return ec.fieldContext_TrackMinimal_title(ctx, field)
 			case "artist":
 				return ec.fieldContext_TrackMinimal_artist(ctx, field)
+			case "artistId":
+				return ec.fieldContext_TrackMinimal_artistId(ctx, field)
+			case "albumId":
+				return ec.fieldContext_TrackMinimal_albumId(ctx, field)
 			case "coverImageUrl":
 				return ec.fieldContext_TrackMinimal_coverImageUrl(ctx, field)
 			case "artistBio":
@@ -16212,6 +16242,88 @@ func (ec *executionContext) fieldContext_TrackMinimal_artist(_ context.Context, 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type String does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TrackMinimal_artistId(ctx context.Context, field graphql.CollectedField, obj *model.TrackMinimal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TrackMinimal_artistId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.ArtistID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOID2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TrackMinimal_artistId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TrackMinimal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TrackMinimal_albumId(ctx context.Context, field graphql.CollectedField, obj *model.TrackMinimal) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_TrackMinimal_albumId(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.AlbumID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOID2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_TrackMinimal_albumId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TrackMinimal",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -23469,6 +23581,10 @@ func (ec *executionContext) _TrackMinimal(ctx context.Context, sel ast.Selection
 			out.Values[i] = ec._TrackMinimal_title(ctx, field, obj)
 		case "artist":
 			out.Values[i] = ec._TrackMinimal_artist(ctx, field, obj)
+		case "artistId":
+			out.Values[i] = ec._TrackMinimal_artistId(ctx, field, obj)
+		case "albumId":
+			out.Values[i] = ec._TrackMinimal_albumId(ctx, field, obj)
 		case "coverImageUrl":
 			out.Values[i] = ec._TrackMinimal_coverImageUrl(ctx, field, obj)
 		case "artistBio":

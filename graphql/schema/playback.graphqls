@@ -28,6 +28,8 @@ type TrackMinimal {
   trackId: ID!
   title: String
   artist: String
+  artistId: ID
+  albumId: ID
   coverImageUrl: String
   artistBio: String
   artistProfileImageUrl: String

@@ -368,6 +368,8 @@ type TrackMinimal struct {
 	TrackID                string  `json:"trackId"`
 	Title                  *string `json:"title,omitempty"`
 	Artist                 *string `json:"artist,omitempty"`
+	ArtistID               *string `json:"artistId,omitempty"`
+	AlbumID                *string `json:"albumId,omitempty"`
 	CoverImageURL          *string `json:"coverImageUrl,omitempty"`
 	ArtistBio              *string `json:"artistBio,omitempty"`
 	ArtistProfileImageURL  *string `json:"artistProfileImageUrl,omitempty"`

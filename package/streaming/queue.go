@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"vvinamp/graphql/model"
 
+	"github.com/google/uuid"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -98,6 +100,8 @@ func (s *Service) AddToQueue(ctx context.Context, userId string, trackIds []stri
 			TrackID:                t.ID.String(),
 			Title:                  &title,
 			Artist:                 &artistName,
+			ArtistID:               IDOrNil(t.ArtistID),
+			AlbumID:                IDOrNil(t.AlbumID),
 			CoverImageURL:          &coverUrl,
 			ArtistBio:              t.ArtistBio,
 			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
@@ -182,4 +186,13 @@ func (s *Service) SkipToNext(ctx context.Context, userId string) (*model.PlayerQ
 	}
 
 	return queue, nil
+}
+
+// IDOrNil leaves an ID out when the database row had none.
+func IDOrNil(id uuid.UUID) *string {
+	if id == uuid.Nil {
+		return nil
+	}
+	s := id.String()
+	return &s
 }

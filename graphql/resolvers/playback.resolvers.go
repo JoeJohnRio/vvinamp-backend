@@ -10,6 +10,7 @@ import (
 	"vvinamp/constant"
 	"vvinamp/graphql/model"
 	searchpkg "vvinamp/package/search"
+	"vvinamp/package/streaming"
 )
 
 // PlayContext is the resolver for the playContext field.
@@ -90,6 +91,8 @@ func (r *mutationResolver) PlayContext(ctx context.Context, context model.Playba
 			TrackID:                trackID,
 			Title:                  &t.Title,
 			Artist:                 &t.ArtistName,
+			ArtistID:               streaming.IDOrNil(t.ArtistID),
+			AlbumID:                streaming.IDOrNil(t.AlbumID),
 			CoverImageURL:          &t.AlbumCoverURL,
 			ArtistBio:              t.ArtistBio,
 			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
