@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"vvinamp/graphql/model"
+	"vvinamp/model/dto"
 
 	"github.com/google/uuid"
 
@@ -92,24 +93,7 @@ func (s *Service) AddToQueue(ctx context.Context, userId string, trackIds []stri
 	}
 
 	for _, t := range tracksWithDetails {
-		title := t.Title
-		artistName := t.ArtistName
-		coverUrl := t.AlbumCoverURL
-
-		minimalTrack := &model.TrackMinimal{
-			TrackID:                t.ID.String(),
-			Title:                  &title,
-			Artist:                 &artistName,
-			ArtistID:               IDOrNil(t.ArtistID),
-			AlbumID:                IDOrNil(t.AlbumID),
-			CoverImageURL:          &coverUrl,
-			ArtistBio:              t.ArtistBio,
-			ArtistProfileImageURL:  t.ArtistProfileImageUrl,
-			ArtistMonthlyListeners: t.ArtistMonthlyListeners,
-			YoutubeID:              t.YoutubeID,
-		}
-
-		queue.UpcomingTrack = append(queue.UpcomingTrack, minimalTrack)
+		queue.UpcomingTrack = append(queue.UpcomingTrack, toTrackMinimal(t))
 	}
 	// 3. Save to Redis
 	if err := s.savePlayerQueue(ctx, userId, queue); err != nil {
@@ -165,20 +149,23 @@ func (s *Service) SkipToNext(ctx context.Context, userId string) (*model.PlayerQ
 		return nil, err
 	}
 
+	// The queue ran out: keep going with songs not played in it yet, like autoplay after an album.
+	if len(queue.UpcomingTrack) == 0 {
+		queue.UpcomingTrack = s.autoplayTracks(ctx, queue)
+	}
+	// Nothing left at all: leave the queue as it was, so the current song stays playable.
+	if len(queue.UpcomingTrack) == 0 {
+		return nil, fmt.Errorf("no more songs to play")
+	}
+
 	// 1. Add current track to the end of the previous track history
 	if queue.CurrentTrack != nil {
 		queue.PreviousTrack = append(queue.PreviousTrack, queue.CurrentTrack)
 	}
 
 	// 2. Shift the first upcoming track to be the new current track
-	if len(queue.UpcomingTrack) > 0 {
-		nextTrack := queue.UpcomingTrack[0]
-		queue.CurrentTrack = nextTrack // nextTrack is already a pointer, no '&' needed
-		queue.UpcomingTrack = queue.UpcomingTrack[1:]
-	} else {
-		queue.CurrentTrack = nil // Optional: clears the player if nothing is next
-		queue.UpcomingTrack = nil
-	}
+	queue.CurrentTrack = queue.UpcomingTrack[0]
+	queue.UpcomingTrack = queue.UpcomingTrack[1:]
 
 	// Save to Redis
 	if err := s.savePlayerQueue(ctx, userId, queue); err != nil {
@@ -195,4 +182,40 @@ func IDOrNil(id uuid.UUID) *string {
 	}
 	s := id.String()
 	return &s
+}
+
+// autoplayTracks picks random songs that aren't anywhere in the queue yet.
+// shortcut: random, not based on what was playing; GetRecommendedTracks could replace it later.
+func (s *Service) autoplayTracks(ctx context.Context, queue *model.PlayerQueue) []*model.TrackMinimal {
+	var exclude []string
+	for _, t := range append(append([]*model.TrackMinimal{queue.CurrentTrack}, queue.PreviousTrack...), queue.UpcomingTrack...) {
+		if t != nil {
+			exclude = append(exclude, t.TrackID)
+		}
+	}
+	tracks, err := s.Repo.GetRandomTracks(ctx, 10, exclude)
+	if err != nil {
+		return nil
+	}
+	upcoming := make([]*model.TrackMinimal, 0, len(tracks))
+	for _, t := range tracks {
+		upcoming = append(upcoming, toTrackMinimal(t))
+	}
+	return upcoming
+}
+
+func toTrackMinimal(t *dto.TrackWithDetails) *model.TrackMinimal {
+	title, artistName, coverURL := t.Title, t.ArtistName, t.AlbumCoverURL
+	return &model.TrackMinimal{
+		TrackID:                t.ID.String(),
+		Title:                  &title,
+		Artist:                 &artistName,
+		ArtistID:               IDOrNil(t.ArtistID),
+		AlbumID:                IDOrNil(t.AlbumID),
+		CoverImageURL:          &coverURL,
+		ArtistBio:              t.ArtistBio,
+		ArtistProfileImageURL:  t.ArtistProfileImageUrl,
+		ArtistMonthlyListeners: t.ArtistMonthlyListeners,
+		YoutubeID:              t.YoutubeID,
+	}
 }

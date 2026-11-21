@@ -96,7 +96,7 @@ func (m *sqlRepository) GetRandomTracks(ctx context.Context, limit int, excludeI
 
 	query := m.DB(ctx).
 		Table("tracks").
-		Select("tracks.*, albums.cover_art as album_cover_url, artists.name as artist_name, artists.bio as artist_bio, artists.profile_image as artist_profile_image_url, artists.monthly_listeners as artist_monthly_listeners").
+		Select("tracks.*, albums.cover_art as album_cover_url, artists.id as artist_id, artists.name as artist_name, artists.bio as artist_bio, artists.profile_image as artist_profile_image_url, artists.monthly_listeners as artist_monthly_listeners").
 		Joins("JOIN albums ON tracks.album_id = albums.id").
 		Joins("JOIN artists ON albums.artist_id = artists.id")
 
