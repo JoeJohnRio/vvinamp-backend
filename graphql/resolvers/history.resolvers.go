@@ -49,6 +49,8 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 	}
 
 	var apiHistories []*graphqlModel.ListeningHistory
+	// Older plays could be saved twice for one song (as TRACK and as SEARCH_RESULTS); list each once.
+	seen := make(map[string]bool)
 	for _, raw := range a {
 
 		// Inline the mapContentType logic
@@ -69,6 +71,12 @@ func (r *queryResolver) ListRecentHistory(ctx context.Context, limit int) ([]*gr
 		default:
 			contentType = graphqlModel.ContentTypeAlbum // Or handle error
 		}
+
+		key := string(contentType) + ":" + raw.ContentID
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
 
 		// Get content name based on content type
 		var contentName string
