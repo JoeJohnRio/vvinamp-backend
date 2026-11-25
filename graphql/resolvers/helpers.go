@@ -208,3 +208,18 @@ func cleanPlaylistTitle(title string) (string, error) {
 	}
 	return trimmed, nil
 }
+
+// withOffsetTrack makes sure the tapped song is in the queue. The list on screen can be older than the
+// server's (an artist's top 10 re-ranked, a playlist edited elsewhere); then the song plays first and
+// the rest of the list follows, instead of the tap failing.
+func withOffsetTrack(trackIDs []string, offsetTrackID string) []string {
+	if offsetTrackID == "" {
+		return trackIDs
+	}
+	for _, id := range trackIDs {
+		if id == offsetTrackID {
+			return trackIDs
+		}
+	}
+	return append([]string{offsetTrackID}, trackIDs...)
+}

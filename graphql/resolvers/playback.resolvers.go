@@ -75,6 +75,8 @@ func (r *mutationResolver) PlayContext(ctx context.Context, context model.Playba
 		return nil, fmt.Errorf("unsupported playback context type: %s", context.Type)
 	}
 
+	trackIDs = withOffsetTrack(trackIDs, offsetTrackID)
+
 	if len(trackIDs) == 0 {
 		return nil, fmt.Errorf("no tracks available for playback")
 	}

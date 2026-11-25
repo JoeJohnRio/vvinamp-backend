@@ -40,3 +40,15 @@ func TestCleanPlaylistTitle(t *testing.T) {
 		})
 	}
 }
+
+func TestWithOffsetTrack(t *testing.T) {
+	if got := withOffsetTrack([]string{"a", "b"}, "b"); len(got) != 2 || got[1] != "b" {
+		t.Fatalf("a song already in the list should stay where it is, got %v", got)
+	}
+	if got := withOffsetTrack([]string{"a", "b"}, "x"); len(got) != 3 || got[0] != "x" {
+		t.Fatalf("a song missing from the list should be added first, got %v", got)
+	}
+	if got := withOffsetTrack([]string{"a"}, ""); len(got) != 1 {
+		t.Fatalf("no tapped song should leave the list alone, got %v", got)
+	}
+}
