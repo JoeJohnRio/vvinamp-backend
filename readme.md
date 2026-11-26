@@ -148,7 +148,7 @@ POSTGRE_URL="host=127.0.0.1 port=5432 user=your-user password=your-password dbna
 REDIS_URL="redis://127.0.0.1:6379/0"
 YT_API_KEY=your_youtube_data_api_key
 TOKEN_PASSWORD=your_jwt_secret_token
-CORS_ALLOW_ORIGINS=http://localhost:8080,https://vvinamp.cirio.my.id,*
+CORS_ALLOW_ORIGINS=http://localhost:8080,https://vvinamp.vercel.app,*
 ```
 
 ### 3. Run Database Migrations
