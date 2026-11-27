@@ -86,7 +86,7 @@ func (m *sqlRepository) GetTracksByGenres(ctx context.Context, genreIds []string
 		query = query.Where("tracks.id NOT IN ?", excludeIds)
 	}
 
-	err := query.Limit(limit).Scan(&tracks).Error
+	err := query.Order("RANDOM()").Limit(limit).Scan(&tracks).Error
 	return tracks, err
 }
 
